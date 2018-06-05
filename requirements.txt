@@ -1,1 +1,2 @@
 bigchaindb-driver==0.4.1
+bottle-0.12.13
