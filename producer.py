@@ -27,21 +27,20 @@ class Producer:
             self.task_declaration_asset_id
         ))
 
-    def ready(self, worker_asset_id):
-        if worker_asset_id == self.task_declaration_asset_id:
-            if self.task_assigned:
-                return {'status': 'ok', 'msg': 'Already assigned.'}
-            self.workers_found += 1
-            if self.workers_found == self.task_declaration['workers_needed']:
-                self.task_assignment['worker'] = request.json['worker']
-                self.task_assignment_asset_id = self.db.create_asset(
-                    'Task assignment',
-                    self.task_assignment
-                )
-                self.task_assigned = True
-                print('Created task assignment {}'.format(
-                    self.task_assignment_asset_id
-                ))
+    def ready(self):
+        if self.task_assigned:
+            return {'status': 'ok', 'msg': 'Already assigned.'}
+        self.workers_found += 1
+        if self.workers_found == self.task_declaration['workers_needed']:
+            self.task_assignment['worker'] = request.json['worker']
+            self.task_assignment_asset_id = self.db.create_asset(
+                'Task assignment',
+                self.task_assignment
+            )
+            self.task_assigned = True
+            print('Created task assignment {}'.format(
+                self.task_assignment_asset_id
+            ))
         return {'status': 'ok'}
 
 if __name__ == '__main__':
@@ -49,5 +48,5 @@ if __name__ == '__main__':
     p.create_task_declaration()
 
     bottle = Bottle()
-    bottle.post('/ready/<worker_asset_id>/')(p.ready)
+    bottle.post('/ready/')(p.ready)
     run(bottle, host='localhost', port=8080)
