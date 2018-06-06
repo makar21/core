@@ -1,23 +1,34 @@
 import json
+import os
 import re
 
 import websocket
 import requests
 
 from db import DB
+from encryption import Encryption
 
 
 valid_transactions_stream_url = (
     'ws://localhost:9985/api/v1/streams/valid_transactions'
 )
 
-number_re = re.compile(r'^\d+$')
-
 
 class Worker:
+    number_re = re.compile(r'^\d+$')
+
+    key_fn = 'keys/worker.pem'
+
     def __init__(self):
         self.db = DB()
         self.bdb = self.db.bdb
+
+        self.e = Encryption()
+
+        d = os.path.dirname(os.path.abspath(__file__))
+        path = os.path.join(d, self.key_fn)
+        self.e.import_key(path)
+        self.public_key_str = self.e.get_public_key().decode()
 
     def on_message(self, ws, message):
         data = json.loads(message)
@@ -46,20 +57,20 @@ class Worker:
             self.ping_producer(producer_api_url)
         if name == 'Task assignment':
             print('Received task assignment')
-            task = transaction['metadata']['task']
+            task = self.e.decrypt(transaction['metadata']['task']).decode()
             self.work(task)
 
     def ping_producer(self, producer_api_url):
         print('Pinging producer')
         r = requests.post(
             '{}/ready/'.format(producer_api_url),
-            json={'worker': 1},
+            json={'worker': 1, 'public_key': self.public_key_str},
         )
 
     def work(self, task):
         values = task.split('+')
         # For simplicity: only whole positive numbers
-        if all(number_re.match(i) for i in values):
+        if all(self.number_re.match(i) for i in values):
             result = sum([int(i) for i in values])
             self.db.create_asset('Task processing', {'result': result})
             print('Finished task')

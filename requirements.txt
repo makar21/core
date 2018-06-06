@@ -2,3 +2,4 @@ bigchaindb-driver==0.4.1
 bottle==0.12.13
 websocket-client==0.48.0
 requests
+pycryptodome==3.6.1

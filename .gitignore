@@ -105,3 +105,6 @@ venv.bak/
 
 # SQLite DB
 assets.db
+
+# Keys
+keys/
