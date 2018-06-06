@@ -2,9 +2,11 @@
 
 For setting up the project, run the following commands.
 
-    virtualenv .venv -p python3
-    source .venv/bin/activate
-    pip install -r requirements.txt
+```shell
+virtualenv .venv -p python3
+source .venv/bin/activate
+pip install -r requirements.txt
+```
 
 Read [here](https://docs.bigchaindb.com/projects/py-driver/en/latest/quickstart.html) about BigchainDB driver dependencies.
 
@@ -16,14 +18,18 @@ After you finish the setup, you can use the db module to check everything.
 
 To get BigchainDB Server, do the following:
 
-    git clone https://github.com/bigchaindb/bigchaindb.git
-    cd bigchaindb
-    git checkout v1.3.0
+```shell
+git clone https://github.com/bigchaindb/bigchaindb.git
+cd bigchaindb
+git checkout v1.3.0
+```
 
 Now open docker-compose.yml and change `ports` to expose 9984 and 9985:
-    ports:
-      - "9984:9984"
-      - "9985:9985"
+```
+ports:
+  - "9984:9984"
+  - "9985:9985"
+```
 
 To run BigchainDB Server:
 
@@ -35,21 +41,29 @@ Encryption is used for some of the data. You will need to generate keys for prod
 
 Create `keys` folder:
 
-    mkdir keys
+```shell
+mkdir keys
+```
 
 Generate producer key:
 
-    python encryption.py --generate-key keys/producer.pem
+```shell
+python encryption.py --generate-key keys/producer.pem
+```
 
 Generate worker key:
 
-    python encryption.py --generate-key keys/worker.pem
+```shell
+python encryption.py --generate-key keys/worker.pem
+```
 
 # Running worker
 
 To run worker:
 
-    python worker.py
+```shell
+python worker.py
+```
 
 **How it works**
 
@@ -64,7 +78,9 @@ The worker connects to WebSocket Event Stream API and listens to new transaction
 
 To run producer:
 
-    python producer.py
+```shell
+python producer.py
+```
 
 **How it works**
 
