@@ -17,7 +17,7 @@ class Worker:
     number_re = re.compile(r'^\d+$')
 
     def __init__(self):
-        self.db = DB()
+        self.db = DB('worker')
         self.bdb = self.db.bdb
 
         self.e = Encryption('worker')

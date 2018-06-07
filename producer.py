@@ -17,7 +17,7 @@ class Producer:
     task_assigned = False
 
     def __init__(self):
-        self.db = DB()
+        self.db = DB('producer')
         self.e = Encryption('producer')
 
         self.public_key_str = self.e.get_public_key().decode()
