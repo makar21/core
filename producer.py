@@ -1,5 +1,3 @@
-import os
-
 from bottle import Bottle, request, run
 
 from db import DB
@@ -17,15 +15,11 @@ class Producer:
     }
     workers_found = 0
     task_assigned = False
-    key_fn = 'keys/producer.pem'
 
     def __init__(self):
         self.db = DB()
-        self.e = Encryption()
+        self.e = Encryption('producer')
 
-        d = os.path.dirname(os.path.abspath(__file__))
-        path = os.path.join(d, self.key_fn)
-        self.e.import_key(path)
         self.public_key_str = self.e.get_public_key().decode()
 
     def create_task_declaration(self):

@@ -1,5 +1,4 @@
 import json
-import os
 import re
 
 import websocket
@@ -17,17 +16,12 @@ valid_transactions_stream_url = (
 class Worker:
     number_re = re.compile(r'^\d+$')
 
-    key_fn = 'keys/worker.pem'
-
     def __init__(self):
         self.db = DB()
         self.bdb = self.db.bdb
 
-        self.e = Encryption()
+        self.e = Encryption('worker')
 
-        d = os.path.dirname(os.path.abspath(__file__))
-        path = os.path.join(d, self.key_fn)
-        self.e.import_key(path)
         self.public_key_str = self.e.get_public_key().decode()
 
     def on_message(self, ws, message):
