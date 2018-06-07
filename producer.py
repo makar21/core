@@ -10,7 +10,6 @@ class Producer:
     producer_api_url = 'http://localhost:8080'
     task_declaration = {
         'workers_needed': 1,
-        'producer_api_url': producer_api_url,
         'timestamp': int(time.time())
     }
     task_details = {
@@ -23,7 +22,12 @@ class Producer:
         self.db = DB('producer')
         self.e = Encryption('producer')
 
-        self.public_key_str = self.e.get_public_key().decode()
+        self.producer_id = self.db.create_asset('Producer info', {
+            'enc_key': self.e.get_public_key().decode(),
+            'producer_api_url': self.producer_api_url,
+        })
+
+        self.task_declaration['producer_id'] = self.producer_id
 
     def create_task_declaration(self):
         self.task_declaration_asset_id = self.db.create_asset(
@@ -39,13 +43,15 @@ class Producer:
             return {'status': 'ok', 'msg': 'Already assigned.'}
         self.workers_found += 1
         if self.workers_found == self.task_declaration['workers_needed']:
+            worker_id = request.json['worker']
+            worker_info = self.db.retrieve_asset(worker_id)
             task_assignment = {
-                'worker': request.json['worker'],
+                'worker': worker_id,
                 'task': self.e.encrypt(
                     self.task_details['task'].encode(),
-                    request.json['public_key'],
+                    worker_info['enc_key'],
                 ).decode(),
-                'public_key': self.public_key_str,
+                'producer_id': self.producer_id,
             }
             self.task_assignment_asset_id = self.db.create_asset(
                 'Task assignment',
