@@ -62,13 +62,15 @@ class DB:
 
         return txid
 
-    def update_asset(self, asset_id, data):
+    def update_asset(self, asset_id, data, recipient=None):
         """
         Retrieves the list of transactions for the asset and makes
         a TRANSFER transaction in BigchainDB using the output
         of the previous transaction.
 
         Saves the provided dict as metadata.
+
+        The owner of the asset can be changed using the recipient argument.
 
         Returns txid.
         """
@@ -97,7 +99,9 @@ class DB:
             operation='TRANSFER',
             asset=transfer_asset,
             inputs=transfer_input,
-            recipients=self.kp.public_key,
+            recipients=(
+                recipient or self.kp.public_key
+            ),
             metadata=data,
         )
 
