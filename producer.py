@@ -22,6 +22,8 @@ class Producer:
     def __init__(self):
         self.db = DB()
         self.e = Encryption()
+        self.task_declaration_asset_id = None
+        self.task_assignment_asset_id = None
 
         d = os.path.dirname(os.path.abspath(__file__))
         path = os.path.join(d, self.key_fn)
@@ -30,8 +32,8 @@ class Producer:
 
     def create_task_declaration(self):
         self.task_declaration_asset_id = self.db.create_asset(
-            'Task declaration',
-            self.task_declaration
+            name='Task declaration',
+            data=self.task_declaration
         )
         print('Created task declaration {}'.format(
             self.task_declaration_asset_id
@@ -59,6 +61,7 @@ class Producer:
                 self.task_assignment_asset_id
             ))
         return {'status': 'ok'}
+
 
 if __name__ == '__main__':
     p = Producer()

@@ -11,16 +11,19 @@ from base64 import b64encode, b64decode
 class Encryption:
     modulus_length = 2048
 
+    def __init__(self):
+        self.private_key = None
+
     def generate_key(self):
         self.private_key = RSA.generate(self.modulus_length)
 
-    def export_key(self, fn):
-        f = open(fn, 'wb')
-        f.write(self.private_key.export_key())
+    def export_key(self, file_path):
+        with open(file_path, 'wb') as f:
+            f.write(self.private_key.export_key())
 
-    def import_key(self, fn):
-        f = open(fn, 'rb')
-        self.private_key = RSA.import_key(f.read())
+    def import_key(self, file_path):
+        with open(file_path, 'rb') as f:
+            self.private_key = RSA.import_key(f.read())
 
     def get_public_key(self):
         return self.private_key.publickey().export_key()
