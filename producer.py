@@ -1,3 +1,5 @@
+import time
+
 from bottle import Bottle, request, run
 
 from db import DB
@@ -9,6 +11,7 @@ class Producer:
     task_declaration = {
         'workers_needed': 1,
         'producer_api_url': producer_api_url,
+        'timestamp': int(time.time())
     }
     task_details = {
         'task': '2+2',
