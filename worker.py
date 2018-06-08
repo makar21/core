@@ -49,6 +49,10 @@ class Worker:
         that processes the transaction.
         """
         transaction = self.bdb.transactions.retrieve(data['transaction_id'])
+
+        if transaction['operation'] != 'CREATE':
+            return
+
         name = transaction['asset']['data'].get('name')
 
         tx_methods = {
@@ -64,13 +68,16 @@ class Worker:
 
     def process_task_declaration(self, transaction, producer_info):
         print('Received task declaration')
-        producer_api_url = producer_info['producer_api_url']
+        producer_api_url = producer_info.data['producer_api_url']
         self.ping_producer(producer_api_url)
 
     def process_task_assignment(self, transaction, producer_info):
         print('Received task assignment')
         task = self.e.decrypt(transaction['metadata']['task']).decode()
-        self.work(task)
+        result = self.work(task)
+        if result:
+            self.db.update_asset(transaction['id'], {'result': result})
+            print('Finished task')
 
     def ping_producer(self, producer_api_url):
         print('Pinging producer')
@@ -84,8 +91,7 @@ class Worker:
         # For simplicity: only whole positive numbers
         if all(self.number_re.match(i) for i in values):
             result = sum([int(i) for i in values])
-            self.db.create_asset('Task processing', {'result': result})
-            print('Finished task')
+            return result
 
 
 if __name__ == '__main__':

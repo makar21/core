@@ -42,13 +42,14 @@ class Producer:
                 'worker': worker_id,
                 'task': self.e.encrypt(
                     self.task.task.encode(),
-                    worker_info['enc_key'],
+                    worker_info.data['enc_key'],
                 ).decode(),
                 'producer_id': self.producer_id,
             }
             self.task_assignment_asset_id = self.db.create_asset(
                 'Task assignment',
-                task_assignment
+                task_assignment,
+                recipients=worker_info.tx['outputs'][0]['public_keys'][0],
             )
             self.task.assigned = True
             print('Created task assignment {}'.format(

@@ -5,6 +5,12 @@ from bigchaindb_driver import BigchainDB
 from bigchaindb_driver.crypto import CryptoKeypair, generate_keypair
 
 
+class Asset:
+    def __init__(self, tx):
+        self.tx = tx
+        self.data = tx['metadata']
+
+
 class DB:
     bdb_root_url = 'http://localhost:9984'
     bdb = BigchainDB(bdb_root_url)
@@ -31,11 +37,14 @@ class DB:
         d = json.loads(f.read())
         self.kp = CryptoKeypair(d['private_key'], d['public_key'])
 
-    def create_asset(self, name, data):
+    def create_asset(self, name, data, recipients=None):
         """
         Makes a CREATE transaction in BigchainDB.
 
         Saves the provided dict as metadata.
+
+        The owner(s) of the asset can be changed
+        using the recipients argument.
 
         Returns txid.
         """
@@ -49,6 +58,7 @@ class DB:
             operation='CREATE',
             signers=self.kp.public_key,
             asset=asset,
+            recipients=recipients,
             metadata=data,
         )
 
@@ -62,7 +72,7 @@ class DB:
 
         return txid
 
-    def update_asset(self, asset_id, data, recipient=None):
+    def update_asset(self, asset_id, data, recipients=None):
         """
         Retrieves the list of transactions for the asset and makes
         a TRANSFER transaction in BigchainDB using the output
@@ -70,7 +80,8 @@ class DB:
 
         Saves the provided dict as metadata.
 
-        The owner of the asset can be changed using the recipient argument.
+        The owner(s) of the asset can be changed
+        using the recipients argument.
 
         Returns txid.
         """
@@ -100,7 +111,7 @@ class DB:
             asset=transfer_asset,
             inputs=transfer_input,
             recipients=(
-                recipient or self.kp.public_key
+                recipients or self.kp.public_key
             ),
             metadata=data,
         )
@@ -126,4 +137,4 @@ class DB:
 
         latest_tx = transactions[-1]
 
-        return latest_tx['metadata']
+        return Asset(latest_tx)

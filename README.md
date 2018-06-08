@@ -59,7 +59,7 @@ The worker connects to WebSocket Event Stream API and listens to new transaction
 
 * If it’s a **Task declaration**, the worker sends a request to the producer’s API to let the producer know that it is ready for doing the task.
 
-* If it’s a **Task assignment**, the worker works on the task, and then creates a **Task processing** asset in BigchainDB.
+* If it’s a **Task assignment**, the worker works on the task, and then updates the asset in BigchainDB.
 
 
 # Running producer
@@ -72,7 +72,7 @@ python producer.py
 
 **How it works**
 
-The producer creates a **Task declaration** asset in BigchainDB containing its API URL, waits for a worker to make a call to its API, and then creates a **Task assignment** asset in BigchainDB.
+The producer creates a **Task declaration** asset in BigchainDB containing its API URL, waits for a worker to make a call to its API, and then creates a **Task assignment** asset in BigchainDB. The asset’s recipient is the worker.
 
 
 # Install IPFS
