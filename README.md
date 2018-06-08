@@ -73,3 +73,16 @@ python producer.py
 **How it works**
 
 The producer creates a **Task declaration** asset in BigchainDB containing its API URL, waits for a worker to make a call to its API, and then creates a **Task assignment** asset in BigchainDB.
+
+
+# Install IPFS
+
+[Install instructions](https://ipfs.io/docs/install/)
+
+after install run
+```shell
+ipfs daemon --init
+```
+
+[Doker instructions](https://hub.docker.com/r/jbenet/go-ipfs/), read Docker Usage
+
