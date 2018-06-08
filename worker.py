@@ -87,6 +87,7 @@ class Worker:
             self.db.create_asset('Task processing', {'result': result})
             print('Finished task')
 
+
 if __name__ == '__main__':
     w = Worker()
     websocket.enableTrace(True)
