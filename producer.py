@@ -1,4 +1,4 @@
-import os
+import time
 
 from bottle import Bottle, request, run
 
@@ -10,30 +10,29 @@ class Producer:
     producer_api_url = 'http://localhost:8080'
     task_declaration = {
         'workers_needed': 1,
-        'producer_api_url': producer_api_url,
+        'timestamp': int(time.time())
     }
     task_details = {
         'task': '2+2',
     }
     workers_found = 0
     task_assigned = False
-    key_fn = 'keys/producer.pem'
 
     def __init__(self):
-        self.db = DB()
-        self.e = Encryption()
-        self.task_declaration_asset_id = None
-        self.task_assignment_asset_id = None
+        self.db = DB('producer')
+        self.e = Encryption('producer')
 
-        d = os.path.dirname(os.path.abspath(__file__))
-        path = os.path.join(d, self.key_fn)
-        self.e.import_key(path)
-        self.public_key_str = self.e.get_public_key().decode()
+        self.producer_id = self.db.create_asset('Producer info', {
+            'enc_key': self.e.get_public_key().decode(),
+            'producer_api_url': self.producer_api_url,
+        })
+
+        self.task_declaration['producer_id'] = self.producer_id
 
     def create_task_declaration(self):
         self.task_declaration_asset_id = self.db.create_asset(
-            name='Task declaration',
-            data=self.task_declaration
+            'Task declaration',
+            self.task_declaration
         )
         print('Created task declaration {}'.format(
             self.task_declaration_asset_id
@@ -44,13 +43,15 @@ class Producer:
             return {'status': 'ok', 'msg': 'Already assigned.'}
         self.workers_found += 1
         if self.workers_found == self.task_declaration['workers_needed']:
+            worker_id = request.json['worker']
+            worker_info = self.db.retrieve_asset(worker_id)
             task_assignment = {
-                'worker': request.json['worker'],
+                'worker': worker_id,
                 'task': self.e.encrypt(
                     self.task_details['task'].encode(),
-                    request.json['public_key'],
+                    worker_info['enc_key'],
                 ).decode(),
-                'public_key': self.public_key_str,
+                'producer_id': self.producer_id,
             }
             self.task_assignment_asset_id = self.db.create_asset(
                 'Task assignment',
@@ -61,7 +62,6 @@ class Producer:
                 self.task_assignment_asset_id
             ))
         return {'status': 'ok'}
-
 
 if __name__ == '__main__':
     p = Producer()

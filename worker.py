@@ -1,5 +1,4 @@
 import json
-import os
 import re
 
 import websocket
@@ -17,18 +16,15 @@ valid_transactions_stream_url = (
 class Worker:
     number_re = re.compile(r'^\d+$')
 
-    key_fn = 'keys/worker.pem'
-
     def __init__(self):
-        self.db = DB()
+        self.db = DB('worker')
         self.bdb = self.db.bdb
 
-        self.e = Encryption()
+        self.e = Encryption('worker')
 
-        d = os.path.dirname(os.path.abspath(__file__))
-        path = os.path.join(d, self.key_fn)
-        self.e.import_key(path)
-        self.public_key_str = self.e.get_public_key().decode()
+        self.worker_id = self.db.create_asset('Worker info', {
+            'enc_key': self.e.get_public_key().decode(),
+        })
 
     def on_message(self, ws, message):
         data = json.loads(message)
@@ -45,26 +41,42 @@ class Worker:
 
     def process_tx(self, data):
         """
-        Accepts WS stream data dict and does the following:
-        * if this is a task declaration, run ping_producer
-        * if this is a task assignment, run work
+        Accepts WS stream data dict and checks if the transaction
+        needs to be processed.
+
+        If this is one of task declaration or task assignment
+        transactions, gets producer information and runs a method
+        that processes the transaction.
         """
         transaction = self.bdb.transactions.retrieve(data['transaction_id'])
         name = transaction['asset']['data'].get('name')
-        if name == 'Task declaration':
-            print('Received task declaration')
-            producer_api_url = transaction['metadata']['producer_api_url']
-            self.ping_producer(producer_api_url)
-        if name == 'Task assignment':
-            print('Received task assignment')
-            task = self.e.decrypt(transaction['metadata']['task']).decode()
-            self.work(task)
+
+        tx_methods = {
+            'Task declaration': self.process_task_declaration,
+            'Task assignment': self.process_task_assignment,
+        }
+
+        if name in tx_methods:
+            producer_info = self.db.retrieve_asset(
+                transaction['metadata']['producer_id']
+            )
+            tx_methods[name](transaction, producer_info)
+
+    def process_task_declaration(self, transaction, producer_info):
+        print('Received task declaration')
+        producer_api_url = producer_info['producer_api_url']
+        self.ping_producer(producer_api_url)
+
+    def process_task_assignment(self, transaction, producer_info):
+        print('Received task assignment')
+        task = self.e.decrypt(transaction['metadata']['task']).decode()
+        self.work(task)
 
     def ping_producer(self, producer_api_url):
         print('Pinging producer')
         r = requests.post(
             '{}/ready/'.format(producer_api_url),
-            json={'worker': 1, 'public_key': self.public_key_str},
+            json={'worker': self.worker_id},
         )
 
     def work(self, task):

@@ -1,5 +1,5 @@
-import argparse
 import io
+import os
 
 from Crypto.PublicKey import RSA
 from Crypto.Random import get_random_bytes
@@ -11,19 +11,26 @@ from base64 import b64encode, b64decode
 class Encryption:
     modulus_length = 2048
 
-    def __init__(self):
-        self.private_key = None
+    def __init__(self, name):
+        d = os.path.dirname(os.path.abspath(__file__))
+        path = os.path.join(d, 'keys/encryption/{}.pem'.format(name))
+        if os.path.isfile(path):
+            self.import_key(path)
+        else:
+            os.makedirs(os.path.join(d, 'keys/encryption'), exist_ok=True)
+            self.generate_key()
+            self.export_key(path)
 
     def generate_key(self):
         self.private_key = RSA.generate(self.modulus_length)
 
-    def export_key(self, file_path):
-        with open(file_path, 'wb') as f:
-            f.write(self.private_key.export_key())
+    def export_key(self, fn):
+        f = open(fn, 'wb')
+        f.write(self.private_key.export_key())
 
-    def import_key(self, file_path):
-        with open(file_path, 'rb') as f:
-            self.private_key = RSA.import_key(f.read())
+    def import_key(self, fn):
+        f = open(fn, 'rb')
+        self.private_key = RSA.import_key(f.read())
 
     def get_public_key(self):
         return self.private_key.publickey().export_key()
@@ -65,19 +72,3 @@ class Encryption:
         data = cipher_aes.decrypt_and_verify(ciphertext, tag)
 
         return data
-
-
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        '--generate-key',
-        help='generate a private key and save it in a file',
-        metavar='FILE'
-    )
-    args = parser.parse_args()
-
-    fn = args.generate_key
-    if fn:
-        e = Encryption()
-        e.generate_key()
-        e.export_key(fn)

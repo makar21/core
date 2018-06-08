@@ -12,8 +12,6 @@ Read [here](https://docs.bigchaindb.com/projects/py-driver/en/latest/quickstart.
 
 You will also need a BigchainDB node.
 
-After you finish the setup, you can use the db module to check everything.
-
 # Get BigchainDB Server
 
 To get BigchainDB Server, do the following:
@@ -24,7 +22,7 @@ cd bigchaindb
 git checkout v1.3.0
 ```
 
-Now open docker-compose.yml and change `ports` to expose 9984 and 9985:
+Now open `docker-compose.yml` and change `ports` to expose 9984 and 9985:
 ```
 ports:
   - "9984:9984"
@@ -35,27 +33,17 @@ To run BigchainDB Server:
 
     docker-compose up
 
-# Generating keys
+# DB
 
-Encryption is used for some of the data. You will need to generate keys for producer and worker.
+BigchainDB assets can be created, updated and retrieved with the `db` module.
 
-Create `keys` folder:
+A key pair is generated automatically when the `DB` class is initialized.
 
-```shell
-mkdir keys
-```
+# Encryption
 
-Generate producer key:
+Tasks and results are encrypted with the `encryption` module. The encryption keys are automatically generated when the `Encryption` class is initialized.
 
-```shell
-python encryption.py --generate-key keys/producer.pem
-```
-
-Generate worker key:
-
-```shell
-python encryption.py --generate-key keys/worker.pem
-```
+The data is encrypted using a hybrid encryption scheme. We use RSA with PKCS#1 [OAEP](https://en.wikipedia.org/wiki/Optimal_asymmetric_encryption_padding) for asymmetric encryption of an AES session key. After it, the session key is used to encrypt the actual data.
 
 # Running worker
 
