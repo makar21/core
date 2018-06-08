@@ -86,3 +86,4 @@ ipfs daemon --init
 
 [Doker instructions](https://hub.docker.com/r/jbenet/go-ipfs/), read Docker Usage
 
+[IPFS API Reference](https://ipfs.io/docs/api/)
