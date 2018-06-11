@@ -26,15 +26,15 @@ class DB:
             self.export_key(path)
 
     def export_key(self, fn):
-        f = open(fn, 'w')
-        f.write(json.dumps({
-            'private_key': self.kp.private_key,
-            'public_key': self.kp.public_key,
-        }))
+        with open(fn, 'w') as f:
+            f.write(json.dumps({
+                'private_key': self.kp.private_key,
+                'public_key': self.kp.public_key,
+            }))
 
     def import_key(self, fn):
-        f = open(fn, 'r')
-        d = json.loads(f.read())
+        with open(fn, 'r') as f:
+            d = json.loads(f.read())
         self.kp = CryptoKeypair(d['private_key'], d['public_key'])
 
     def create_asset(self, name, data, recipients=None):

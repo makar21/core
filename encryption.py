@@ -25,12 +25,12 @@ class Encryption:
         self.private_key = RSA.generate(self.modulus_length)
 
     def export_key(self, fn):
-        f = open(fn, 'wb')
-        f.write(self.private_key.export_key())
+        with open(fn, 'wb') as f:
+            f.write(self.private_key.export_key())
 
     def import_key(self, fn):
-        f = open(fn, 'rb')
-        self.private_key = RSA.import_key(f.read())
+        with open(fn, 'rb') as f:
+            self.private_key = RSA.import_key(f.read())
 
     def get_public_key(self):
         return self.private_key.publickey().export_key()
