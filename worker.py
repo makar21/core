@@ -22,9 +22,14 @@ class Worker:
 
         self.e = Encryption('worker')
 
-        self.worker_id = self.db.create_asset('Worker info', {
+        worker_info = {
             'enc_key': self.e.get_public_key().decode(),
-        })
+        }
+
+        self.worker_id = self.db.create_asset(
+            name='Worker info',
+            data=worker_info,
+        )
 
     def on_message(self, ws, message):
         data = json.loads(message)
@@ -76,7 +81,10 @@ class Worker:
         task = self.e.decrypt(transaction['metadata']['task']).decode()
         result = self.work(task)
         if result:
-            self.db.update_asset(transaction['id'], {'result': result})
+            self.db.update_asset(
+                asset_id=transaction['id'],
+                data={'result': result},
+            )
             print('Finished task')
 
     def ping_producer(self, producer_api_url):

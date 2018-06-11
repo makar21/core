@@ -12,10 +12,15 @@ class Producer:
         self.db = DB('producer')
         self.e = Encryption('producer')
 
-        self.producer_id = self.db.create_asset('Producer info', {
+        producer_info = {
             'enc_key': self.e.get_public_key().decode(),
             'producer_api_url': self.producer_api_url,
-        })
+        }
+
+        self.producer_id = self.db.create_asset(
+            name='Producer info',
+            data=producer_info,
+        )
 
         self.task = Task(
             producer_id=self.producer_id,
@@ -24,8 +29,8 @@ class Producer:
 
     def create_task_declaration(self):
         self.task_declaration_asset_id = self.db.create_asset(
-            'Task declaration',
-            self.task.task_declaration
+            name='Task declaration',
+            data=self.task.task_declaration,
         )
         print('Created task declaration {}'.format(
             self.task_declaration_asset_id
@@ -47,8 +52,8 @@ class Producer:
                 'producer_id': self.producer_id,
             }
             self.task_assignment_asset_id = self.db.create_asset(
-                'Task assignment',
-                task_assignment,
+                name='Task assignment',
+                data=task_assignment,
                 recipients=worker_info.tx['outputs'][0]['public_keys'][0],
             )
             self.task.assigned = True
