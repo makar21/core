@@ -138,3 +138,15 @@ class DB:
         latest_tx = transactions[-1]
 
         return Asset(latest_tx)
+
+    def retrieve_asset_create_tx(self, asset_id):
+        """
+        Retrieves the CREATE transaction for an asset.
+
+        Returns tx.
+        """
+        create_tx = self.bdb.transactions.get(
+            asset_id=asset_id,
+            operation='CREATE'
+        )[0]
+        return create_tx

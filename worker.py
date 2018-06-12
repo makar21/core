@@ -6,11 +6,7 @@ import requests
 
 from db import DB
 from encryption import Encryption
-
-
-valid_transactions_stream_url = (
-    'ws://localhost:9985/api/v1/streams/valid_transactions'
-)
+from const import valid_transactions_stream_url
 
 
 class Worker:

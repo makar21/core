@@ -1,8 +1,17 @@
+import json
+import signal
+import sys
+
+from multiprocessing import Process
+
+import websocket
+
 from bottle import Bottle, request, run
 
 from db import DB
 from encryption import Encryption
 from task import Task
+from const import valid_transactions_stream_url
 
 
 class Producer:
@@ -10,6 +19,8 @@ class Producer:
 
     def __init__(self):
         self.db = DB('producer')
+        self.bdb = self.db.bdb
+
         self.e = Encryption('producer')
 
         producer_info = {
@@ -62,10 +73,75 @@ class Producer:
             ))
         return {'status': 'ok'}
 
+    def on_message(self, ws, message):
+        data = json.loads(message)
+        self.process_tx(data)
+
+    def on_error(self, ws, error):
+        print(error)
+
+    def on_close(self, ws):
+        print('WS connection closed')
+
+    def on_open(self, ws):
+        print('WS connection opened')
+
+    def process_tx(self, data):
+        """
+        Accepts WS stream data dict and checks if the transaction
+        needs to be processed.
+
+        If this is task result, print it.
+        """
+        transaction = self.bdb.transactions.retrieve(data['transaction_id'])
+
+        if transaction['operation'] != 'TRANSFER':
+            return
+
+        asset_create_tx = self.db.retrieve_asset_create_tx(data['asset_id'])
+
+        name = asset_create_tx['asset']['data'].get('name')
+
+        if name != 'Task assignment':
+            return
+
+        result = transaction['metadata'].get('result')
+
+        if result:
+            print('Received task result: {}'.format(result))
+
+
+def web_server(producer):
+    bottle = Bottle()
+    bottle.post('/ready/')(producer.ready)
+    run(bottle, host='localhost', port=8080)
+
+
+def tx_stream_client(producer):
+    websocket.enableTrace(True)
+    ws = websocket.WebSocketApp(
+        valid_transactions_stream_url,
+        on_message=producer.on_message,
+        on_error=producer.on_error,
+        on_close=producer.on_close,
+    )
+    ws.on_open = producer.on_open
+    ws.run_forever()
+
+
+def sigint_handler(signal, frame):
+    print('Exiting')
+    sys.exit(0)
+
+
 if __name__ == '__main__':
     p = Producer()
     p.create_task_declaration()
 
-    bottle = Bottle()
-    bottle.post('/ready/')(p.ready)
-    run(bottle, host='localhost', port=8080)
+    web_server_process = Process(target=web_server, args=(p,))
+    web_server_process.start()
+
+    tx_stream_client_process = Process(target=tx_stream_client, args=(p,))
+    tx_stream_client_process.start()
+
+    signal.signal(signal.SIGINT, sigint_handler)
