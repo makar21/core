@@ -91,7 +91,8 @@ class Producer(TransactionListener):
         result = transaction['metadata'].get('result')
 
         if result:
-            print('Received task result: {}'.format(result))
+            decrypted_result = self.e.decrypt(result).decode()
+            print('Received task result: {}'.format(decrypted_result))
 
 
 def web_server(producer):

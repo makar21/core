@@ -59,11 +59,16 @@ class Worker(TransactionListener):
     def process_task_assignment(self, transaction, producer_info):
         print('Received task assignment')
         task = self.e.decrypt(transaction['metadata']['task']).decode()
-        result = self.work(task)
+        result = str(self.work(task))
         if result:
             self.db.update_asset(
                 asset_id=transaction['id'],
-                data={'result': result},
+                data={
+                    'result': self.e.encrypt(
+                        result.encode(),
+                        producer_info.data['enc_key'],
+                    ).decode()
+                },
             )
             print('Finished task')
 
