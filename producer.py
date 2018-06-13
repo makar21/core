@@ -1,20 +1,16 @@
-import json
 import signal
 import sys
 
 from multiprocessing import Process
 
-import websocket
-
 from bottle import Bottle, request, run
 
-from db import DB
+from db import DB, TransactionListener
 from encryption import Encryption
 from task import Task
-from const import valid_transactions_stream_url
 
 
-class Producer:
+class Producer(TransactionListener):
     producer_api_url = 'http://localhost:8080'
 
     def __init__(self):
@@ -73,19 +69,6 @@ class Producer:
             ))
         return {'status': 'ok'}
 
-    def on_message(self, ws, message):
-        data = json.loads(message)
-        self.process_tx(data)
-
-    def on_error(self, ws, error):
-        print(error)
-
-    def on_close(self, ws):
-        print('WS connection closed')
-
-    def on_open(self, ws):
-        print('WS connection opened')
-
     def process_tx(self, data):
         """
         Accepts WS stream data dict and checks if the transaction
@@ -118,15 +101,7 @@ def web_server(producer):
 
 
 def tx_stream_client(producer):
-    websocket.enableTrace(True)
-    ws = websocket.WebSocketApp(
-        valid_transactions_stream_url,
-        on_message=producer.on_message,
-        on_error=producer.on_error,
-        on_close=producer.on_close,
-    )
-    ws.on_open = producer.on_open
-    ws.run_forever()
+    producer.run_transaction_listener()
 
 
 def sigint_handler(signal, frame):

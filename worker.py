@@ -1,15 +1,12 @@
-import json
 import re
 
-import websocket
 import requests
 
-from db import DB
+from db import DB, TransactionListener
 from encryption import Encryption
-from const import valid_transactions_stream_url
 
 
-class Worker:
+class Worker(TransactionListener):
     number_re = re.compile(r'^\d+$')
 
     def __init__(self):
@@ -26,19 +23,6 @@ class Worker:
             name='Worker info',
             data=worker_info,
         )
-
-    def on_message(self, ws, message):
-        data = json.loads(message)
-        self.process_tx(data)
-
-    def on_error(self, ws, error):
-        print(error)
-
-    def on_close(self, ws):
-        print('WS connection closed')
-
-    def on_open(self, ws):
-        print('WS connection opened')
 
     def process_tx(self, data):
         """
@@ -100,12 +84,4 @@ class Worker:
 
 if __name__ == '__main__':
     w = Worker()
-    websocket.enableTrace(True)
-    ws = websocket.WebSocketApp(
-        valid_transactions_stream_url,
-        on_message=w.on_message,
-        on_error=w.on_error,
-        on_close=w.on_close,
-    )
-    ws.on_open = w.on_open
-    ws.run_forever()
+    w.run_transaction_listener()
