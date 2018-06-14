@@ -75,7 +75,7 @@ class Worker(TransactionListener):
     def ping_producer(self, producer_api_url):
         print('Pinging producer')
         r = requests.post(
-            '{}/ready/'.format(producer_api_url),
+            '{}/worker/ready/'.format(producer_api_url),
             json={'worker': self.worker_id},
         )
 

@@ -35,15 +35,15 @@ class Producer(TransactionListener):
         )
 
     def create_task_declaration(self):
-        self.task_declaration_asset_id = self.db.create_asset(
+        self.task.task_declaration_asset_id = self.db.create_asset(
             name='Task declaration',
             data=self.task.task_declaration,
         )
         print('Created task declaration {}'.format(
-            self.task_declaration_asset_id
+            self.task.task_declaration_asset_id
         ))
 
-    def ready(self):
+    def worker_ready(self):
         if self.task.assigned:
             return {'status': 'ok', 'msg': 'Already assigned.'}
         self.task.workers_found += 1
@@ -58,14 +58,54 @@ class Producer(TransactionListener):
                 ).decode(),
                 'producer_id': self.producer_id,
             }
-            self.task_assignment_asset_id = self.db.create_asset(
+            self.task.task_assignment_asset_id = self.db.create_asset(
                 name='Task assignment',
                 data=task_assignment,
                 recipients=worker_info.tx['outputs'][0]['public_keys'][0],
             )
             self.task.assigned = True
             print('Created task assignment {}'.format(
-                self.task_assignment_asset_id
+                self.task.task_assignment_asset_id
+            ))
+        return {'status': 'ok'}
+
+    def verifier_ready(self):
+        if not self.task.assigned:
+            return {'status': 'ok', 'msg': 'Not assigned.'}
+
+        task_assignment_asset = self.db.retrieve_asset(
+            self.task.task_assignment_asset_id
+        )
+        result = task_assignment_asset.data.get('result')
+
+        if not result:
+            return {'status': 'ok', 'msg': 'No result.'}
+
+        decrypted_result = self.e.decrypt(result).decode()
+
+        self.task.verifiers_found += 1
+        if self.task.verifiers_found == self.task.verifiers_needed:
+            verifier_id = request.json['verifier']
+            verifier_info = self.db.retrieve_asset(verifier_id)
+            verification_assignment = {
+                'verifier': verifier_id,
+                'task': self.e.encrypt(
+                    self.task.task.encode(),
+                    verifier_info.data['enc_key'],
+                ).decode(),
+                'result': self.e.encrypt(
+                    decrypted_result.encode(),
+                    verifier_info.data['enc_key'],
+                ).decode(),
+                'producer_id': self.producer_id,
+            }
+            self.task.verification_assignment_asset_id = self.db.create_asset(
+                name='Verification assignment',
+                data=verification_assignment,
+                recipients=verifier_info.tx['outputs'][0]['public_keys'][0],
+            )
+            print('Created task assignment {}'.format(
+                self.task.verification_assignment_asset_id
             ))
         return {'status': 'ok'}
 
@@ -74,7 +114,8 @@ class Producer(TransactionListener):
         Accepts WS stream data dict and checks if the transaction
         needs to be processed.
 
-        If this is task result, print it.
+        If this is one of task assignment or verification assignment
+        transactions, runs a method that processes the transaction.
         """
         transaction = self.bdb.transactions.retrieve(data['transaction_id'])
 
@@ -85,19 +126,42 @@ class Producer(TransactionListener):
 
         name = asset_create_tx['asset']['data'].get('name')
 
-        if name != 'Task assignment':
-            return
+        tx_methods = {
+            'Task assignment': self.process_task_assignment,
+            'Verification assignment': self.process_verification_assignment,
+        }
 
+        if name in tx_methods:
+            tx_methods[name](transaction)
+
+    def process_task_assignment(self, transaction):
         result = transaction['metadata'].get('result')
 
         if result:
             decrypted_result = self.e.decrypt(result).decode()
             print('Received task result: {}'.format(decrypted_result))
 
+        self.task.verification_declaration_asset_id = self.db.create_asset(
+            name='Verification declaration',
+            data=self.task.verification_declaration,
+        )
+        print('Created verification declaration {}'.format(
+            self.task.verification_declaration_asset_id
+        ))
+
+    def process_verification_assignment(self, transaction):
+        verified = transaction['metadata'].get('verified')
+
+        if verified:
+            print('Task result is verified')
+        else:
+            print('Task result is not verified')
+
 
 def web_server(producer):
     bottle = Bottle()
-    bottle.post('/ready/')(producer.ready)
+    bottle.post('/worker/ready/')(producer.worker_ready)
+    bottle.post('/verifier/ready/')(producer.verifier_ready)
     run(bottle, host='localhost', port=8080)
 
 
