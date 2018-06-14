@@ -1,4 +1,4 @@
-import re
+import json
 
 import requests
 
@@ -56,7 +56,9 @@ class Verifier(TransactionListener):
 
     def process_verification_assignment(self, transaction, producer_info):
         print('Received verification assignment')
-        task = self.e.decrypt(transaction['metadata']['task']).decode()
+        task = json.loads(
+            self.e.decrypt(transaction['metadata']['task']).decode()
+        )
         result = self.e.decrypt(transaction['metadata']['result']).decode()
         verified = self.verify(task, result)
         self.db.update_asset(

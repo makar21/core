@@ -1,14 +1,19 @@
-import re
+import json
+import os
+import sys
+
+from importlib import import_module
+from multiprocessing import Process
 
 import requests
 
 from db import DB, TransactionListener
 from encryption import Encryption
 
+from const import tasks_code_tmp_dir
+
 
 class Worker(TransactionListener):
-    number_re = re.compile(r'^\d+$')
-
     def __init__(self):
         self.db = DB('worker')
         self.bdb = self.db.bdb
@@ -23,6 +28,11 @@ class Worker(TransactionListener):
             name='Worker info',
             data=worker_info,
         )
+
+        try:
+            os.mkdir(tasks_code_tmp_dir)
+        except FileExistsError:
+            pass
 
     def process_tx(self, data):
         """
@@ -58,19 +68,44 @@ class Worker(TransactionListener):
 
     def process_task_assignment(self, transaction, producer_info):
         print('Received task assignment')
-        task = self.e.decrypt(transaction['metadata']['task']).decode()
-        result = str(self.work(task))
-        if result:
-            self.db.update_asset(
-                asset_id=transaction['id'],
-                data={
-                    'result': self.e.encrypt(
-                        result.encode(),
-                        producer_info.data['enc_key'],
-                    ).decode()
-                },
-            )
-            print('Finished task')
+        work_process = Process(
+            target=self.work,
+            args=(transaction, producer_info),
+        )
+        work_process.start()
+
+    def work(self, transaction, producer_info):
+        task = json.loads(
+            self.e.decrypt(transaction['metadata']['task']).decode()
+        )
+
+        path = os.path.join(
+            tasks_code_tmp_dir,
+            '{}.py'.format(transaction['id']),
+        )
+
+        with open(path, 'w') as f:
+            f.write(task['task'])
+
+        sys.path.append(tasks_code_tmp_dir)
+
+        import_module(transaction['id'])
+
+        run = sys.modules[transaction['id']].run
+
+        result = str(run(*task['args']))
+
+        self.db.update_asset(
+            asset_id=transaction['id'],
+            data={
+                'result': self.e.encrypt(
+                    result.encode(),
+                    producer_info.data['enc_key'],
+                ).decode()
+            },
+        )
+
+        print('Finished task')
 
     def ping_producer(self, producer_api_url):
         print('Pinging producer')
@@ -78,13 +113,6 @@ class Worker(TransactionListener):
             '{}/worker/ready/'.format(producer_api_url),
             json={'worker': self.worker_id},
         )
-
-    def work(self, task):
-        values = task.split('+')
-        # For simplicity: only whole positive numbers
-        if all(self.number_re.match(i) for i in values):
-            result = sum([int(i) for i in values])
-            return result
 
 
 if __name__ == '__main__':

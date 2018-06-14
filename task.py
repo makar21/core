@@ -1,3 +1,4 @@
+import json
 import time
 
 
@@ -5,10 +6,12 @@ class Task:
     def __init__(self,
                  producer_id,
                  task,
+                 args=(),
                  workers_needed=1,
                  verifiers_needed=1):
         self.producer_id = producer_id
         self.task = task
+        self.args = args
         self.workers_needed = workers_needed
         self.verifiers_needed = verifiers_needed
         self.timestamp = int(time.time())
@@ -31,3 +34,12 @@ class Task:
             'timestamp': self.timestamp,
             'producer_id': self.producer_id,
         }
+
+    @property
+    def json_str(self):
+        with open(self.task, 'r') as f:
+            code = f.read()
+        return json.dumps({
+            'task': code,
+            'args': self.args,
+        })

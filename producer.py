@@ -31,7 +31,8 @@ class Producer(TransactionListener):
 
         self.task = Task(
             producer_id=self.producer_id,
-            task='2+2',
+            task='tasks_code/sum.py',
+            args=([2, 2],),
         )
 
     def create_task_declaration(self):
@@ -53,7 +54,7 @@ class Producer(TransactionListener):
             task_assignment = {
                 'worker': worker_id,
                 'task': self.e.encrypt(
-                    self.task.task.encode(),
+                    self.task.json_str.encode(),
                     worker_info.data['enc_key'],
                 ).decode(),
                 'producer_id': self.producer_id,
@@ -90,7 +91,7 @@ class Producer(TransactionListener):
             verification_assignment = {
                 'verifier': verifier_id,
                 'task': self.e.encrypt(
-                    self.task.task.encode(),
+                    self.task.json_str.encode(),
                     verifier_info.data['enc_key'],
                 ).decode(),
                 'result': self.e.encrypt(
@@ -104,7 +105,7 @@ class Producer(TransactionListener):
                 data=verification_assignment,
                 recipients=verifier_info.tx['outputs'][0]['public_keys'][0],
             )
-            print('Created task assignment {}'.format(
+            print('Created verification assignment {}'.format(
                 self.task.verification_assignment_asset_id
             ))
         return {'status': 'ok'}
