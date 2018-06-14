@@ -35,6 +35,8 @@ class Producer(TransactionListener):
             args=([2, 2],),
         )
 
+        self.task.upload_to_ipfs()
+
     def create_task_declaration(self):
         self.task.task_declaration_asset_id = self.db.create_asset(
             name='Task declaration',

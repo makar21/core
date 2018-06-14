@@ -9,6 +9,7 @@ import requests
 
 from db import DB, TransactionListener
 from encryption import Encryption
+from ipfs import IPFS
 
 from const import tasks_code_tmp_dir
 
@@ -19,6 +20,8 @@ class Worker(TransactionListener):
         self.bdb = self.db.bdb
 
         self.e = Encryption('worker')
+
+        self.ipfs = IPFS()
 
         worker_info = {
             'enc_key': self.e.get_public_key().decode(),
@@ -79,13 +82,15 @@ class Worker(TransactionListener):
             self.e.decrypt(transaction['metadata']['task']).decode()
         )
 
+        task_code = self.ipfs.read(task['task'])
+
         path = os.path.join(
             tasks_code_tmp_dir,
             '{}.py'.format(transaction['id']),
         )
 
-        with open(path, 'w') as f:
-            f.write(task['task'])
+        with open(path, 'wb') as f:
+            f.write(task_code)
 
         sys.path.append(tasks_code_tmp_dir)
 

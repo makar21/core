@@ -69,6 +69,9 @@ class IPFS:
         self.api.get(multihash, filepath=target_dir)
         return os.path.join(target_dir, multihash)
 
+    def read(self, multihash):
+        return self.api.cat(multihash)
+
     def add_file(self, file_path):
         if os.path.isdir(file_path):
             raise ValueError('"{}" must be a path to file, not a to dir'.format(file_path))
@@ -97,4 +100,3 @@ class IPFS:
 
     def send_message(self, topic, data):
         self.api.pubsub_pub(topic, data)
-

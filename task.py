@@ -1,6 +1,8 @@
 import json
 import time
 
+from ipfs import IPFS
+
 
 class Task:
     def __init__(self,
@@ -9,6 +11,8 @@ class Task:
                  args=(),
                  workers_needed=1,
                  verifiers_needed=1):
+        self.ipfs = IPFS()
+
         self.producer_id = producer_id
         self.task = task
         self.args = args
@@ -18,6 +22,9 @@ class Task:
         self.workers_found = 0
         self.verifiers_found = 0
         self.assigned = False
+
+    def upload_to_ipfs(self):
+        self.ipfs_file = self.ipfs.add_file(self.task)
 
     @property
     def task_declaration(self):
@@ -37,9 +44,7 @@ class Task:
 
     @property
     def json_str(self):
-        with open(self.task, 'r') as f:
-            code = f.read()
         return json.dumps({
-            'task': code,
+            'task': self.ipfs_file.multihash,
             'args': self.args,
         })
