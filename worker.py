@@ -89,11 +89,9 @@ class Worker(TransactionListener):
 
         sys.path.append(tasks_code_tmp_dir)
 
-        import_module(transaction['id'])
+        m = import_module(transaction['id'])
 
-        run = sys.modules[transaction['id']].run
-
-        result = str(run(*task['args']))
+        result = str(m.run(*task['args']))
 
         self.db.update_asset(
             asset_id=transaction['id'],
