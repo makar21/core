@@ -140,9 +140,11 @@ class Producer(TransactionListener):
     def process_task_assignment(self, transaction):
         result = transaction['metadata'].get('result')
 
-        if result:
-            decrypted_result = self.e.decrypt(result).decode()
-            print('Received task result: {}'.format(decrypted_result))
+        if not result:
+            return
+
+        decrypted_result = self.e.decrypt(result).decode()
+        print('Received task result: {}'.format(decrypted_result))
 
         self.task.verification_declaration_asset_id = self.db.create_asset(
             name='Verification declaration',

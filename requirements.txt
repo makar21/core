@@ -5,6 +5,7 @@ websocket-client==0.48.0
 requests==2.19.1
 pycryptodome==3.6.1
 ipfsapi==0.4.3
+psutil==5.4.6
 
 # Others
 aiohttp==2.3.10

@@ -1,17 +1,19 @@
 import json
 import os
+import queue
 import sys
 
 from importlib import import_module
-from multiprocessing import Process
+from multiprocessing import Process, Lock, Queue
 
+import psutil
 import requests
 
 from db import DB, TransactionListener
 from encryption import Encryption
 from ipfs import IPFS
 
-from const import tasks_code_tmp_dir
+from const import tasks_code_tmp_dir, progress_report_interval
 
 
 class Worker(TransactionListener):
@@ -71,13 +73,20 @@ class Worker(TransactionListener):
 
     def process_task_assignment(self, transaction, producer_info):
         print('Received task assignment')
+        db_lock = Lock()
+        q = Queue()
         work_process = Process(
             target=self.work,
-            args=(transaction, producer_info),
+            args=(transaction, producer_info, db_lock, q),
         )
         work_process.start()
+        report_process = Process(
+            target=self.report,
+            args=(transaction, db_lock, q),
+        )
+        report_process.start()
 
-    def work(self, transaction, producer_info):
+    def work(self, transaction, producer_info, db_lock, q):
         task = json.loads(
             self.e.decrypt(transaction['metadata']['task']).decode()
         )
@@ -98,17 +107,47 @@ class Worker(TransactionListener):
 
         result = str(m.run(*task['args']))
 
-        self.db.update_asset(
-            asset_id=transaction['id'],
-            data={
-                'result': self.e.encrypt(
-                    result.encode(),
-                    producer_info.data['enc_key'],
-                ).decode()
-            },
-        )
+        db_lock.acquire()
+        try:
+            self.db.update_asset(
+                asset_id=transaction['id'],
+                data={
+                    'result': self.e.encrypt(
+                        result.encode(),
+                        producer_info.data['enc_key'],
+                    ).decode()
+                },
+            )
+        finally:
+            db_lock.release()
+
+        q.put('finished')
 
         print('Finished task')
+
+    def report(self, transaction, db_lock, q):
+        continue_reporting = True
+
+        while continue_reporting:
+            cpu_load = psutil.cpu_percent(interval=progress_report_interval)
+            print('Reporting CPU load {}'.format(cpu_load))
+            db_lock.acquire()
+            try:
+                self.db.update_asset(
+                    asset_id=transaction['id'],
+                    data={
+                        'cpu_load': cpu_load,
+                    },
+                )
+            finally:
+                db_lock.release()
+            try:
+                if q.get(block=False) == 'finished':
+                    continue_reporting = False
+                else:
+                    continue_reporting = True
+            except queue.Empty:
+                continue_reporting = True
 
     def ping_producer(self, producer_api_url):
         print('Pinging producer')
