@@ -5,3 +5,5 @@ valid_transactions_stream_url = (
 tasks_code_tmp_dir = '/tmp/tasks_code'
 
 progress_report_interval = 5
+
+update_asset_sleep_time = 3

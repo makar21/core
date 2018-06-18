@@ -1,8 +1,11 @@
 import json
 import os
+import time
 
 from bigchaindb_driver import BigchainDB
 from bigchaindb_driver.crypto import CryptoKeypair, generate_keypair
+
+from const import update_asset_sleep_time
 
 
 class Asset:
@@ -72,7 +75,7 @@ class DB:
 
         return txid
 
-    def update_asset(self, asset_id, data, recipients=None):
+    def update_asset(self, asset_id, data, recipients=None, sleep=False):
         """
         Retrieves the list of transactions for the asset and makes
         a TRANSFER transaction in BigchainDB using the output
@@ -82,6 +85,11 @@ class DB:
 
         The owner(s) of the asset can be changed
         using the recipients argument.
+
+        If sleep is True, sleep for update_asset_sleep_time seconds
+        after submitting the transaction. This should be used
+        when several update transactions on the same asset occur
+        within a short time.
 
         Returns txid.
         """
@@ -122,6 +130,9 @@ class DB:
         )
 
         self.bdb.transactions.send(fulfilled_transfer_tx)
+
+        if sleep:
+            time.sleep(update_asset_sleep_time)
 
         txid = fulfilled_transfer_tx['id']
 

@@ -130,6 +130,7 @@ class Worker(TransactionListener):
             self.db.update_asset(
                 asset_id=transaction['id'],
                 data=asset_data,
+                sleep=True,
             )
         finally:
             db_lock.release()
@@ -151,6 +152,7 @@ class Worker(TransactionListener):
                     data={
                         'cpu_load': cpu_load,
                     },
+                    sleep=True,
                 )
             finally:
                 db_lock.release()
