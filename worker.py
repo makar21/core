@@ -103,20 +103,33 @@ class Worker(TransactionListener):
 
         sys.path.append(tasks_code_tmp_dir)
 
-        m = import_module(transaction['id'])
-
-        result = str(m.run(*task['args']))
+        try:
+            m = import_module(transaction['id'])
+            result = str(m.run(*task['args']))
+        except Exception as e:
+            error_dict = {'exception': type(e).__name__}
+            msg = str(e)
+            if msg:
+                error_dict['message'] = msg
+            asset_data = {
+                'error': self.e.encrypt(
+                    json.dumps(error_dict).encode(),
+                    producer_info.data['enc_key'],
+                ).decode(),
+            }
+        else:
+            asset_data = {
+                'result': self.e.encrypt(
+                    result.encode(),
+                    producer_info.data['enc_key'],
+                ).decode(),
+            }
 
         db_lock.acquire()
         try:
             self.db.update_asset(
                 asset_id=transaction['id'],
-                data={
-                    'result': self.e.encrypt(
-                        result.encode(),
-                        producer_info.data['enc_key'],
-                    ).decode()
-                },
+                data=asset_data,
             )
         finally:
             db_lock.release()
