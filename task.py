@@ -1,17 +1,16 @@
 import json
 import time
 
-from ipfs import IPFS
-
 
 class Task:
     def __init__(self,
+                 ipfs,
                  producer_id,
                  task,
                  args=(),
                  workers_needed=1,
                  verifiers_needed=1):
-        self.ipfs = IPFS()
+        self.ipfs = ipfs
 
         self.producer_id = producer_id
         self.task = task

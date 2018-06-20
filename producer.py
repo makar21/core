@@ -4,6 +4,7 @@ import sys
 from multiprocessing import Process
 
 from bottle import Bottle, request, run
+from ipfs import IPFS
 
 from db import DB, TransactionListener
 from encryption import Encryption
@@ -19,6 +20,8 @@ class Producer(TransactionListener):
 
         self.encryption = Encryption('producer')
 
+        self.ipfs = IPFS()
+
         producer_info = {
             'enc_key': self.encryption.get_public_key().decode(),
             'producer_api_url': self.producer_api_url,
@@ -30,6 +33,7 @@ class Producer(TransactionListener):
         )
 
         self.task = Task(
+            ipfs=self.ipfs,
             producer_id=self.producer_id,
             task='tasks_code/sum.py',
             args=([2, 2],),
