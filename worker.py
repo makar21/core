@@ -21,12 +21,12 @@ class Worker(TransactionListener):
         self.db = DB('worker')
         self.bdb = self.db.bdb
 
-        self.e = Encryption('worker')
+        self.encryption = Encryption('worker')
 
         self.ipfs = IPFS()
 
         worker_info = {
-            'enc_key': self.e.get_public_key().decode(),
+            'enc_key': self.encryption.get_public_key().decode(),
         }
 
         self.worker_id = self.db.create_asset(
@@ -74,21 +74,21 @@ class Worker(TransactionListener):
     def process_task_assignment(self, transaction, producer_info):
         print('Received task assignment')
         db_lock = Lock()
-        q = Queue()
+        task_queue = Queue()
         work_process = Process(
             target=self.work,
-            args=(transaction, producer_info, db_lock, q),
+            args=(transaction, producer_info, db_lock, task_queue),
         )
         work_process.start()
         report_process = Process(
             target=self.report,
-            args=(transaction, db_lock, q),
+            args=(transaction, db_lock, task_queue),
         )
         report_process.start()
 
-    def work(self, transaction, producer_info, db_lock, q):
+    def work(self, transaction, producer_info, db_lock, task_queue):
         task = json.loads(
-            self.e.decrypt(transaction['metadata']['task']).decode()
+            self.encryption.decrypt(transaction['metadata']['task']).decode()
         )
 
         task_code = self.ipfs.read(task['task'])
@@ -112,14 +112,14 @@ class Worker(TransactionListener):
             if msg:
                 error_dict['message'] = msg
             asset_data = {
-                'error': self.e.encrypt(
+                'error': self.encryption.encrypt(
                     json.dumps(error_dict).encode(),
                     producer_info.data['enc_key'],
                 ).decode(),
             }
         else:
             asset_data = {
-                'result': self.e.encrypt(
+                'result': self.encryption.encrypt(
                     result.encode(),
                     producer_info.data['enc_key'],
                 ).decode(),
@@ -135,11 +135,11 @@ class Worker(TransactionListener):
         finally:
             db_lock.release()
 
-        q.put('finished')
+        task_queue.put('finished')
 
         print('Finished task')
 
-    def report(self, transaction, db_lock, q):
+    def report(self, transaction, db_lock, task_queue):
         continue_reporting = True
 
         while continue_reporting:
@@ -157,7 +157,7 @@ class Worker(TransactionListener):
             finally:
                 db_lock.release()
             try:
-                if q.get(block=False) == 'finished':
+                if task_queue.get(block=False) == 'finished':
                     continue_reporting = False
                 else:
                     continue_reporting = True

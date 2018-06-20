@@ -11,10 +11,10 @@ class Verifier(TransactionListener):
         self.db = DB('verifier')
         self.bdb = self.db.bdb
 
-        self.e = Encryption('verifier')
+        self.encryption = Encryption('verifier')
 
         verifier_info = {
-            'enc_key': self.e.get_public_key().decode(),
+            'enc_key': self.encryption.get_public_key().decode(),
         }
 
         self.verifier_id = self.db.create_asset(
@@ -57,9 +57,9 @@ class Verifier(TransactionListener):
     def process_verification_assignment(self, transaction, producer_info):
         print('Received verification assignment')
         task = json.loads(
-            self.e.decrypt(transaction['metadata']['task']).decode()
+            self.encryption.decrypt(transaction['metadata']['task']).decode()
         )
-        result = self.e.decrypt(transaction['metadata']['result']).decode()
+        result = self.encryption.decrypt(transaction['metadata']['result']).decode()
         verified = self.verify(task, result)
         self.db.update_asset(
             asset_id=transaction['id'],

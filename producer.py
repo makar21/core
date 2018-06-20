@@ -17,10 +17,10 @@ class Producer(TransactionListener):
         self.db = DB('producer')
         self.bdb = self.db.bdb
 
-        self.e = Encryption('producer')
+        self.encryption = Encryption('producer')
 
         producer_info = {
-            'enc_key': self.e.get_public_key().decode(),
+            'enc_key': self.encryption.get_public_key().decode(),
             'producer_api_url': self.producer_api_url,
         }
 
@@ -55,7 +55,7 @@ class Producer(TransactionListener):
             worker_info = self.db.retrieve_asset(worker_id)
             task_assignment = {
                 'worker': worker_id,
-                'task': self.e.encrypt(
+                'task': self.encryption.encrypt(
                     self.task.json_str.encode(),
                     worker_info.data['enc_key'],
                 ).decode(),
@@ -84,7 +84,7 @@ class Producer(TransactionListener):
         if not result:
             return {'status': 'ok', 'msg': 'No result.'}
 
-        decrypted_result = self.e.decrypt(result).decode()
+        decrypted_result = self.encryption.decrypt(result).decode()
 
         self.task.verifiers_found += 1
         if self.task.verifiers_found == self.task.verifiers_needed:
@@ -92,11 +92,11 @@ class Producer(TransactionListener):
             verifier_info = self.db.retrieve_asset(verifier_id)
             verification_assignment = {
                 'verifier': verifier_id,
-                'task': self.e.encrypt(
+                'task': self.encryption.encrypt(
                     self.task.json_str.encode(),
                     verifier_info.data['enc_key'],
                 ).decode(),
-                'result': self.e.encrypt(
+                'result': self.encryption.encrypt(
                     decrypted_result.encode(),
                     verifier_info.data['enc_key'],
                 ).decode(),
@@ -143,7 +143,7 @@ class Producer(TransactionListener):
         if not result:
             return
 
-        decrypted_result = self.e.decrypt(result).decode()
+        decrypted_result = self.encryption.decrypt(result).decode()
         print('Received task result: {}'.format(decrypted_result))
 
         self.task.verification_declaration_asset_id = self.db.create_asset(
