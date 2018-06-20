@@ -34,6 +34,7 @@ class Producer(TransactionListener):
 
         self.task = Task(
             ipfs=self.ipfs,
+            encryption=self.encryption,
             producer_id=self.producer_id,
             task='tasks_code/sum.py',
             args=([2, 2],),

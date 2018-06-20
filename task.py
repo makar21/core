@@ -5,12 +5,14 @@ import time
 class Task:
     def __init__(self,
                  ipfs,
+                 encryption,
                  producer_id,
                  task,
                  args=(),
                  workers_needed=1,
                  verifiers_needed=1):
         self.ipfs = ipfs
+        self.encryption = encryption
 
         self.producer_id = producer_id
         self.task = task
@@ -31,6 +33,10 @@ class Task:
             'workers_needed': self.workers_needed,
             'timestamp': self.timestamp,
             'producer_id': self.producer_id,
+            'task': self.encryption.encrypt(
+                self.json_str.encode(),
+                self.encryption.get_public_key(),
+            ).decode(),
         }
 
     @property
