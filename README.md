@@ -22,7 +22,17 @@ cd bigchaindb
 git checkout v1.3.0
 ```
 
-Now open `docker-compose.yml` and change `ports` to expose 9984 and 9985:
+Now open `docker-compose.yml`.
+
+Change mdb ports:
+
+```
+ports:
+  - "9986:27017"
+```
+
+Change bdb ports:
+
 ```
 ports:
   - "9984:9984"
