@@ -5,6 +5,8 @@ import time
 from bigchaindb_driver import BigchainDB
 from bigchaindb_driver.crypto import CryptoKeypair, generate_keypair
 
+from pymongo import MongoClient
+
 from const import update_asset_sleep_time
 
 
@@ -17,6 +19,9 @@ class Asset:
 class DB:
     bdb_root_url = 'http://localhost:9984'
     bdb = BigchainDB(bdb_root_url)
+
+    mongo_client = MongoClient('localhost', 9986)
+    mongo_db = mongo_client.bigchain
 
     def __init__(self, name):
         d = os.path.dirname(os.path.abspath(__file__))
