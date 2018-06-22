@@ -9,8 +9,8 @@ class Task:
                  producer_id,
                  task,
                  args=(),
-                 workers_needed=1,
-                 verifiers_needed=1):
+                 workers_needed=None,
+                 verifiers_needed=None):
         self.ipfs = ipfs
         self.encryption = encryption
 
