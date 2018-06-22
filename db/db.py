@@ -166,3 +166,32 @@ class DB:
             operation='CREATE'
         )[0]
         return create_tx
+
+    def retrieve_created_asset_ids(self, name):
+        """
+        Retrieves assets that:
+
+        * Have the specified name
+        * Were created by the user
+
+        Returns a generator object.
+        """
+        created_by_user_create_transaction_match = {
+            'block.transactions.inputs.owners_before': self.kp.public_key,
+            'block.transactions.operation': 'CREATE',
+        }
+        pipeline = [
+            {'$match': created_by_user_create_transaction_match},
+            {'$unwind': '$block.transactions'},
+            {'$match': created_by_user_create_transaction_match},
+            {'$lookup': {
+                'from': 'assets',
+                'localField': 'block.transactions.id',
+                'foreignField': 'id',
+                'as': 'assets',
+            }},
+            {'$match': {'assets.data.name': name}},
+        ]
+        cursor = self.mongo_db.bigchain.aggregate(pipeline)
+
+        return (x['block']['transactions']['id'] for x in cursor)
