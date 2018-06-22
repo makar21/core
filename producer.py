@@ -9,6 +9,7 @@ from ipfs import IPFS
 from db import DB, TransactionListener
 from encryption import Encryption
 from task import Task
+from task_manager import TaskManager
 
 
 class Producer(TransactionListener):
@@ -21,6 +22,12 @@ class Producer(TransactionListener):
         self.encryption = Encryption('producer')
 
         self.ipfs = IPFS()
+
+        self.tm = TaskManager(
+            db=self.db,
+            ipfs=self.ipfs,
+            encryption=self.encryption,
+        )
 
         producer_info = {
             'enc_key': self.encryption.get_public_key().decode(),
@@ -36,11 +43,10 @@ class Producer(TransactionListener):
             ipfs=self.ipfs,
             encryption=self.encryption,
             producer_id=self.producer_id,
-            task='tasks_code/sum.py',
             args=([2, 2],),
         )
 
-        self.task.upload_to_ipfs()
+        self.task.upload_to_ipfs('tasks_code/sum.py')
 
     def create_task_declaration(self):
         self.task.task_declaration_asset_id = self.db.create_asset(
@@ -52,29 +58,30 @@ class Producer(TransactionListener):
         ))
 
     def worker_ready(self):
-        if self.task.assigned:
-            return {'status': 'ok', 'msg': 'Already assigned.'}
-        self.task.workers_found += 1
-        if self.task.workers_found == self.task.workers_needed:
-            worker_id = request.json['worker']
-            worker_info = self.db.retrieve_asset(worker_id)
-            task_assignment = {
-                'worker': worker_id,
-                'task': self.encryption.encrypt(
-                    self.task.json_str.encode(),
-                    worker_info.data['enc_key'],
-                ).decode(),
-                'producer_id': self.producer_id,
-            }
-            self.task.task_assignment_asset_id = self.db.create_asset(
-                name='Task assignment',
-                data=task_assignment,
-                recipients=worker_info.tx['outputs'][0]['public_keys'][0],
-            )
-            self.task.assigned = True
-            print('Created task assignment {}'.format(
-                self.task.task_assignment_asset_id
-            ))
+        task = self.tm.pick_worker_task()
+
+        worker_id = request.json['worker']
+        worker_info = self.db.retrieve_asset(worker_id)
+
+        task_assignment = {
+            'worker': worker_id,
+            'task': self.encryption.encrypt(
+                task.json_str.encode(),
+                worker_info.data['enc_key'],
+            ).decode(),
+            'producer_id': task.producer_id,
+        }
+
+        task_assignment_asset_id = self.db.create_asset(
+            name='Task assignment',
+            data=task_assignment,
+            recipients=worker_info.tx['outputs'][0]['public_keys'][0],
+        )
+
+        print('Created task assignment {}'.format(
+            task_assignment_asset_id
+        ))
+
         return {'status': 'ok'}
 
     def verifier_ready(self):
@@ -169,6 +176,7 @@ class Producer(TransactionListener):
 
 
 def web_server(producer):
+    producer.db.connect_to_mongodb()
     bottle = Bottle()
     bottle.post('/worker/ready/')(producer.worker_ready)
     bottle.post('/verifier/ready/')(producer.verifier_ready)

@@ -20,9 +20,6 @@ class DB:
     bdb_root_url = 'http://localhost:9984'
     bdb = BigchainDB(bdb_root_url)
 
-    mongo_client = MongoClient('localhost', 9986)
-    mongo_db = mongo_client.bigchain
-
     def __init__(self, name):
         d = os.path.dirname(os.path.abspath(__file__))
         path = os.path.join(d, 'keys/bigchaindb/{}.json'.format(name))
@@ -32,6 +29,10 @@ class DB:
             os.makedirs(os.path.join(d, 'keys/bigchaindb'), exist_ok=True)
             self.kp = generate_keypair()
             self.export_key(path)
+
+    def connect_to_mongodb(self):
+        self.mongo_client = MongoClient('localhost', 9986)
+        self.mongo_db = self.mongo_client.bigchain
 
     def export_key(self, fn):
         with open(fn, 'w') as f:

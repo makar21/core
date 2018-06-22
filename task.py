@@ -7,7 +7,7 @@ class Task:
                  ipfs,
                  encryption,
                  producer_id,
-                 task,
+                 task=None,
                  args=(),
                  workers_needed=None,
                  verifiers_needed=None):
@@ -24,8 +24,9 @@ class Task:
         self.verifiers_found = 0
         self.assigned = False
 
-    def upload_to_ipfs(self):
-        self.ipfs_file = self.ipfs.add_file(self.task)
+    def upload_to_ipfs(self, task):
+        ipfs_file = self.ipfs.add_file(task)
+        self.task = ipfs_file.multihash
 
     @property
     def task_declaration(self):
@@ -50,6 +51,6 @@ class Task:
     @property
     def json_str(self):
         return json.dumps({
-            'task': self.ipfs_file.multihash,
+            'task': self.task,
             'args': self.args,
         })
