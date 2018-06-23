@@ -11,9 +11,10 @@ from const import update_asset_sleep_time
 
 
 class Asset:
-    def __init__(self, tx):
+    def __init__(self, tx, asset_id):
         self.tx = tx
         self.data = tx['metadata']
+        self.asset_id = asset_id
 
 
 class DB:
@@ -154,7 +155,7 @@ class DB:
 
         latest_tx = transactions[-1]
 
-        return Asset(latest_tx)
+        return Asset(tx=latest_tx, asset_id=asset_id)
 
     def retrieve_asset_create_tx(self, asset_id):
         """
