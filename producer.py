@@ -8,8 +8,7 @@ from ipfs import IPFS
 
 from db import DB, TransactionListener
 from encryption import Encryption
-from task import Task
-from task_manager import TaskManager
+from tasks import Task, TaskManager
 
 
 class Producer(TransactionListener):
