@@ -144,7 +144,9 @@ class Worker(TransactionListener):
 
         while continue_reporting:
             cpu_load = psutil.cpu_percent(interval=progress_report_interval)
+
             print('Reporting CPU load {}'.format(cpu_load))
+
             db_lock.acquire()
             try:
                 self.db.update_asset(
@@ -156,6 +158,7 @@ class Worker(TransactionListener):
                 )
             finally:
                 db_lock.release()
+
             try:
                 if task_queue.get(block=False) == 'finished':
                     continue_reporting = False

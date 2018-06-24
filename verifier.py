@@ -59,7 +59,9 @@ class Verifier(TransactionListener):
         task = json.loads(
             self.encryption.decrypt(transaction['metadata']['task']).decode()
         )
-        result = self.encryption.decrypt(transaction['metadata']['result']).decode()
+        result = self.encryption.decrypt(
+            transaction['metadata']['result']
+        ).decode()
         verified = self.verify(task, result)
         self.db.update_asset(
             asset_id=transaction['id'],

@@ -137,7 +137,7 @@ class Producer(TransactionListener):
         ta_asset_id = transaction['asset']['id']
 
         task_assignment_create_tx = self.bdb.transactions.retrieve(
-            ta_asset_id,
+            ta_asset_id
         )
 
         td_asset_id = task_assignment_create_tx['metadata']['td_asset_id']
