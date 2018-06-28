@@ -3,18 +3,20 @@ import os
 import subprocess
 
 
-def get_persistent_peers_str(nodes):
+def get_persistent_peers_str(nodes, this_node_num):
     persistent_peers = []
 
     for node_num, node_dict in nodes.items():
+        if node_num == this_node_num:
+            continue
         persistent_peers.append(
-            '{}@tm{}:46656'.format(node_dict['node_id'], node_num)
+            '{}@tendermint-n{}:46656'.format(node_dict['node_id'], node_num)
         )
 
     return ',\\\n'.join(persistent_peers)
 
 
-def update_config(config_file_path, persistent_peers_str):
+def update_config(config_file_path, nodes, node_num):
     with open(config_file_path, 'r') as f:
         config = f.read()
 
@@ -22,6 +24,17 @@ def update_config(config_file_path, persistent_peers_str):
         'create_empty_blocks = true',
         'create_empty_blocks = false'
     )
+
+    config = config.replace(
+        'proxy_app = "tcp://127.0.0.1:26658"',
+        'proxy_app = "tcp://bigchaindb-n{}:46658"'.format(node_num)
+    )
+
+    config = config.replace('26656', '46656')
+
+    config = config.replace('26657', '46657')
+
+    persistent_peers_str = get_persistent_peers_str(nodes, node_num)
 
     config = config.replace(
         'persistent_peers = ""',
@@ -87,8 +100,6 @@ def init_tm():
 
     genesis_json = json.dumps(genesis_dict, sort_keys=True, indent=2)
 
-    persistent_peers_str = get_persistent_peers_str(nodes)
-
     for node_num in nodes:
         node_tmdata_path = os.path.join(tmdata_path, 'n{}'.format(node_num))
 
@@ -105,7 +116,7 @@ def init_tm():
             'config/config.toml',
         )
 
-        update_config(config_file_path, persistent_peers_str)
+        update_config(config_file_path, nodes, node_num)
 
 if __name__ == '__main__':
     init_tm()
