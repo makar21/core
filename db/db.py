@@ -163,12 +163,12 @@ class DB:
         )[0]
         return create_tx
 
-    def retrieve_created_asset_ids(self, name):
+    def retrieve_created_asset_ids(self, match):
         """
         Retrieves assets that:
 
-        * Have the specified name
         * Were created by the user
+        * Match to a $match provided as match argument
 
         Returns a generator object.
         """
@@ -186,7 +186,7 @@ class DB:
                 'foreignField': 'id',
                 'as': 'assets',
             }},
-            {'$match': {'assets.data.name': name}},
+            {'$match': match},
         ]
         cursor = self.mongo_db.bigchain.aggregate(pipeline)
 

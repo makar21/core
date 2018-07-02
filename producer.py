@@ -109,4 +109,3 @@ if __name__ == '__main__':
         signal.signal(signal.SIGINT, sigint_handler)
     except Exception as e:
         logger.fatal(e)
-
