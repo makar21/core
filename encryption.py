@@ -1,5 +1,4 @@
 import io
-import os
 
 from Crypto.PublicKey import RSA
 from Crypto.Random import get_random_bytes
@@ -11,26 +10,14 @@ from base64 import b64encode, b64decode
 class Encryption:
     modulus_length = 2048
 
-    def __init__(self, name):
-        d = os.path.dirname(os.path.abspath(__file__))
-        path = os.path.join(d, 'keys/encryption/{}.pem'.format(name))
-        if os.path.isfile(path):
-            self.import_key(path)
-        else:
-            os.makedirs(os.path.join(d, 'keys/encryption'), exist_ok=True)
-            self.generate_key()
-            self.export_key(path)
-
     def generate_key(self):
         self.private_key = RSA.generate(self.modulus_length)
 
-    def export_key(self, fn):
-        with open(fn, 'wb') as f:
-            f.write(self.private_key.export_key())
+    def export_key(self):
+        return self.private_key.export_key()
 
-    def import_key(self, fn):
-        with open(fn, 'rb') as f:
-            self.private_key = RSA.import_key(f.read())
+    def import_key(self, key):
+        self.private_key = RSA.import_key(key)
 
     def get_public_key(self):
         return self.private_key.publickey().export_key()

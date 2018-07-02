@@ -66,7 +66,7 @@ def sigint_handler(signal, frame):
 
 if __name__ == '__main__':
     try:
-        producer = Producer()
+        producer = Producer(fs_keys_name='producer')
 
         logger.info('Start producer: {}'.format(producer.asset_id))
 

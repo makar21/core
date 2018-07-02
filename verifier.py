@@ -10,7 +10,7 @@ logger = logging.getLogger()
 
 if __name__ == '__main__':
     try:
-        v = Verifier()
+        v = Verifier(fs_keys_name='verifier')
         v.run_transaction_listener()
     except Exception as e:
         logger.fatal(e)

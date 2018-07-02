@@ -1,7 +1,11 @@
+import os
 import logging
 
 from db import DB, TransactionListener
 from encryption import Encryption
+
+from settings import ROOT_DIR
+
 
 logger = logging.getLogger()
 
@@ -14,15 +18,41 @@ class Node(TransactionListener):
 
     # should be rename by child classes
     node_type = None
-    # TODO: remove usage of key_name, use buff with private key or path to file instead
-    key_name = None
     asset_name = None
 
-    def __init__(self):
-        self.db = DB(self.key_name)
+    def __init__(self, fs_keys_name=None, db_key=None, encryption_key=None):
+        self.db = DB()
         self.bdb = self.db.bdb
-        self.encryption = Encryption(self.key_name)
+        self.encryption = Encryption()
+
+        if fs_keys_name:
+            self.handle_fs_keys(fs_keys_name)
+        else:
+            self.db.import_key(db_key)
+            self.encryption.import_key(encryption_key)
+
         self.asset_id = self.create_info_asset()
+
+    def handle_fs_keys(self, name):
+        path = os.path.join(ROOT_DIR, 'keys/bigchaindb/{}.json'.format(name))
+        if os.path.isfile(path):
+            with open(path, 'r') as f:
+                self.db.import_key(f.read())
+        else:
+            os.makedirs(os.path.join(ROOT_DIR, 'keys/bigchaindb'), exist_ok=True)
+            self.db.generate_keypair()
+            with open(path, 'w') as f:
+                f.write(self.db.export_key())
+
+        path = os.path.join(ROOT_DIR, 'keys/encryption/{}.pem'.format(name))
+        if os.path.isfile(path):
+            with open(path, 'rb') as f:
+                self.encryption.import_key(f.read())
+        else:
+            os.makedirs(os.path.join(ROOT_DIR, 'keys/encryption'), exist_ok=True)
+            self.encryption.generate_key()
+            with open(path, 'wb') as f:
+                f.write(self.encryption.export_key())
 
     def create_info_asset(self):
         asset_id = self.db.create_asset(

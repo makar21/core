@@ -1,5 +1,4 @@
 import json
-import os
 import time
 
 from bigchaindb_driver import BigchainDB
@@ -21,30 +20,21 @@ class DB:
     bdb_root_url = 'http://localhost:9984'
     bdb = BigchainDB(bdb_root_url)
 
-    def __init__(self, name):
-        d = os.path.dirname(os.path.abspath(__file__))
-        path = os.path.join(d, 'keys/bigchaindb/{}.json'.format(name))
-        if os.path.isfile(path):
-            self.import_key(path)
-        else:
-            os.makedirs(os.path.join(d, 'keys/bigchaindb'), exist_ok=True)
-            self.kp = generate_keypair()
-            self.export_key(path)
-
     def connect_to_mongodb(self):
         self.mongo_client = MongoClient('localhost', 9986)
         self.mongo_db = self.mongo_client.bigchain
 
-    def export_key(self, fn):
-        with open(fn, 'w') as f:
-            f.write(json.dumps({
-                'private_key': self.kp.private_key,
-                'public_key': self.kp.public_key,
-            }))
+    def generate_keypair(self):
+        self.kp = generate_keypair()
 
-    def import_key(self, fn):
-        with open(fn, 'r') as f:
-            d = json.loads(f.read())
+    def export_key(self):
+        return json.dumps({
+            'private_key': self.kp.private_key,
+            'public_key': self.kp.public_key,
+        })
+
+    def import_key(self, key):
+        d = json.loads(key)
         self.kp = CryptoKeypair(d['private_key'], d['public_key'])
 
     def create_asset(self, data, metadata, recipients=None):
