@@ -37,24 +37,24 @@ class Task:
         if self.td_asset_id:
             self.db.update_asset(
                 asset_id=self.td_asset_id,
-                data=self.task_declaration,
+                metadata=self.task_declaration,
             )
         else:
             self.td_asset_id = self.db.create_asset(
-                name='Task declaration',
-                data=self.task_declaration,
+                data={'name': 'Task declaration'},
+                metadata=self.task_declaration,
             )
 
     def save_verification_declaration(self):
         if self.vd_asset_id:
             self.db.update_asset(
                 asset_id=self.vd_asset_id,
-                data=self.verification_declaration,
+                metadata=self.verification_declaration,
             )
         else:
             self.vd_asset_id = self.db.create_asset(
-                name='Verification declaration',
-                data=self.verification_declaration,
+                data={'name': 'Verification declaration'},
+                metadata=self.verification_declaration,
             )
 
     def create_task_assignment(self, worker_id):
@@ -64,15 +64,15 @@ class Task:
             'worker': worker_id,
             'task': self.encryption.encrypt(
                 self.json_str.encode(),
-                worker_info.data['enc_key'],
+                worker_info.metadata['enc_key'],
             ).decode(),
             'producer_id': self.producer_id,
             'td_asset_id': self.td_asset_id,
         }
 
         asset_id = self.db.create_asset(
-            name='Task assignment',
-            data=task_assignment,
+            data={'name': 'Task assignment'},
+            metadata=task_assignment,
             recipients=worker_info.tx['outputs'][0]['public_keys'][0],
         )
 
@@ -87,18 +87,18 @@ class Task:
             'verifier': verifier_id,
             'task': self.encryption.encrypt(
                 self.json_str.encode(),
-                verifier_info.data['enc_key'],
+                verifier_info.metadata['enc_key'],
             ).decode(),
             'result': self.encryption.encrypt(
                 decrypted_result.encode(),
-                verifier_info.data['enc_key'],
+                verifier_info.metadata['enc_key'],
             ).decode(),
             'producer_id': self.producer_id,
         }
 
         asset_id = self.db.create_asset(
-            name='Verification assignment',
-            data=verification_assignment,
+            data={'name': 'Verification assignment'},
+            metadata=verification_assignment,
             recipients=verifier_info.tx['outputs'][0]['public_keys'][0],
         )
 

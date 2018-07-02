@@ -27,7 +27,7 @@ class Task:
         if self.asset_id is not None:
             db.update_asset(
                 asset_id=self.asset_id,
-                data=self.get_data(),
+                metadata=self.get_data(),
                 recipients=recipients,
                 sleep=True
             )

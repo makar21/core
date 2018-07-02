@@ -45,7 +45,7 @@ class Worker(Node):
         if task_declaration.workers_needed == 0:
             return
 
-        producer_info = self.db.retrieve_asset(task_declaration.owner_producer_id).data
+        producer_info = self.db.retrieve_asset(task_declaration.owner_producer_id).metadata
         producer_api_url = producer_info['producer_api_url']
         self.ping_producer(asset_id, producer_api_url)
 
@@ -74,7 +74,7 @@ class Worker(Node):
 
     def work(self, asset_id, db_lock, task_queue):
         task_assignment = TaskAssignment.get(self, asset_id)
-        producer_info = self.db.retrieve_asset(task_assignment.owner_producer_id).data
+        producer_info = self.db.retrieve_asset(task_assignment.owner_producer_id).metadata
 
         ipfs = IPFS()
         model_code = ipfs.read(task_assignment.train_data['model_code'])

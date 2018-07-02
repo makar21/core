@@ -46,8 +46,8 @@ class VerificationDeclaration(Task):
         )
 
         asset_id = producer.db.create_asset(
-            name=cls.task_type,
-            data=verification_declaration.get_data()
+            data={'name': cls.task_type},
+            metadata=verification_declaration.get_data()
         )
 
         verification_declaration.asset_id = asset_id
@@ -58,13 +58,13 @@ class VerificationDeclaration(Task):
         asset = node.db.retrieve_asset(asset_id)
 
         return cls(
-            owner_producer_id=asset.data['owner_producer_id'],
-            verifiers_needed=asset.data['verifiers_needed'],
-            verifiers_requested=asset.data['verifiers_requested'],
-            task_declaration_id=asset.data['task_declaration_id'],
+            owner_producer_id=asset.metadata['owner_producer_id'],
+            verifiers_needed=asset.metadata['verifiers_needed'],
+            verifiers_requested=asset.metadata['verifiers_requested'],
+            task_declaration_id=asset.metadata['task_declaration_id'],
             asset_id=asset_id,
-            status=asset.data['status'],
-            progress=asset.data['progress']
+            status=asset.metadata['status'],
+            progress=asset.metadata['progress']
         )
 
     @classmethod

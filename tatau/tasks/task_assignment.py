@@ -54,7 +54,7 @@ class TaskAssignment(Task):
 
         train_data_encrypted = node.encryption.encrypt(
             json.dumps(train_data).encode(),
-            worker_asset.data['enc_key'],
+            worker_asset.metadata['enc_key'],
         ).decode()
 
         task_assignment = cls(
@@ -66,8 +66,8 @@ class TaskAssignment(Task):
         )
 
         asset_id = producer.db.create_asset(
-            name=cls.task_type,
-            data=task_assignment.get_data(),
+            data={'name': cls.task_type},
+            metadata=task_assignment.get_data(),
             recipients=worker_address,
         )
 
@@ -77,7 +77,7 @@ class TaskAssignment(Task):
     @classmethod
     def get(cls, node, asset_id):
         asset = node.db.retrieve_asset(asset_id)
-        encrypted_text = asset.data['train_data']
+        encrypted_text = asset.metadata['train_data']
         try:
             train_data = json.loads(node.decrypt_text(encrypted_text))
         except json.JSONDecodeError:
@@ -85,13 +85,13 @@ class TaskAssignment(Task):
 
         return cls(
             asset_id=asset_id,
-            owner_producer_id=asset.data['owner_producer_id'],
-            worker_id=asset.data['worker_id'],
+            owner_producer_id=asset.metadata['owner_producer_id'],
+            worker_id=asset.metadata['worker_id'],
             train_data=train_data,
-            task_declaration_id=asset.data['task_declaration_id'],
-            progress=asset.data['progress'],
-            result=asset.data['result'],
-            error=asset.data['error'],
-            tflops=asset.data['tflops'],
+            task_declaration_id=asset.metadata['task_declaration_id'],
+            progress=asset.metadata['progress'],
+            result=asset.metadata['result'],
+            error=asset.metadata['error'],
+            tflops=asset.metadata['tflops'],
             encrypted_text=encrypted_text
         )

@@ -76,8 +76,8 @@ class DataSet:
         )
 
         asset_id = producer.db.create_asset(
-            name=cls.asset_name,
-            data={
+            data={'name': cls.asset_name},
+            metadata={
                 'producer_id': producer.asset_id,
                 'name': dataset.name,
                 'dataset': producer.encrypt_text(dataset.to_json())
@@ -92,7 +92,7 @@ class DataSet:
     @classmethod
     def get(cls, node, asset_id):
         asset = node.db.retrieve_asset(asset_id)
-        encrypted_text = asset.data['dataset']
+        encrypted_text = asset.metadata['dataset']
         try:
             dataset_data = json.loads(node.decrypt_text(encrypted_text))
         except json.JSONDecodeError:
@@ -105,12 +105,12 @@ class DataSet:
             }
 
         logger.info('{} {} load dataset, name:{}, asset_id: {}'.format(
-            node.node_type, node.asset_id, asset.data['name'], asset_id)
+            node.node_type, node.asset_id, asset.metadata['name'], asset_id)
         )
 
         return cls(
-            owner_producer_id=asset.data['producer_id'],
-            name=asset.data['name'],
+            owner_producer_id=asset.metadata['producer_id'],
+            name=asset.metadata['name'],
             train_dir_ipfs=dataset_data['train_dir_ipfs'],
             x_test_ipfs=dataset_data['x_test_ipfs'],
             y_test_ipfs=dataset_data['y_test_ipfs'],

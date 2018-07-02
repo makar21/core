@@ -63,8 +63,8 @@ class TaskDeclaration(Task):
         )
 
         asset_id = producer.db.create_asset(
-            name=cls.task_type,
-            data=task_declaration.get_data()
+            data={'name': cls.task_type},
+            metadata=task_declaration.get_data()
         )
 
         task_declaration.asset_id = asset_id
@@ -73,10 +73,10 @@ class TaskDeclaration(Task):
     @classmethod
     def get(cls, node, asset_id):
         asset = node.db.retrieve_asset(asset_id)
-        train_model = TrainModel.get(node, asset.data['train_model_id'])
-        dataset = DataSet.get(node, asset.data['dataset_id'])
+        train_model = TrainModel.get(node, asset.metadata['train_model_id'])
+        dataset = DataSet.get(node, asset.metadata['dataset_id'])
 
-        encrypted_text = asset.data['results']
+        encrypted_text = asset.metadata['results']
         results = None
         if encrypted_text is not None:
             try:
@@ -85,16 +85,16 @@ class TaskDeclaration(Task):
                 results = encrypted_text
 
         return cls(
-            owner_producer_id=asset.data['owner_producer_id'],
+            owner_producer_id=asset.metadata['owner_producer_id'],
             dataset=dataset,
             train_model=train_model,
-            workers_needed=asset.data['workers_needed'],
-            workers_requested=asset.data['workers_requested'],
-            verifiers_needed=asset.data['verifiers_needed'],
-            epochs=asset.data['epochs'],
+            workers_needed=asset.metadata['workers_needed'],
+            workers_requested=asset.metadata['workers_requested'],
+            verifiers_needed=asset.metadata['verifiers_needed'],
+            epochs=asset.metadata['epochs'],
             asset_id=asset_id,
-            status=asset.data['status'],
-            progress=asset.data['progress'],
+            status=asset.metadata['status'],
+            progress=asset.metadata['progress'],
             results=results,
             encrypted_text=encrypted_text
         )

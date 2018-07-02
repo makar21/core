@@ -45,7 +45,7 @@ class VerificationAssignment(Task):
 
         train_data_encrypted = node.encryption.encrypt(
             json.dumps(train_results).encode(),
-            verifier_asset.data['enc_key'],
+            verifier_asset.metadata['enc_key'],
         ).decode()
 
         verifier_assignment = cls(
@@ -57,8 +57,8 @@ class VerificationAssignment(Task):
         )
 
         asset_id = producer.db.create_asset(
-            name=cls.task_type,
-            data=verifier_assignment.get_data(),
+            data={'name': cls.task_type},
+            metadata=verifier_assignment.get_data(),
             recipients=verifier_address,
         )
 
@@ -68,7 +68,7 @@ class VerificationAssignment(Task):
     @classmethod
     def get(cls, node, asset_id):
         asset = node.db.retrieve_asset(asset_id)
-        encrypted_text = asset.data['train_results']
+        encrypted_text = asset.metadata['train_results']
         try:
             train_results = json.loads(node.decrypt_text(encrypted_text))
         except json.JSONDecodeError:
@@ -76,14 +76,14 @@ class VerificationAssignment(Task):
 
         return cls(
             asset_id=asset_id,
-            owner_producer_id=asset.data['owner_producer_id'],
-            verifier_id=asset.data['verifier_id'],
+            owner_producer_id=asset.metadata['owner_producer_id'],
+            verifier_id=asset.metadata['verifier_id'],
             train_results=train_results,
-            task_declaration_id=asset.data['task_declaration_id'],
-            progress=asset.data['progress'],
-            result=asset.data['result'],
-            error=asset.data['error'],
-            tflops=asset.data['tflops'],
-            verified=asset.data['verified'],
+            task_declaration_id=asset.metadata['task_declaration_id'],
+            progress=asset.metadata['progress'],
+            result=asset.metadata['result'],
+            error=asset.metadata['error'],
+            tflops=asset.metadata['tflops'],
+            verified=asset.metadata['verified'],
             encrypted_text=encrypted_text
         )

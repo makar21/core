@@ -46,8 +46,8 @@ class TrainModel:
         )
 
         asset_id = producer.db.create_asset(
-            name=cls.asset_name,
-            data={
+            data={'name': cls.asset_name},
+            metadata={
                 'producer_id': producer.asset_id,
                 'name': train_model.name,
                 'train_model': producer.encrypt_text(train_model.to_json())
@@ -62,7 +62,7 @@ class TrainModel:
     @classmethod
     def get(cls, node, asset_id):
         asset = node.db.retrieve_asset(asset_id)
-        encrypted_text = asset.data['train_model']
+        encrypted_text = asset.metadata['train_model']
         try:
             train_model_data = json.loads(node.decrypt_text(encrypted_text))
         except json.JSONDecodeError:
@@ -72,12 +72,12 @@ class TrainModel:
             }
 
         logger.info('{} {} load train model, name:{}, asset_id: {}'.format(
-            node.node_type, node.asset_id, asset.data['name'], asset_id)
+            node.node_type, node.asset_id, asset.metadata['name'], asset_id)
         )
 
         return cls(
-            owner_producer_id=asset.data['producer_id'],
-            name=asset.data['name'],
+            owner_producer_id=asset.metadata['producer_id'],
+            name=asset.metadata['name'],
             code_ipfs=train_model_data['code_ipfs'],
             asset_id=asset_id,
             encrypted_text=encrypted_text

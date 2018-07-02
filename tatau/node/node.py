@@ -26,8 +26,8 @@ class Node(TransactionListener):
 
     def create_info_asset(self):
         asset_id = self.db.create_asset(
-            name=self.asset_name,
-            data=self.get_node_info(),
+            data={'name': self.asset_name},
+            metadata=self.get_node_info(),
         )
 
         logging.info('{} created info asset: {}'.format(self.node_type, asset_id))

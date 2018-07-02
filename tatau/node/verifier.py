@@ -32,7 +32,7 @@ class Verifier(Node):
         if verification_declaration.verifiers_needed == 0:
             return
 
-        producer_info = self.db.retrieve_asset(verification_declaration.owner_producer_id).data
+        producer_info = self.db.retrieve_asset(verification_declaration.owner_producer_id).metadata
         producer_api_url = producer_info['producer_api_url']
         self.ping_producer(asset_id, producer_api_url)
 

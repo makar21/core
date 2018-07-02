@@ -22,7 +22,7 @@ class TaskManager:
         Returns Task object.
         """
         task_dict = json.loads(
-            self.encryption.decrypt(asset.data['task'].encode())
+            self.encryption.decrypt(asset.metadata['task'].encode())
         )
 
         task_dict = {
@@ -31,16 +31,16 @@ class TaskManager:
             'encryption': self.encryption,
             'task': task_dict['task'],
             'args': task_dict['args'],
-            'producer_id': asset.data['producer_id'],
+            'producer_id': asset.metadata['producer_id'],
             'td_asset_id': asset.asset_id,
-            'workers_needed': asset.data['workers_needed'],
+            'workers_needed': asset.metadata['workers_needed'],
         }
 
         if vd_asset:
             task_dict.update({
                 'vd_asset_id': vd_asset.asset_id,
-                'verifiers_needed': vd_asset.data['verifiers_needed'],
-                'ta_asset_id': vd_asset.data['ta_asset_id'],
+                'verifiers_needed': vd_asset.metadata['verifiers_needed'],
+                'ta_asset_id': vd_asset.metadata['ta_asset_id'],
             })
 
         return Task(**task_dict)
@@ -49,16 +49,13 @@ class TaskManager:
         asset_ids = self.db.retrieve_created_asset_ids('Task declaration')
         for asset_id in asset_ids:
             asset = self.db.retrieve_asset(asset_id)
-            if asset.data['workers_needed'] > 0:
+            if asset.metadata['workers_needed'] > 0:
                 return self.get_task(asset)
 
     def pick_verifier_task(self):
         asset_ids = self.db.retrieve_created_asset_ids('Verification declaration')
         for asset_id in asset_ids:
             asset = self.db.retrieve_asset(asset_id)
-            if asset.data['verifiers_needed'] > 0:
-                td_asset = self.db.retrieve_asset(asset.data['td_asset_id'])
+            if asset.metadata['verifiers_needed'] > 0:
+                td_asset = self.db.retrieve_asset(asset.metadata['td_asset_id'])
                 return self.get_task(td_asset, asset)
-
-
-

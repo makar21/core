@@ -13,7 +13,7 @@ from const import update_asset_sleep_time
 class Asset:
     def __init__(self, tx, asset_id):
         self.tx = tx
-        self.data = tx['metadata']
+        self.metadata = tx['metadata']
         self.asset_id = asset_id
 
 
@@ -47,11 +47,9 @@ class DB:
             d = json.loads(f.read())
         self.kp = CryptoKeypair(d['private_key'], d['public_key'])
 
-    def create_asset(self, name, data, recipients=None):
+    def create_asset(self, data, metadata, recipients=None):
         """
         Makes a CREATE transaction in BigchainDB.
-
-        Saves the provided dict as metadata.
 
         The owner(s) of the asset can be changed
         using the recipients argument.
@@ -59,9 +57,7 @@ class DB:
         Returns txid.
         """
         asset = {
-            'data': {
-                'name': name,
-            }
+            'data': data,
         }
 
         prepared_create_tx = self.bdb.transactions.prepare(
@@ -69,7 +65,7 @@ class DB:
             signers=self.kp.public_key,
             asset=asset,
             recipients=recipients,
-            metadata=data,
+            metadata=metadata,
         )
 
         fulfilled_create_tx = self.bdb.transactions.fulfill(
@@ -82,13 +78,11 @@ class DB:
 
         return txid
 
-    def update_asset(self, asset_id, data, recipients=None, sleep=False):
+    def update_asset(self, asset_id, metadata, recipients=None, sleep=False):
         """
         Retrieves the list of transactions for the asset and makes
         a TRANSFER transaction in BigchainDB using the output
         of the previous transaction.
-
-        Saves the provided dict as metadata.
 
         The owner(s) of the asset can be changed
         using the recipients argument.
@@ -128,7 +122,7 @@ class DB:
             recipients=(
                 recipients or self.kp.public_key
             ),
-            metadata=data,
+            metadata=metadata,
         )
 
         fulfilled_transfer_tx = self.bdb.transactions.fulfill(
