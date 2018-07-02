@@ -163,23 +163,26 @@ class DB:
         )[0]
         return create_tx
 
-    def retrieve_created_asset_ids(self, match):
+    def retrieve_asset_ids(self, match, created_by_user=True):
         """
-        Retrieves assets that:
+        Retreives assets that match to a $match provided as match argument.
 
-        * Were created by the user
-        * Match to a $match provided as match argument
+        If created_by_user is True, only retrieves
+        the assets created by the user.
 
         Returns a generator object.
         """
-        created_by_user_create_transaction_match = {
-            'block.transactions.inputs.owners_before': self.kp.public_key,
+        main_transaction_match = {
             'block.transactions.operation': 'CREATE',
         }
+        if created_by_user:
+            main_transaction_match[
+                'block.transactions.inputs.owners_before'
+            ] = self.kp.public_key,
         pipeline = [
-            {'$match': created_by_user_create_transaction_match},
+            {'$match': main_transaction_match},
             {'$unwind': '$block.transactions'},
-            {'$match': created_by_user_create_transaction_match},
+            {'$match': main_transaction_match},
             {'$lookup': {
                 'from': 'assets',
                 'localField': 'block.transactions.id',

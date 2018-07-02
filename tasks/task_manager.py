@@ -46,18 +46,18 @@ class TaskManager:
         return Task(**task_dict)
 
     def pick_worker_task(self):
-        asset_ids = self.db.retrieve_created_asset_ids({
+        asset_ids = self.db.retrieve_asset_ids(match={
             'assets.data.name': 'Task declaration',
-        })
+        }, created_by_user=True)
         for asset_id in asset_ids:
             asset = self.db.retrieve_asset(asset_id)
             if asset.metadata['workers_needed'] > 0:
                 return self.get_task(asset)
 
     def pick_verifier_task(self):
-        asset_ids = self.db.retrieve_created_asset_ids({
+        asset_ids = self.db.retrieve_asset_ids(match={
             'assets.data.name': 'Verification declaration',
-        })
+        }, created_by_user=True)
         for asset_id in asset_ids:
             asset = self.db.retrieve_asset(asset_id)
             if asset.metadata['verifiers_needed'] > 0:
