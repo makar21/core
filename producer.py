@@ -1,175 +1,58 @@
+import logging
 import signal
 import sys
-
 from multiprocessing import Process
 
 from bottle import Bottle, request, run
-from ipfs import IPFS
 
-from db import DB, TransactionListener
-from encryption import Encryption
-from tasks import Task, TaskManager
+import settings
+from tatau.dataset import DataSet
+from tatau.node.producer import Producer
+from tatau.tasks import TaskDeclaration
+from tatau.train_model import TrainModel
+from utils.logging import configure_logging
+
+configure_logging('producer')
+
+logger = logging.getLogger()
 
 
-class Producer(TransactionListener):
-    producer_api_url = 'http://localhost:8080'
+class ProducerServer:
+    def __init__(self, producer_node):
+        self.producer = producer_node
 
-    def __init__(self):
-        self.db = DB('producer')
-        self.bdb = self.db.bdb
+    def add_task(self, *args, **kwargs):
+        pass
 
-        self.encryption = Encryption('producer')
+    def worker_ready(self, *args, **kwargs):
+        worker_id = request.json['worker_id']
+        task_id = request.json['task_id']
 
-        self.ipfs = IPFS()
-
-        self.tm = TaskManager(
-            db=self.db,
-            ipfs=self.ipfs,
-            encryption=self.encryption,
+        self.producer.on_worker_ping(
+            task_asset_id=task_id,
+            worker_asset_id=worker_id
         )
 
-        producer_info = {
-            'enc_key': self.encryption.get_public_key().decode(),
-            'producer_api_url': self.producer_api_url,
-        }
+    def verifier_ready(self, *args, **kwargs):
+        worker_id = request.json['verifier_id']
+        task_id = request.json['task_id']
 
-        self.producer_id = self.db.create_asset(
-            name='Producer info',
-            data=producer_info,
+        self.producer.on_verifier_ping(
+            task_asset_id=task_id,
+            verifier_asset_id=worker_id
         )
-
-    def add_task(self):
-        task = Task(
-            db=self.db,
-            ipfs=self.ipfs,
-            encryption=self.encryption,
-            producer_id=self.producer_id,
-            args=request.json['args'],
-            workers_needed=1,
-        )
-        task.upload_to_ipfs(request.json['f'])
-        task.save_task_declaration()
-        print('Created task declaration {}'.format(
-            task.td_asset_id
-        ))
-
-    def worker_ready(self):
-        task = self.tm.pick_worker_task()
-
-        if not task:
-            return {'status': 'ok', 'msg': 'No task.'}
-
-        worker_id = request.json['worker']
-
-        asset_id = task.create_task_assignment(worker_id)
-
-        print('Created task assignment {}'.format(asset_id))
-
-        task.workers_needed -= 1
-        task.save_task_declaration()
-
-        print('Updated task declaration')
-
-        return {'status': 'ok'}
-
-    def verifier_ready(self):
-        task = self.tm.pick_verifier_task()
-
-        if not task:
-            return {'status': 'ok', 'msg': 'No task.'}
-
-        task_assignment_asset = self.db.retrieve_asset(task.ta_asset_id)
-        result = task_assignment_asset.data.get('result')
-
-        if not result:
-            return {'status': 'ok', 'msg': 'No result.'}
-
-        verifier_id = request.json['verifier']
-
-        asset_id = task.create_verification_assignment(
-            verifier_id,
-            result,
-        )
-
-        print('Created verification assignment {}'.format(asset_id))
-
-        task.verifiers_needed -= 1
-        task.save_verification_declaration()
-
-        print('Updated verification declaration')
-
-        return {'status': 'ok'}
-
-    def process_tx(self, data):
-        """
-        Accepts WS stream data dict and checks if the transaction
-        needs to be processed.
-
-        If this is one of task assignment or verification assignment
-        transactions, runs a method that processes the transaction.
-        """
-        transaction = self.bdb.transactions.retrieve(data['transaction_id'])
-
-        if transaction['operation'] != 'TRANSFER':
-            return
-
-        asset_create_tx = self.db.retrieve_asset_create_tx(data['asset_id'])
-
-        name = asset_create_tx['asset']['data'].get('name')
-
-        tx_methods = {
-            'Task assignment': self.process_task_assignment,
-            'Verification assignment': self.process_verification_assignment,
-        }
-
-        if name in tx_methods:
-            tx_methods[name](transaction)
-
-    def process_task_assignment(self, transaction):
-        result = transaction['metadata'].get('result')
-
-        if not result:
-            return
-
-        decrypted_result = self.encryption.decrypt(result).decode()
-        print('Received task result: {}'.format(decrypted_result))
-
-        ta_asset_id = transaction['asset']['id']
-
-        task_assignment_create_tx = self.bdb.transactions.retrieve(
-            ta_asset_id
-        )
-
-        td_asset_id = task_assignment_create_tx['metadata']['td_asset_id']
-        td_asset = self.db.retrieve_asset(td_asset_id)
-
-        task = self.tm.get_task(td_asset)
-
-        task.verifiers_needed = 1
-        task.ta_asset_id = ta_asset_id
-
-        task.save_verification_declaration()
-
-        print('Created verification declaration {}'.format(
-            task.vd_asset_id
-        ))
-
-    def process_verification_assignment(self, transaction):
-        verified = transaction['metadata'].get('verified')
-
-        if verified:
-            print('Task result is verified')
-        else:
-            print('Task result is not verified')
 
 
 def web_server(producer):
     producer.db.connect_to_mongodb()
+    producer_server = ProducerServer(producer)
     bottle = Bottle()
-    bottle.post('/add_task/')(producer.add_task)
-    bottle.post('/worker/ready/')(producer.worker_ready)
-    bottle.post('/verifier/ready/')(producer.verifier_ready)
-    run(bottle, host='localhost', port=8080)
+
+    bottle.post('/add_task/')(producer_server.add_task)
+    bottle.post('/worker/ready/')(producer_server.worker_ready)
+    bottle.post('/verifier/ready/')(producer_server.verifier_ready)
+
+    run(bottle, host=settings.PRODUCER_HOST, port=settings.PRODUCER_PORT)
 
 
 def tx_stream_client(producer):
@@ -177,17 +60,53 @@ def tx_stream_client(producer):
 
 
 def sigint_handler(signal, frame):
-    print('Exiting')
+    logging.info('Exiting')
     sys.exit(0)
 
 
 if __name__ == '__main__':
-    p = Producer()
+    try:
+        producer = Producer()
 
-    web_server_process = Process(target=web_server, args=(p,))
-    web_server_process.start()
+        logger.info('Start producer: {}'.format(producer.asset_id))
 
-    tx_stream_client_process = Process(target=tx_stream_client, args=(p,))
-    tx_stream_client_process.start()
+        train_model = TrainModel.add(
+            producer=producer,
+            name='mnist',
+            code_path='test_data/models/mnist_train.py'
+        )
 
-    signal.signal(signal.SIGINT, sigint_handler)
+        dataset = DataSet.add(
+            producer=producer,
+            name='mnist',
+            x_train_path='test_data/datasets/mnist/X_train.npz',
+            y_train_path='test_data/datasets/mnist/Y_train.npz',
+            x_test_path='test_data/datasets/mnist/X_test.npz',
+            y_test_path='test_data/datasets/mnist/Y_test.npz',
+            files_count=10
+        )
+
+        td = TaskDeclaration.add(
+            node=producer,
+            dataset=dataset,
+            train_model=train_model,
+            workers_needed=1,
+            verifiers_needed=1,
+            epochs=3
+        )
+
+        process_class = Process
+        if settings.DEBUG:
+            import threading
+            process_class = threading.Thread
+
+        web_server_process = process_class(target=web_server, args=(producer,))
+        web_server_process.start()
+
+        tx_stream_client_process = process_class(target=tx_stream_client, args=(producer,))
+        tx_stream_client_process.start()
+
+        signal.signal(signal.SIGINT, sigint_handler)
+    except Exception as e:
+        logger.fatal(e)
+

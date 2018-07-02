@@ -1,15 +1,15 @@
 import json
 
+from ipfs import IPFS
 from .task import Task
 
 
 class TaskManager:
     def __init__(self,
                  db,
-                 ipfs,
                  encryption):
         self.db = db
-        self.ipfs = ipfs
+        self.ipfs = IPFS()
         self.encryption = encryption
 
     def get_task(self, asset, vd_asset=None):
@@ -53,11 +53,12 @@ class TaskManager:
                 return self.get_task(asset)
 
     def pick_verifier_task(self):
-        asset_ids = self.db.retrieve_created_asset_ids(
-            'Verification declaration'
-        )
+        asset_ids = self.db.retrieve_created_asset_ids('Verification declaration')
         for asset_id in asset_ids:
             asset = self.db.retrieve_asset(asset_id)
             if asset.data['verifiers_needed'] > 0:
                 td_asset = self.db.retrieve_asset(asset.data['td_asset_id'])
                 return self.get_task(td_asset, asset)
+
+
+

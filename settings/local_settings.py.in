@@ -1,0 +1,6 @@
+
+
+DEBUG = False
+
+# register on sentry.io
+RAVEN_DSN = ''
