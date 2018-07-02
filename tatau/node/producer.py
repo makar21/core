@@ -1,5 +1,3 @@
-from __future__ import absolute_import
-
 import json
 import logging
 import re
@@ -128,6 +126,3 @@ class Producer(Node):
 
         verification_declaration.verifiers_needed -= 1
         verification_declaration.save(self.db)
-
-
-

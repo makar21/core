@@ -1,5 +1,3 @@
-from __future__ import absolute_import, unicode_literals
-
 # standard library
 import json
 import os
@@ -89,4 +87,3 @@ class Snapshot(object):
 
     def to_json(self):
         return json.dumps(self.to_dict())
-

@@ -1,5 +1,3 @@
-from __future__ import absolute_import
-
 from .task import Task
 from .task_assignment import TaskAssignment
 from .task_declaration import TaskDeclaration

@@ -1,5 +1,3 @@
-from __future__ import absolute_import
-
 import json
 import time
 
@@ -41,5 +39,3 @@ class Task:
 
     def to_json(self):
         return json.dumps(self.get_data())
-
-

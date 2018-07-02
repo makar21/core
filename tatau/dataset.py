@@ -12,7 +12,7 @@ logger = logging.getLogger()
 
 
 class DataSet:
-    asset_name = 'DATASET'
+    asset_name = 'Dataset'
 
     def __init__(self, owner_producer_id, name, train_dir_ipfs, x_test_ipfs, y_test_ipfs, encrypted_text=None,
                  asset_id=None):
@@ -122,5 +122,3 @@ class DataSet:
     def list(cls, producer):
         # TODO: implement list of producer's datasets
         raise NotImplemented
-
-

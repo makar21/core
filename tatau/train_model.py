@@ -8,7 +8,7 @@ logger = logging.getLogger()
 
 
 class TrainModel:
-    asset_name = 'TRAIN MODEL'
+    asset_name = 'Train model'
 
     def __init__(self, owner_producer_id, name, code_ipfs, encrypted_text=None, asset_id=None):
         self.owner_producer_id = owner_producer_id
