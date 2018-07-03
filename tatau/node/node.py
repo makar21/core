@@ -55,12 +55,12 @@ class Node(TransactionListener):
                 f.write(self.encryption.export_key())
 
     def create_info_asset(self):
-        asset_id = self.db.create_asset(
+        asset_id, created = self.db.create_asset(
             data={'name': self.asset_name},
             metadata=self.get_node_info(),
         )
-
-        logging.info('{} created info asset: {}'.format(self.node_type, asset_id))
+        if created:
+            logging.info('{} created info asset: {}'.format(self.node_type, asset_id))
         return asset_id
 
     def get_node_info(self):

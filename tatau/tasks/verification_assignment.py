@@ -60,7 +60,7 @@ class VerificationAssignment(Task):
             data={'name': cls.task_type},
             metadata=verifier_assignment.get_data(),
             recipients=verifier_address,
-        )
+        )[0]
 
         verifier_assignment.asset_id = asset_id
         return verifier_assignment

@@ -82,7 +82,7 @@ class DataSet:
                 'name': dataset.name,
                 'dataset': producer.encrypt_text(dataset.to_json())
             }
-        )
+        )[0]
 
         dataset.asset_id = asset_id
 

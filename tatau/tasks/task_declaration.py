@@ -65,7 +65,7 @@ class TaskDeclaration(Task):
         asset_id = producer.db.create_asset(
             data={'name': cls.task_type},
             metadata=task_declaration.get_data()
-        )
+        )[0]
 
         task_declaration.asset_id = asset_id
         return task_declaration

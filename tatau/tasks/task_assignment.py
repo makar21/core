@@ -69,7 +69,7 @@ class TaskAssignment(Task):
             data={'name': cls.task_type},
             metadata=task_assignment.get_data(),
             recipients=worker_address,
-        )
+        )[0]
 
         task_assignment.asset_id = asset_id
         return task_assignment

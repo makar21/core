@@ -1,6 +1,8 @@
 import json
 import time
 
+import bigchaindb_driver.exceptions
+
 from bigchaindb_driver import BigchainDB
 from bigchaindb_driver.crypto import CryptoKeypair, generate_keypair
 
@@ -21,7 +23,7 @@ class DB:
     bdb = BigchainDB(bdb_root_url)
 
     def connect_to_mongodb(self):
-        self.mongo_client = MongoClient('localhost', 9986)
+        self.mongo_client = MongoClient('localhost', 27017)
         self.mongo_db = self.mongo_client.bigchain
 
     def generate_keypair(self):
@@ -44,7 +46,10 @@ class DB:
         The owner(s) of the asset can be changed
         using the recipients argument.
 
-        Returns txid.
+        Returns a tuple containing 2 elements:
+
+        1. txid: the transaction ID
+        2. created: was the asset created
         """
         asset = {
             'data': data,
@@ -62,11 +67,18 @@ class DB:
             prepared_create_tx, private_keys=self.kp.private_key
         )
 
-        self.bdb.transactions.send(fulfilled_create_tx)
+        try:
+            self.bdb.transactions.send_commit(fulfilled_create_tx)
+        except bigchaindb_driver.exceptions.BadRequest as e:
+            if not 'already exists' in e.info['message']:
+                raise
+            created = False
+        else:
+            created = True
 
         txid = fulfilled_create_tx['id']
 
-        return txid
+        return (txid, created)
 
     def update_asset(self, asset_id, metadata, recipients=None, sleep=False):
         """
@@ -120,7 +132,7 @@ class DB:
             private_keys=self.kp.private_key,
         )
 
-        self.bdb.transactions.send(fulfilled_transfer_tx)
+        self.bdb.transactions.send_commit(fulfilled_transfer_tx)
 
         if sleep:
             time.sleep(update_asset_sleep_time)
@@ -163,24 +175,22 @@ class DB:
         Returns a generator object.
         """
         main_transaction_match = {
-            'block.transactions.operation': 'CREATE',
+            'operation': 'CREATE',
         }
         if created_by_user:
             main_transaction_match[
-                'block.transactions.inputs.owners_before'
+                'inputs.owners_before'
             ] = self.kp.public_key,
         pipeline = [
             {'$match': main_transaction_match},
-            {'$unwind': '$block.transactions'},
-            {'$match': main_transaction_match},
             {'$lookup': {
                 'from': 'assets',
-                'localField': 'block.transactions.id',
+                'localField': 'id',
                 'foreignField': 'id',
                 'as': 'assets',
             }},
             {'$match': match},
         ]
-        cursor = self.mongo_db.bigchain.aggregate(pipeline)
+        cursor = self.mongo_db.transactions.aggregate(pipeline)
 
-        return (x['block']['transactions']['id'] for x in cursor)
+        return (x['id'] for x in cursor)

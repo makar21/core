@@ -43,7 +43,7 @@ class Task:
             self.td_asset_id = self.db.create_asset(
                 data={'name': 'Task declaration'},
                 metadata=self.task_declaration,
-            )
+            )[0]
 
     def save_verification_declaration(self):
         if self.vd_asset_id:
@@ -55,7 +55,7 @@ class Task:
             self.vd_asset_id = self.db.create_asset(
                 data={'name': 'Verification declaration'},
                 metadata=self.verification_declaration,
-            )
+            )[0]
 
     def create_task_assignment(self, worker_id):
         worker_info = self.db.retrieve_asset(worker_id)
@@ -74,7 +74,7 @@ class Task:
             data={'name': 'Task assignment'},
             metadata=task_assignment,
             recipients=worker_info.tx['outputs'][0]['public_keys'][0],
-        )
+        )[0]
 
         return asset_id
 
@@ -100,7 +100,7 @@ class Task:
             data={'name': 'Verification assignment'},
             metadata=verification_assignment,
             recipients=verifier_info.tx['outputs'][0]['public_keys'][0],
-        )
+        )[0]
 
         return asset_id
 

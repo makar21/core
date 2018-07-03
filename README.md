@@ -15,29 +15,10 @@ You will also need a BigchainDB node.
 
 # Get BigchainDB Server
 
-To get BigchainDB Server, do the following:
+To get BigchainDB Server, clone the git repository:
 
 ```shell
 git clone https://github.com/bigchaindb/bigchaindb.git
-cd bigchaindb
-git checkout v1.3.0
-```
-
-Now open `docker-compose.yml`.
-
-Change mdb ports:
-
-```
-ports:
-  - "9986:27017"
-```
-
-Change bdb ports:
-
-```
-ports:
-  - "9984:9984"
-  - "9985:9985"
 ```
 
 To run BigchainDB Server:

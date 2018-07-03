@@ -48,7 +48,7 @@ class VerificationDeclaration(Task):
         asset_id = producer.db.create_asset(
             data={'name': cls.task_type},
             metadata=verification_declaration.get_data()
-        )
+        )[0]
 
         verification_declaration.asset_id = asset_id
         return verification_declaration

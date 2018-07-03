@@ -52,7 +52,7 @@ class TrainModel:
                 'name': train_model.name,
                 'train_model': producer.encrypt_text(train_model.to_json())
             }
-        )
+        )[0]
 
         train_model.asset_id = asset_id
 
