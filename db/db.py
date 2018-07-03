@@ -1,5 +1,4 @@
 import json
-import time
 
 import bigchaindb_driver.exceptions
 
@@ -7,8 +6,6 @@ from bigchaindb_driver import BigchainDB
 from bigchaindb_driver.crypto import CryptoKeypair, generate_keypair
 
 from pymongo import MongoClient
-
-from const import update_asset_sleep_time
 
 
 class Asset:
@@ -80,7 +77,7 @@ class DB:
 
         return (txid, created)
 
-    def update_asset(self, asset_id, metadata, recipients=None, sleep=False):
+    def update_asset(self, asset_id, metadata, recipients=None):
         """
         Retrieves the list of transactions for the asset and makes
         a TRANSFER transaction in BigchainDB using the output
@@ -88,11 +85,6 @@ class DB:
 
         The owner(s) of the asset can be changed
         using the recipients argument.
-
-        If sleep is True, sleep for update_asset_sleep_time seconds
-        after submitting the transaction. This should be used
-        when several update transactions on the same asset occur
-        within a short time.
 
         Returns txid.
         """
@@ -133,9 +125,6 @@ class DB:
         )
 
         self.bdb.transactions.send_commit(fulfilled_transfer_tx)
-
-        if sleep:
-            time.sleep(update_asset_sleep_time)
 
         txid = fulfilled_transfer_tx['id']
 

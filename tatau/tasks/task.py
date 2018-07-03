@@ -29,7 +29,6 @@ class Task:
                 asset_id=self.asset_id,
                 metadata=self.get_data(),
                 recipients=recipients,
-                sleep=True
             )
         else:
             raise ValueError('Use add method for create new task')
