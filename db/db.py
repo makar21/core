@@ -142,6 +142,17 @@ class DB:
 
         return Asset(tx=latest_tx, asset_id=asset_id)
 
+    def retrieve_asset_metadata(self, asset_id):
+        """
+        Retrieves all metadata for an asset.
+
+        Returns a list containing dictionaries
+        with the asset’s metadata.
+        """
+        transactions = self.bdb.transactions.get(asset_id=asset_id)
+
+        return [tx['metadata'] for tx in transactions]
+
     def retrieve_asset_create_tx(self, asset_id):
         """
         Retrieves the CREATE transaction for an asset.
