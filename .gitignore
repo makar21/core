@@ -105,3 +105,6 @@ venv.bak/
 
 # Keys
 keys/
+
+# Test data
+test_data/
