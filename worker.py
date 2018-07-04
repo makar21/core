@@ -6,7 +6,7 @@ client = Client(settings.RAVEN_DSN)
 
 if __name__ == '__main__':
     try:
-        w = Worker(fs_keys_name='worker')
+        w = Worker(rsa_pk_fs_name='worker')
         w.run_transaction_listener()
     except:
         client.captureException()

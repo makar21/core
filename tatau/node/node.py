@@ -1,5 +1,6 @@
-import os
+import hashlib
 import logging
+import os
 
 from db import DB, TransactionListener
 from encryption import Encryption
@@ -20,39 +21,34 @@ class Node(TransactionListener):
     node_type = None
     asset_name = None
 
-    def __init__(self, fs_keys_name=None, db_key=None, encryption_key=None):
+    def __init__(self, rsa_pk_fs_name=None, rsa_pk=None):
         self.db = DB()
         self.bdb = self.db.bdb
         self.encryption = Encryption()
 
-        if fs_keys_name:
-            self.handle_fs_keys(fs_keys_name)
+        if rsa_pk_fs_name:
+            self.handle_fs_key(rsa_pk_fs_name)
         else:
-            self.db.import_key(db_key)
-            self.encryption.import_key(encryption_key)
+            self.encryption.import_key(rsa_pk)
+            seed = hashlib.sha256(rsa_pk).digest()
+            self.db.generate_keypair(seed=seed)
 
         self.asset_id = self.create_info_asset()
 
-    def handle_fs_keys(self, name):
-        path = os.path.join(ROOT_DIR, 'keys/bigchaindb/{}.json'.format(name))
-        if os.path.isfile(path):
-            with open(path, 'r') as f:
-                self.db.import_key(f.read())
-        else:
-            os.makedirs(os.path.join(ROOT_DIR, 'keys/bigchaindb'), exist_ok=True)
-            self.db.generate_keypair()
-            with open(path, 'w') as f:
-                f.write(self.db.export_key())
-
-        path = os.path.join(ROOT_DIR, 'keys/encryption/{}.pem'.format(name))
+    def handle_fs_key(self, name):
+        path = os.path.join(ROOT_DIR, 'keys/{}.pem'.format(name))
         if os.path.isfile(path):
             with open(path, 'rb') as f:
-                self.encryption.import_key(f.read())
+                rsa_pk = f.read()
+            self.encryption.import_key(rsa_pk)
         else:
-            os.makedirs(os.path.join(ROOT_DIR, 'keys/encryption'), exist_ok=True)
+            os.makedirs(os.path.join(ROOT_DIR, 'keys'), exist_ok=True)
             self.encryption.generate_key()
+            rsa_pk = self.encryption.export_key()
             with open(path, 'wb') as f:
-                f.write(self.encryption.export_key())
+                f.write(rsa_pk)
+        seed = hashlib.sha256(rsa_pk).digest()
+        self.db.generate_keypair(seed=seed)
 
     def create_info_asset(self):
         asset_id, created = self.db.create_asset(
