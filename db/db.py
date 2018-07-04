@@ -1,5 +1,9 @@
 import json
 
+import nacl.signing
+
+from cryptoconditions.crypto import Base58Encoder
+
 import bigchaindb_driver.exceptions
 
 from bigchaindb_driver import BigchainDB
@@ -23,8 +27,15 @@ class DB:
         self.mongo_client = MongoClient('localhost', 27017)
         self.mongo_db = self.mongo_client.bigchain
 
-    def generate_keypair(self):
-        self.kp = generate_keypair()
+    def generate_keypair(self, seed=None):
+        if seed:
+            sk = nacl.signing.SigningKey(seed=seed)
+            self.kp = CryptoKeypair(
+                sk.encode(encoder=Base58Encoder).decode(),
+                sk.verify_key.encode(encoder=Base58Encoder).decode()
+            )
+        else:
+            self.kp = generate_keypair()
 
     def export_key(self):
         return json.dumps({
