@@ -14,30 +14,25 @@ logger = logging.getLogger()
 class DataSet:
     asset_name = 'Dataset'
 
-    def __init__(self, owner_producer_id, name, train_dir_ipfs, x_test_ipfs, y_test_ipfs, encrypted_text=None,
-                 asset_id=None):
-        self.owner_producer_id = owner_producer_id
-        self.name = name
+    def __init__(self, name, train_dir_ipfs, x_test_ipfs, y_test_ipfs, asset_id=None):
         self.asset_id = asset_id
+        self.name = name
         self.train_dir_ipfs = train_dir_ipfs
         self.x_test_ipfs = x_test_ipfs
         self.y_test_ipfs = y_test_ipfs
-        self.encrypted_text = encrypted_text
 
     def get_data(self):
         return {
-            'owner_producer_id': self.owner_producer_id,
-            'name': self.name,
+            'name': self.asset_name,
             'train_dir_ipfs': self.train_dir_ipfs,
             'x_test_ipfs': self.x_test_ipfs,
             'y_test_ipfs': self.y_test_ipfs
         }
 
-    def to_json(self):
-        if self.encrypted_text is not None:
-            return self.encrypted_text
-
-        return json.dumps(self.get_data())
+    def get_metadata(self):
+        return {
+            'name': self.name,
+        }
 
     @classmethod
     def add(cls, producer, name, x_train_path, y_train_path, x_test_path, y_test_path, files_count):
@@ -68,57 +63,43 @@ class DataSet:
             shutil.rmtree(directory)
 
         dataset = cls(
-            owner_producer_id=producer.asset_id,
             name=name,
-            train_dir_ipfs=train_dir_ipfs,
-            x_test_ipfs=x_test_ipfs,
-            y_test_ipfs=y_test_ipfs
+            train_dir_ipfs=producer.encrypt_text(train_dir_ipfs),
+            x_test_ipfs=producer.encrypt_text(x_test_ipfs),
+            y_test_ipfs=producer.encrypt_text(y_test_ipfs)
         )
 
-        asset_id = producer.db.create_asset(
-            data={'name': cls.asset_name},
-            metadata={
-                'producer_id': producer.asset_id,
-                'name': dataset.name,
-                'dataset': producer.encrypt_text(dataset.to_json())
-            }
-        )[0]
+        asset_id, created = producer.db.create_asset(
+            data=dataset.get_data(),
+            metadata=dataset.get_metadata()
+        )
 
         dataset.asset_id = asset_id
 
-        logger.info('Producer "{}" added dataset, name: {}, asset_id: {}'.format(producer.asset_id, name, asset_id))
+        logger.debug('Producer "{}" added dataset, name: {}, asset_id: {}'.format(producer.asset_id, name, asset_id))
         return dataset
 
     @classmethod
     def get(cls, node, asset_id):
         asset = node.db.retrieve_asset(asset_id)
-        encrypted_text = asset.metadata['dataset']
-        try:
-            dataset_data = json.loads(node.decrypt_text(encrypted_text))
-        except json.JSONDecodeError:
-            dataset_data = {
-                'owner_producer_id': 'encrypted',
-                'name': 'encrypted',
-                'train_dir_ipfs': 'encrypted',
-                'x_test_ipfs': 'encrypted',
-                'y_test_ipfs': 'encrypted'
-            }
 
-        logger.info('{} {} load dataset, name:{}, asset_id: {}'.format(
+        logger.debug('{} {} load dataset, name:{}, asset_id: {}'.format(
             node.node_type, node.asset_id, asset.metadata['name'], asset_id)
         )
 
         return cls(
-            owner_producer_id=asset.metadata['producer_id'],
             name=asset.metadata['name'],
-            train_dir_ipfs=dataset_data['train_dir_ipfs'],
-            x_test_ipfs=dataset_data['x_test_ipfs'],
-            y_test_ipfs=dataset_data['y_test_ipfs'],
-            asset_id=asset_id,
-            encrypted_text=encrypted_text
+            train_dir_ipfs=node.decrypt_text(asset.data['train_dir_ipfs']),
+            x_test_ipfs=node.decrypt_text(asset.data['x_test_ipfs']),
+            y_test_ipfs=node.decrypt_text(asset.data['y_test_ipfs']),
+            asset_id=asset_id
         )
 
     @classmethod
     def list(cls, producer):
-        # TODO: implement list of producer's datasets
-        raise NotImplemented
+        producer.db.connect_to_mongodb()
+        match = {
+            'assets.data.name': cls.asset_name,
+        }
+
+        return [cls.get(producer, x) for x in producer.db.retrieve_asset_ids(match=match)]

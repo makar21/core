@@ -21,11 +21,17 @@ class VerificationDeclaration(Task):
         self.progress = kwargs.get('progress', 0)
 
     def get_data(self):
-        return {
+        data = super(VerificationDeclaration, self).get_data()
+        data.update({
             'owner_producer_id': self.owner_producer_id,
             'task_declaration_id': self.task_declaration_id,
+            'verifiers_requested': self.verifiers_requested
+        })
+        return data
+
+    def get_metadata(self):
+        return {
             'verifiers_needed': self.verifiers_needed,
-            'verifiers_requested': self.verifiers_requested,
             'status': self.status,
             'progress': self.progress
         }
@@ -45,10 +51,10 @@ class VerificationDeclaration(Task):
             asset_id=None
         )
 
-        asset_id = producer.db.create_asset(
-            data={'name': cls.task_type},
-            metadata=verification_declaration.get_data()
-        )[0]
+        asset_id, created = producer.db.create_asset(
+            data=verification_declaration.get_data(),
+            metadata=verification_declaration.get_metadata()
+        )
 
         verification_declaration.asset_id = asset_id
         return verification_declaration
@@ -58,16 +64,12 @@ class VerificationDeclaration(Task):
         asset = node.db.retrieve_asset(asset_id)
 
         return cls(
-            owner_producer_id=asset.metadata['owner_producer_id'],
+            owner_producer_id=asset.data['owner_producer_id'],
             verifiers_needed=asset.metadata['verifiers_needed'],
-            verifiers_requested=asset.metadata['verifiers_requested'],
-            task_declaration_id=asset.metadata['task_declaration_id'],
+            verifiers_requested=asset.data['verifiers_requested'],
+            task_declaration_id=asset.data['task_declaration_id'],
             asset_id=asset_id,
             status=asset.metadata['status'],
             progress=asset.metadata['progress']
         )
 
-    @classmethod
-    def list(cls, node):
-        # TODO: implement list of producer's task declarations
-        raise NotImplemented

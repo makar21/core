@@ -90,7 +90,7 @@ if __name__ == '__main__':
             node=producer,
             dataset=dataset,
             train_model=train_model,
-            workers_needed=1,
+            workers_needed=2,
             verifiers_needed=1,
             epochs=3
         )

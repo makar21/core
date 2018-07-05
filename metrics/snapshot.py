@@ -87,3 +87,9 @@ class Snapshot(object):
 
     def to_json(self):
         return json.dumps(self.to_dict())
+
+    def calc_tflops(self):
+        # TODO: define this values
+        gpu_tflops = 100000
+        cpu_tflops = 10000
+        return int(self.average_gpu_load * gpu_tflops + self.average_cpu_load * cpu_tflops)

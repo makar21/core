@@ -37,30 +37,54 @@ class Producer(Node):
 
     def process_task_assignment(self, asset_id, transaction):
         task_assignment = TaskAssignment.get(self, asset_id)
-        if not task_assignment.result:
+        if task_assignment.owner_producer_id != self.asset_id:
             return
 
-        result_ipfs = self.decrypt_text(task_assignment.result)
-        logger.info('Received task result: {}'.format(result_ipfs))
+        logger.info('Process {}'.format(task_assignment))
 
         task_declaration = TaskDeclaration.get(self, task_assignment.task_declaration_id)
-        task_declaration.results.append({
-            'worker_id': task_assignment.worker_id,
-            'result': result_ipfs
-        })
+        task_declaration.status = TaskDeclaration.Status.RUN
+        task_declaration.tflops += task_assignment.tflops
+
+        if not task_assignment.result and not task_assignment.error:
+            task_declaration.save(self.db)
+            return
+
+        logger.info('Task assignment is finished worker: {}'.format(task_assignment.worker_id))
+
+        if task_assignment.result:
+            task_declaration.results.append({
+                'worker_id': task_assignment.worker_id,
+                'result': self.decrypt_text(task_assignment.result)
+            })
+
+        if task_assignment.error:
+            task_declaration.errors.append({
+                'worker_id': task_assignment.worker_id,
+                'error': self.decrypt_text(task_assignment.error)
+            })
+
         task_declaration.encrypted_text = self.encrypt_text(json.dumps(task_declaration.results))
+        task_declaration.encrypted_text_errors = self.encrypt_text(json.dumps(task_declaration.errors))
+
+        if len(task_declaration.results) + len(task_declaration.errors) == task_declaration.workers_requested:
+            task_declaration.progress = 100
+
+        if task_declaration.progress == 100:
+            task_declaration.status = TaskDeclaration.Status.COMPLETED
+
+            VerificationDeclaration.add(
+                node=self,
+                verifiers_needed=task_declaration.verifiers_needed,
+                task_declaration_id=task_declaration.asset_id,
+            )
+
         task_declaration.save(self.db)
-
-        # TODO: be sure this task assignment is latest (all results are ready)
-
-        VerificationDeclaration.add(
-            node=self,
-            verifiers_needed=task_declaration.verifiers_needed,
-            task_declaration_id=task_declaration.asset_id,
-        )
 
     def process_verification_assignment(self, asset_id, transaction):
         verification_assignment = VerificationAssignment.get(self, asset_id)
+        if verification_assignment.owner_producer_id != self.asset_id:
+            return
 
         if verification_assignment.verified:
             logger.info('Task result is verified')
@@ -68,19 +92,34 @@ class Producer(Node):
             logger.info('Task result is not verified')
 
     def on_worker_ping(self, task_asset_id, worker_asset_id):
+        logger.info('Worker:{} requested task: {}'.format(worker_asset_id, task_asset_id))
+
         task_declaration = TaskDeclaration.get(self, task_asset_id)
-        if task_declaration.workers_needed <= 0:
+        if task_declaration.workers_needed == 0:
+            logger.info('No more workers needed')
             return
 
         worker_index = task_declaration.workers_requested - task_declaration.workers_needed
         if worker_index < 0:
             return
 
+        already_assigned = TaskAssignment.list(
+            node=self,
+            additional_match={
+                'asset.data.worker_id': worker_asset_id,
+                'asset.data.task_declaration_id': task_asset_id
+            }
+        )
+
+        if len(already_assigned):
+            logger.info('Worker: {} have already worked on this task: {}'.format(worker_asset_id, task_asset_id))
+            return
+
         ipfs_dir = ipfs.Directory(multihash=task_declaration.dataset.train_dir_ipfs)
         dirs, files = ipfs_dir.ls()
 
         # TODO: optimize this shit
-        files_count_for_worker = int(len(files) / (2 * task_declaration.workers_needed))
+        files_count_for_worker = int(len(files) / (2 * task_declaration.workers_requested))
         file_indexes = [x + files_count_for_worker * worker_index for x in range(files_count_for_worker)]
 
         x_train_ipfs = []
@@ -110,12 +149,22 @@ class Producer(Node):
 
     def on_verifier_ping(self, task_asset_id, verifier_asset_id):
         verification_declaration = VerificationDeclaration.get(self, task_asset_id)
+        if verification_declaration.verifiers_needed == 0:
+            return
 
-        if verification_declaration.verifiers_needed <= 0:
+        already_assigned = VerificationAssignment.list(
+            node=self,
+            additional_match={
+                'asset.data.verifier_id': verifier_asset_id,
+                'asset.data.task_declaration_id': task_asset_id
+            }
+        )
+
+        if len(already_assigned):
+            logger.info('Verifier: {} have already worked on this task: {}'.format(verifier_asset_id, task_asset_id))
             return
 
         task_declaration = TaskDeclaration.get(self, verification_declaration.task_declaration_id)
-
         VerificationAssignment.add(
             node=self,
             verifier_id=verifier_asset_id,

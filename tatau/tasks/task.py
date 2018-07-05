@@ -27,14 +27,30 @@ class Task:
         if self.asset_id is not None:
             db.update_asset(
                 asset_id=self.asset_id,
-                metadata=self.get_data(),
+                metadata=self.get_metadata(),
                 recipients=recipients,
             )
         else:
             raise ValueError('Use add method for create new task')
 
     def get_data(self):
+        return {
+            'name': self.task_type
+        }
+
+    def get_metadata(self):
         raise NotImplemented
 
     def to_json(self):
         return json.dumps(self.get_data())
+
+    @classmethod
+    def list(cls, node, additional_match=None):
+        node.db.connect_to_mongodb()
+        match = {
+            'assets.data.name': cls.task_type,
+        }
+
+        if additional_match is not None:
+            match.update(additional_match)
+        return [cls.get(node, x) for x in node.db.retrieve_asset_ids(match=match)]

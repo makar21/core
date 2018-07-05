@@ -4,9 +4,7 @@ import os
 
 from db import DB, TransactionListener
 from encryption import Encryption
-
 from settings import ROOT_DIR
-
 
 logger = logging.getLogger()
 
