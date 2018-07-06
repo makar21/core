@@ -1,4 +1,11 @@
-import json
+import logging
+import os
+import shutil
+import tempfile
+
+import numpy as np
+
+from ipfs import IPFS
 import logging
 import os
 import shutil
@@ -14,25 +21,40 @@ logger = logging.getLogger()
 class DataSet:
     asset_name = 'Dataset'
 
-    def __init__(self, name, train_dir_ipfs, x_test_ipfs, y_test_ipfs, asset_id=None):
+    def __init__(self, name, train_dir_ipfs, x_test_ipfs, y_test_ipfs, asset_id=None, **kwargs):
         self.asset_id = asset_id
         self.name = name
         self.train_dir_ipfs = train_dir_ipfs
+        self.encrypted_train_dir_ipfs = kwargs.get('encrypted_train_dir_ipfs', None)
+
         self.x_test_ipfs = x_test_ipfs
+        self.encrypted_x_test_ipfs = kwargs.get('encrypted_x_test_ipfs', None)
+
         self.y_test_ipfs = y_test_ipfs
+        self.encrypted_y_test_ipfs = kwargs.get('encrypted_y_test_ipfs', None)
 
     def get_data(self):
         return {
             'name': self.asset_name,
-            'train_dir_ipfs': self.train_dir_ipfs,
-            'x_test_ipfs': self.x_test_ipfs,
-            'y_test_ipfs': self.y_test_ipfs
         }
 
     def get_metadata(self):
         return {
             'name': self.name,
+            'train_dir_ipfs': self.encrypted_train_dir_ipfs or self.train_dir_ipfs,
+            'x_test_ipfs': self.encrypted_x_test_ipfs or self.x_test_ipfs,
+            'y_test_ipfs': self.encrypted_y_test_ipfs or self.y_test_ipfs
         }
+
+    def save(self, producer):
+        from tatau.node import Node
+        if producer.node_type != Node.NodeType.PRODUCER:
+            raise ValueError('Only producer can save dataset')
+
+        producer.db.update_asset(
+            asset_id=self.asset_id,
+            metadata=self.get_metadata()
+        )
 
     @classmethod
     def add(cls, producer, name, x_train_path, y_train_path, x_test_path, y_test_path, files_count):
@@ -89,9 +111,12 @@ class DataSet:
 
         return cls(
             name=asset.metadata['name'],
-            train_dir_ipfs=node.decrypt_text(asset.data['train_dir_ipfs']),
-            x_test_ipfs=node.decrypt_text(asset.data['x_test_ipfs']),
-            y_test_ipfs=node.decrypt_text(asset.data['y_test_ipfs']),
+            train_dir_ipfs=node.decrypt_text(asset.metadata['train_dir_ipfs']),
+            encrypted_train_dir_ipfs=asset.metadata['train_dir_ipfs'],
+            x_test_ipfs=node.decrypt_text(asset.metadata['x_test_ipfs']),
+            encrypted_x_test_ipfs=asset.metadata['x_test_ipfs'],
+            y_test_ipfs=node.decrypt_text(asset.metadata['y_test_ipfs']),
+            encrypted_y_test_ipfs=asset.metadata['y_test_ipfs'],
             asset_id=asset_id
         )
 
