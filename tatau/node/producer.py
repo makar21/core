@@ -70,16 +70,20 @@ class Producer(Node):
         if len(task_declaration.results) + len(task_declaration.errors) == task_declaration.workers_requested:
             task_declaration.progress = 100
 
+        publish_verification_declaration = False
         if task_declaration.progress == 100:
             task_declaration.status = TaskDeclaration.Status.COMPLETED
+            publish_verification_declaration = True
 
+        # save Task Declaration before create Verification Declaration to be sure all results are saved
+        task_declaration.save(self.db)
+
+        if publish_verification_declaration:
             VerificationDeclaration.add(
                 node=self,
                 verifiers_needed=task_declaration.verifiers_needed,
                 task_declaration_id=task_declaration.asset_id,
             )
-
-        task_declaration.save(self.db)
 
     def process_verification_assignment(self, asset_id, transaction):
         verification_assignment = VerificationAssignment.get(self, asset_id)
@@ -140,6 +144,7 @@ class Producer(Node):
             y_train_ipfs=y_train_ipfs,
             x_test_ipfs=task_declaration.dataset.x_test_ipfs,
             y_test_ipfs=task_declaration.dataset.y_test_ipfs,
+            batch_size=task_declaration.batch_size,
             epochs=task_declaration.epochs,
             task_declaration_id=task_declaration.asset_id
         )

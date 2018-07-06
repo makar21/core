@@ -15,7 +15,7 @@ class TaskDeclaration(Task):
         COMPLETED = 'completed'
 
     def __init__(self, owner_producer_id, dataset, train_model, workers_needed, workers_requested, verifiers_needed,
-                 epochs, asset_id, *args, **kwargs):
+                 batch_size, epochs, asset_id, *args, **kwargs):
         super().__init__(asset_id, *args, **kwargs)
         self.owner_producer_id = owner_producer_id
         self.dataset = dataset
@@ -23,6 +23,7 @@ class TaskDeclaration(Task):
         self.workers_needed = workers_needed
         self.workers_requested = workers_requested
         self.verifiers_needed = verifiers_needed
+        self.batch_size = batch_size
         self.epochs = epochs
         self.status = kwargs.get('status', TaskDeclaration.Status.DEPLOYMENT)
         self.progress = kwargs.get('progress', 0)
@@ -38,15 +39,16 @@ class TaskDeclaration(Task):
             'owner_producer_id': self.owner_producer_id,
             'train_model_id': self.train_model.asset_id,
             'dataset_id': self.dataset.asset_id,
-            'workers_requested': self.workers_requested,
-            'epochs': self.epochs,
-            'verifiers_needed': self.verifiers_needed,
         })
         return data
 
     def get_metadata(self):
         return {
+            'workers_requested': self.workers_requested,
+            'verifiers_needed': self.verifiers_needed,
             'workers_needed': self.workers_needed,
+            'batch_size': self.batch_size,
+            'epochs': self.epochs,
             'status': self.status,
             'progress': self.progress,
             'tflops': self.tflops,
@@ -56,7 +58,7 @@ class TaskDeclaration(Task):
 
     # noinspection PyMethodOverriding
     @classmethod
-    def add(cls, node, dataset, train_model, workers_needed, verifiers_needed, epochs, *args, **kwargs):
+    def add(cls, node, dataset, train_model, workers_needed, verifiers_needed, batch_size, epochs, *args, **kwargs):
         if node.node_type != Node.NodeType.PRODUCER:
             raise ValueError('Only producer can create task declaration')
 
@@ -70,6 +72,7 @@ class TaskDeclaration(Task):
             verifiers_needed=verifiers_needed,
             results=producer.encrypt_text(json.dumps([])),
             errors=producer.encrypt_text(json.dumps([])),
+            batch_size=batch_size,
             epochs=epochs,
             asset_id=None
         )
@@ -109,9 +112,10 @@ class TaskDeclaration(Task):
             dataset=dataset,
             train_model=train_model,
             workers_needed=asset.metadata['workers_needed'],
-            workers_requested=asset.data['workers_requested'],
-            verifiers_needed=asset.data['verifiers_needed'],
-            epochs=asset.data['epochs'],
+            workers_requested=asset.metadata['workers_requested'],
+            verifiers_needed=asset.metadata['verifiers_needed'],
+            batch_size=asset.metadata['batch_size'],
+            epochs=asset.metadata['epochs'],
             asset_id=asset_id,
             status=asset.metadata['status'],
             progress=asset.metadata['progress'],

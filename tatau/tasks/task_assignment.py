@@ -48,7 +48,7 @@ class TaskAssignment(Task):
 
     # noinspection PyMethodOverriding
     @classmethod
-    def add(cls, node, worker_id, model_code, x_train_ipfs, y_train_ipfs, x_test_ipfs, y_test_ipfs, epochs,
+    def add(cls, node, worker_id, model_code, x_train_ipfs, y_train_ipfs, x_test_ipfs, y_test_ipfs, batch_size, epochs,
             task_declaration_id, *args, **kwargs):
         if node.node_type != Node.NodeType.PRODUCER:
             raise ValueError('Only producer can create task assignment')
@@ -63,6 +63,7 @@ class TaskAssignment(Task):
             y_train_ipfs=y_train_ipfs,
             x_test_ipfs=x_test_ipfs,
             y_test_ipfs=y_test_ipfs,
+            batch_size=batch_size,
             epochs=epochs,
         )
 

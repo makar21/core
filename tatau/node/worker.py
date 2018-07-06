@@ -125,6 +125,7 @@ class Worker(Node):
         ipfs = IPFS()
         model_code = ipfs.read(task_assignment.train_data['model_code'])
         epochs = task_assignment.train_data['epochs']
+        batch_size = task_assignment.train_data['batch_size']
 
         target_dir = tempfile.mkdtemp()
 
@@ -150,7 +151,7 @@ class Worker(Node):
             try:
                 m = import_module(asset_id)
                 weights_file_path = str(m.run(
-                    train_x_paths, train_y_paths, test_x_path, test_y_path, epochs, target_dir,
+                    train_x_paths, train_y_paths, test_x_path, test_y_path, batch_size, epochs, target_dir,
                     progress.progress_callback)
                 )
             except Exception as e:

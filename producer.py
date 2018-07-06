@@ -92,6 +92,7 @@ if __name__ == '__main__':
             train_model=train_model,
             workers_needed=2,
             verifiers_needed=1,
+            batch_size=124,
             epochs=3
         )
 
