@@ -2,9 +2,9 @@ import json
 import logging
 import re
 
-import ipfs
-import settings
-from tatau.tasks import Task, TaskDeclaration, TaskAssignment, VerificationDeclaration, VerificationAssignment
+from ... import ipfs
+from ... import settings
+from ..tasks import Task, TaskDeclaration, TaskAssignment, VerificationDeclaration, VerificationAssignment
 from .node import Node
 
 logger = logging.getLogger()

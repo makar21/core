@@ -6,7 +6,7 @@ import tempfile
 
 import numpy as np
 
-from ipfs import IPFS
+from ..ipfs import IPFS
 
 logger = logging.getLogger()
 

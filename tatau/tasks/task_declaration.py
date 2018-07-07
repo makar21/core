@@ -1,8 +1,8 @@
 import json
 
-from tatau.dataset import DataSet
-from tatau.node import Node
-from tatau.train_model import TrainModel
+from ..dataset import DataSet
+from ..node import Node
+from ..train_model import TrainModel
 from .task import Task
 
 

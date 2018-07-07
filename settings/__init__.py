@@ -1,6 +1,6 @@
 import os
 
-import settings.local_settings as local_settings
+from . import local_settings
 
 DEBUG = local_settings.DEBUG
 

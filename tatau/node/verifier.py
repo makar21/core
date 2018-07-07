@@ -1,6 +1,6 @@
 import requests
 
-from tatau.tasks import Task, VerificationDeclaration, VerificationAssignment
+from ..tasks import Task, VerificationDeclaration, VerificationAssignment
 from .node import Node
 
 

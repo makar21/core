@@ -1,6 +1,6 @@
 import json
 
-from tatau.node.node import Node
+from ..node.node import Node
 from .task import Task
 
 
