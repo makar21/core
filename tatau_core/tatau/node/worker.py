@@ -10,9 +10,9 @@ from multiprocessing import Process, Lock, Queue
 import psutil
 import requests
 
-from ... import settings
-from ...const import progress_report_interval
-from ...ipfs import IPFS
+from tatau_core import settings
+from tatau_core.const import progress_report_interval
+from tatau_core.ipfs import IPFS
 from ..tasks import Task, TaskDeclaration, TaskAssignment
 from .node import Node
 

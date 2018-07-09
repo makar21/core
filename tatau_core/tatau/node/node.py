@@ -2,10 +2,10 @@ import hashlib
 import logging
 import os
 
-from ...db import DB, TransactionListener
-from ...encryption import Encryption
+from tatau_core.db import DB, TransactionListener
+from tatau_core.encryption import Encryption
 
-from ...settings import ROOT_DIR
+from tatau_core.settings import ROOT_DIR
 
 
 logger = logging.getLogger()

@@ -1,7 +1,7 @@
 import logging
 
-from tatau.node import Verifier
-from utils.logging import configure_logging
+from tatau_core.tatau.node import Verifier
+from tatau_core.utils.logging import configure_logging
 
 configure_logging('verifier')
 

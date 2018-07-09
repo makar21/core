@@ -2,8 +2,8 @@ import json
 import logging
 import re
 
-from ... import ipfs
-from ... import settings
+from tatau_core import ipfs
+from tatau_core import settings
 from ..tasks import Task, TaskDeclaration, TaskAssignment, VerificationDeclaration, VerificationAssignment
 from .node import Node
 

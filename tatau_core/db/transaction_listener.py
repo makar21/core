@@ -2,7 +2,7 @@ import json
 
 import websocket
 
-from ..const import valid_transactions_stream_url
+from tatau_core.const import valid_transactions_stream_url
 
 
 class TransactionListener:

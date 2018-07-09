@@ -6,7 +6,7 @@ import tempfile
 
 import numpy as np
 
-from ..ipfs import IPFS
+from tatau_core.ipfs import IPFS
 
 logger = logging.getLogger()
 
@@ -41,7 +41,7 @@ class DataSet:
 
     @classmethod
     def add(cls, producer, name, x_train_path, y_train_path, x_test_path, y_test_path, files_count):
-        from tatau.node import Node
+        from .node import Node
         if producer.node_type != Node.NodeType.PRODUCER:
             raise ValueError('Only producer can add dataset')
 

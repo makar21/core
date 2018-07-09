@@ -1,7 +1,7 @@
 import json
 import logging
 
-from ..ipfs import IPFS
+from tatau_core.ipfs import IPFS
 from .node.node import Node
 
 logger = logging.getLogger()

@@ -3,7 +3,7 @@ import logging
 from raven import Client
 from raven.handlers.logging import SentryHandler
 
-import settings
+from tatau_core import settings
 
 
 def configure_logging(name):
@@ -19,4 +19,3 @@ def configure_logging(name):
             SentryHandler(client, level=logging.ERROR)
         ]
     )
-

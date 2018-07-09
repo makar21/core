@@ -1,4 +1,4 @@
-from ipfs import IPFS, File, Directory
+from tatau_core.ipfs import IPFS, File, Directory
 import os
 import filecmp
 import shutil
@@ -41,4 +41,3 @@ if __name__ == '__main__':
         print('Dir {} downloaded to {}'.format(ipfs_dir.multihash, path))
     finally:
         shutil.rmtree(dir_path)
-

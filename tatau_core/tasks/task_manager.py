@@ -1,6 +1,6 @@
 import json
 
-from ipfs import IPFS
+from tatau_core.ipfs import IPFS
 from .task import Task
 
 

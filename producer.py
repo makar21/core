@@ -5,12 +5,12 @@ from multiprocessing import Process
 
 from bottle import Bottle, request, run
 
-import settings
-from tatau.dataset import DataSet
-from tatau.node.producer import Producer
-from tatau.tasks import TaskDeclaration
-from tatau.train_model import TrainModel
-from utils.logging import configure_logging
+from tatau_core import settings
+from tatau_core.tatau.dataset import DataSet
+from tatau_core.tatau.node.producer import Producer
+from tatau_core.tatau.tasks import TaskDeclaration
+from tatau_core.tatau.train_model import TrainModel
+from tatau_core.utils.logging import configure_logging
 
 configure_logging('producer')
 

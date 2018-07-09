@@ -1,5 +1,5 @@
-from tatau.node.worker import Worker
-import settings
+from tatau_core.tatau.node.worker import Worker
+from tatau_core import settings
 from raven import Client
 
 client = Client(settings.RAVEN_DSN)
