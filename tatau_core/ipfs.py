@@ -1,5 +1,6 @@
-import ipfsapi
 import os
+
+import ipfsapi
 
 
 class File:

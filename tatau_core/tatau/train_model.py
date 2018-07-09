@@ -1,4 +1,3 @@
-import json
 import logging
 
 from tatau_core.ipfs import IPFS
@@ -10,8 +9,7 @@ logger = logging.getLogger()
 class TrainModel:
     asset_name = 'Train model'
 
-    def __init__(self, owner_producer_id, name, code_ipfs, encrypted_text=None, asset_id=None):
-        self.owner_producer_id = owner_producer_id
+    def __init__(self, name, code_ipfs, encrypted_text=None, asset_id=None):
         self.name = name
         self.asset_id = asset_id
         self.code_ipfs = code_ipfs
@@ -19,16 +17,23 @@ class TrainModel:
 
     def get_data(self):
         return {
-            'owner_producer_id': self.owner_producer_id,
-            'name': self.name,
-            'code_ipfs': self.code_ipfs
+            'name': self.asset_name,
         }
 
-    def to_json(self):
-        if self.encrypted_text is not None:
-            return self.encrypted_text
+    def get_metadata(self):
+        return {
+            'name': self.name,
+            'code_ipfs': self.encrypted_text or self.code_ipfs
+        }
 
-        return json.dumps(self.get_data())
+    def save(self, producer):
+        if producer.node_type != Node.NodeType.PRODUCER:
+            raise ValueError('Only producer can save train model')
+
+        producer.db.update_asset(
+            asset_id=self.asset_id,
+            metadata=self.get_metadata()
+        )
 
     @classmethod
     def add(cls, producer, name, code_path):
@@ -36,54 +41,47 @@ class TrainModel:
             raise ValueError('Only producer can add train model')
 
         ipfs = IPFS()
-
         code_ipfs = ipfs.add_file(code_path).multihash
 
         train_model = cls(
-            owner_producer_id=producer.asset_id,
             name=name,
-            code_ipfs=code_ipfs
+            code_ipfs=producer.encrypt_text(code_ipfs)
         )
 
-        asset_id = producer.db.create_asset(
-            data={'name': cls.asset_name},
-            metadata={
-                'producer_id': producer.asset_id,
-                'name': train_model.name,
-                'train_model': producer.encrypt_text(train_model.to_json())
-            }
-        )[0]
+        asset_id, created = producer.db.create_asset(
+            data=train_model.get_data(),
+            metadata=train_model.get_metadata()
+        )
 
         train_model.asset_id = asset_id
+        train_model.code_ipfs = code_ipfs
 
-        logger.info('Producer "{}" added train model, name: {}, asset_id: {}'.format(producer.asset_id, name, asset_id))
+        logger.debug('Producer "{}" added train model, name: {}, asset_id: {}'.format(
+            producer.asset_id, name, asset_id)
+        )
+
         return train_model
 
     @classmethod
     def get(cls, node, asset_id):
         asset = node.db.retrieve_asset(asset_id)
-        encrypted_text = asset.metadata['train_model']
-        try:
-            train_model_data = json.loads(node.decrypt_text(encrypted_text))
-        except json.JSONDecodeError:
-            train_model_data = {
-                'name': 'encrypted',
-                'code_ipfs': 'encrypted'
-            }
 
-        logger.info('{} {} load train model, name:{}, asset_id: {}'.format(
+        logger.debug('{} {} load train model, name:{}, asset_id: {}'.format(
             node.node_type, node.asset_id, asset.metadata['name'], asset_id)
         )
 
         return cls(
-            owner_producer_id=asset.metadata['producer_id'],
             name=asset.metadata['name'],
-            code_ipfs=train_model_data['code_ipfs'],
+            code_ipfs=node.decrypt_text(asset.metadata['code_ipfs']),
+            encrypted_text=asset.metadata['code_ipfs'],
             asset_id=asset_id,
-            encrypted_text=encrypted_text
         )
 
     @classmethod
     def list(cls, producer):
-        # TODO: implement list of producer's train models
-        raise NotImplemented
+        producer.db.connect_to_mongodb()
+        match = {
+            'assets.data.name': cls.asset_name,
+        }
+
+        return [cls.get(producer, x) for x in producer.db.retrieve_asset_ids(match=match)]

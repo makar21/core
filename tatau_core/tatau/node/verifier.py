@@ -1,7 +1,11 @@
+import logging
+
 import requests
 
 from ..tasks import Task, VerificationDeclaration, VerificationAssignment
 from .node import Node
+
+logger = logging.getLogger()
 
 
 class Verifier(Node):
@@ -26,7 +30,7 @@ class Verifier(Node):
 
     def process_verification_declaration(self, asset_id, transaction):
         verification_declaration = VerificationDeclaration.get(self, asset_id)
-        print('Received task verification asset:{}, producer:{}, verifiers_needed: {}'.format(
+        logger.info('Received task verification asset:{}, producer:{}, verifiers_needed: {}'.format(
             asset_id, verification_declaration.owner_producer_id, verification_declaration.verifiers_needed))
 
         if verification_declaration.verifiers_needed == 0:
@@ -37,15 +41,18 @@ class Verifier(Node):
         self.ping_producer(asset_id, producer_api_url)
 
     def process_verification_assignment(self, asset_id, transaction):
-        print('Received verification assignment')
+        # skip another assignment
         verification_assignment = VerificationAssignment.get(self, asset_id)
-        print(verification_assignment.train_results)
-        verification_assignment.verified = True
+        if verification_assignment.verifier_id != self.asset_id:
+            return
+
+        logger.info('Received verification assignment')
+        verification_assignment.verified = self.verify(verification_assignment, verification_assignment.train_results)
         verification_assignment.save(self.db)
-        print('Finished verification')
+        logger.info('Finished verification')
 
     def ping_producer(self, asset_id, producer_api_url):
-        print('Pinging producer')
+        logger.info('Pinging producer')
         requests.post(
             url='{}/verifier/ready/'.format(producer_api_url),
             json={
@@ -54,5 +61,6 @@ class Verifier(Node):
             }
         )
 
-    def verify(self, task, result):
+    def verify(self, verification_assignment, result):
+        logger.info('Verified task: {}, results: {}'.format(verification_assignment.asset_id, result))
         return True

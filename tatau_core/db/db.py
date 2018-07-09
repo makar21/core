@@ -13,8 +13,9 @@ from pymongo import MongoClient
 
 
 class Asset:
-    def __init__(self, tx, asset_id):
+    def __init__(self, tx, asset_id, first_tx):
         self.tx = tx
+        self.data = first_tx['asset']['data']
         self.metadata = tx['metadata']
         self.asset_id = asset_id
 
@@ -151,7 +152,7 @@ class DB:
 
         latest_tx = transactions[-1]
 
-        return Asset(tx=latest_tx, asset_id=asset_id)
+        return Asset(tx=latest_tx, asset_id=asset_id, first_tx=transactions[0])
 
     def retrieve_asset_metadata(self, asset_id):
         """

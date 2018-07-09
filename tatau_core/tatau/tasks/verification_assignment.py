@@ -17,15 +17,20 @@ class VerificationAssignment(Task):
         self.result = kwargs.get('result', None)
         self.error = kwargs.get('error', None)
         self.tflops = kwargs.get('tflops', None)
-        self.encrypted_text = kwargs.get('encrypted_text', None)
         self.verified = kwargs.get('verified', None)
 
     def get_data(self):
-        return {
+        data = super(VerificationAssignment, self).get_data()
+        data.update({
             'owner_producer_id': self.owner_producer_id,
             'verifier_id': self.verifier_id,
-            'train_results': self.encrypted_text or self.train_results,
-            'task_declaration_id': self.task_declaration_id,
+            'train_results': self.train_results,
+            'task_declaration_id': self.task_declaration_id
+        })
+        return data
+
+    def get_metadata(self):
+        return {
             'progress': self.progress,
             'result': self.result,
             'error': self.error,
@@ -56,11 +61,11 @@ class VerificationAssignment(Task):
             asset_id=None
         )
 
-        asset_id = producer.db.create_asset(
-            data={'name': cls.task_type},
-            metadata=verifier_assignment.get_data(),
+        asset_id, created = producer.db.create_asset(
+            data=verifier_assignment.get_data(),
+            metadata=verifier_assignment.get_metadata(),
             recipients=verifier_address,
-        )[0]
+        )
 
         verifier_assignment.asset_id = asset_id
         return verifier_assignment
@@ -68,22 +73,16 @@ class VerificationAssignment(Task):
     @classmethod
     def get(cls, node, asset_id):
         asset = node.db.retrieve_asset(asset_id)
-        encrypted_text = asset.metadata['train_results']
-        try:
-            train_results = json.loads(node.decrypt_text(encrypted_text))
-        except json.JSONDecodeError:
-            train_results = encrypted_text
 
         return cls(
             asset_id=asset_id,
-            owner_producer_id=asset.metadata['owner_producer_id'],
-            verifier_id=asset.metadata['verifier_id'],
-            train_results=train_results,
-            task_declaration_id=asset.metadata['task_declaration_id'],
+            owner_producer_id=asset.data['owner_producer_id'],
+            verifier_id=asset.data['verifier_id'],
+            train_results=node.decrypt_text(asset.data['train_results']),
+            task_declaration_id=asset.data['task_declaration_id'],
             progress=asset.metadata['progress'],
             result=asset.metadata['result'],
             error=asset.metadata['error'],
             tflops=asset.metadata['tflops'],
             verified=asset.metadata['verified'],
-            encrypted_text=encrypted_text
         )

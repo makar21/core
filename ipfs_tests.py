@@ -1,8 +1,8 @@
-from tatau_core.ipfs import IPFS, File, Directory
-import os
 import filecmp
+import os
 import shutil
 
+from tatau_core.ipfs import IPFS, File, Directory
 
 if __name__ == '__main__':
 
