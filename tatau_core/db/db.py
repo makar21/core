@@ -11,6 +11,8 @@ from bigchaindb_driver.crypto import CryptoKeypair, generate_keypair
 
 from pymongo import MongoClient
 
+from tatau_core import settings
+
 
 class Asset:
     def __init__(self, tx, asset_id, first_tx):
@@ -21,11 +23,13 @@ class Asset:
 
 
 class DB:
-    bdb_root_url = 'http://localhost:9984'
-    bdb = BigchainDB(bdb_root_url)
+    bdb = BigchainDB(settings.BDB_ROOT_URL)
 
     def connect_to_mongodb(self):
-        self.mongo_client = MongoClient('localhost', 27017)
+        self.mongo_client = MongoClient(
+            settings.MONGO_DB_HOST,
+            settings.MONGO_DB_PORT
+        )
         self.mongo_db = self.mongo_client.bigchain
 
     def generate_keypair(self, seed=None):

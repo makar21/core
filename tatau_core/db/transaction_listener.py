@@ -2,7 +2,7 @@ import json
 
 import websocket
 
-from tatau_core.const import valid_transactions_stream_url
+from tatau_core import settings
 
 
 class TransactionListener:
@@ -25,7 +25,7 @@ class TransactionListener:
     def run_transaction_listener(self):
         websocket.enableTrace(True)
         ws = websocket.WebSocketApp(
-            valid_transactions_stream_url,
+            settings.VALID_TRANSACTIONS_STREAM_URL,
             on_message=self.on_message,
             on_error=self.on_error,
             on_close=self.on_close,

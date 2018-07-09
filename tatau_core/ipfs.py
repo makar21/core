@@ -2,6 +2,8 @@ import os
 
 import ipfsapi
 
+from tatau_core import settings
+
 
 class File:
     def __init__(self, multihash=None, ipfs_data=None):
@@ -62,7 +64,7 @@ class IPFS:
             cls._instance = object.__new__(cls, *args, **kwargs)
         return cls._instance
 
-    def __init__(self, host='127.0.0.1', port=5001):
+    def __init__(self, host=settings.IPFS_HOST, port=settings.IPFS_PORT):
         self.api = ipfsapi.connect(host, port)
 
     @property

@@ -2,3 +2,13 @@ DEBUG = False
 
 # register on sentry.io
 RAVEN_DSN = ''
+
+VALID_TRANSACTIONS_STREAM_URL = 'ws://localhost:9985/api/v1/streams/valid_transactions'
+
+BDB_ROOT_URL = 'http://localhost:9984'
+
+MONGO_DB_HOST = 'localhost'
+MONGO_DB_PORT = 27017
+
+IPFS_HOST = 'localhost'
+IPFS_PORT = 5001
