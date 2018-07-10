@@ -103,7 +103,7 @@ class DataSet:
     def get(cls, node, asset_id):
         asset = node.db.retrieve_asset(asset_id)
 
-        logger.debug('{} {} load dataset, name:{}, asset_id: {}'.format(
+        logger.debug('{} {} load dataset, name: {}, asset_id: {}'.format(
             node.node_type, node.asset_id, asset.metadata['name'], asset_id)
         )
 

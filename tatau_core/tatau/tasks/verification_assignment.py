@@ -7,12 +7,14 @@ from .task import Task
 class VerificationAssignment(Task):
     task_type = Task.TaskType.VERIFICATION_ASSIGNMENT
 
-    def __init__(self, owner_producer_id, verifier_id, train_results, task_declaration_id, asset_id, *args, **kwargs):
+    def __init__(self, owner_producer_id, verifier_id, verification_declaration_id, train_results, task_declaration_id,
+                 asset_id, *args, **kwargs):
         super().__init__(asset_id, *args, **kwargs)
         self.owner_producer_id = owner_producer_id
         self.verifier_id = verifier_id
         self.train_results = train_results
         self.task_declaration_id = task_declaration_id
+        self.verification_declaration_id = verification_declaration_id
         self.progress = kwargs.get('progress', 0)
         self.result = kwargs.get('result', None)
         self.error = kwargs.get('error', None)
@@ -25,7 +27,8 @@ class VerificationAssignment(Task):
             'owner_producer_id': self.owner_producer_id,
             'verifier_id': self.verifier_id,
             'train_results': self.train_results,
-            'task_declaration_id': self.task_declaration_id
+            'task_declaration_id': self.task_declaration_id,
+            'verification_declaration_id': self.verification_declaration_id
         })
         return data
 
@@ -40,7 +43,7 @@ class VerificationAssignment(Task):
 
     # noinspection PyMethodOverriding
     @classmethod
-    def add(cls, node, verifier_id, train_results, task_declaration_id, *args, **kwargs):
+    def add(cls, node, verifier_id, verification_declaration_id, train_results, task_declaration_id, *args, **kwargs):
         if node.node_type != Node.NodeType.PRODUCER:
             raise ValueError('Only producer can create task assignment')
 
@@ -56,6 +59,7 @@ class VerificationAssignment(Task):
         verifier_assignment = cls(
             owner_producer_id=producer.asset_id,
             verifier_id=verifier_id,
+            verification_declaration_id=verification_declaration_id,
             train_results=train_data_encrypted,
             task_declaration_id=task_declaration_id,
             asset_id=None
@@ -80,6 +84,7 @@ class VerificationAssignment(Task):
             verifier_id=asset.data['verifier_id'],
             train_results=node.decrypt_text(asset.data['train_results']),
             task_declaration_id=asset.data['task_declaration_id'],
+            verification_declaration_id=asset.data['verification_declaration_id'],
             progress=asset.metadata['progress'],
             result=asset.metadata['result'],
             error=asset.metadata['error'],
