@@ -87,16 +87,27 @@ class Worker(Node):
         if task_declaration.workers_needed == 0:
             return
 
-        producer_info = self.db.retrieve_asset(task_declaration.owner_producer_id).metadata
-        producer_api_url = producer_info['producer_api_url']
-        self.ping_producer(asset_id, producer_api_url)
+        exists = TaskAssignment.exists(
+            node=self,
+            additional_match={
+                'assets.data.worker_id': self.asset_id,
+                'assets.data.task_declaration_id': task_declaration.asset_id,
+            },
+            created_by_user=False
+        )
+
+        if exists:
+            logger.info('Worker: {} already worked on task: {}', self.asset_id, task_declaration.asset_id)
+            return
+
+        self.ping_producer(asset_id, task_declaration.owner_producer_id)
 
     def process_task_assignment(self, asset_id, transaction):
         # skip another assignment
         if TaskAssignment.get(self, asset_id).worker_id != self.asset_id:
             return
 
-        logger.info('Received task assignment asset:{}'.format(asset_id))
+        logger.info('Received task assignment asset: {}'.format(asset_id))
 
         interprocess = WorkerInterprocess()
 
@@ -178,7 +189,7 @@ class Worker(Node):
             task_assignment.progress = 100
             task_assignment.save(self.db)
 
-            logger.info('Finished task: {}, tflops:{}, result:{}, error:{}'.format(
+            logger.info('Finished task: {}, tflops: {}, result: {}, error: {}'.format(
                 task_assignment.asset_id, task_assignment.tflops, task_assignment.result, task_assignment.error
             ))
         finally:
@@ -194,12 +205,35 @@ class Worker(Node):
 
         logger.info('Stop collect metrics')
 
-    def ping_producer(self, asset_id, producer_api_url):
-        logger.info('Pinging producer')
+    def ping_producer(self, task_declaration_asset_id, producer_asset_id):
+        logger.info('Pinging producer: {}'.format(producer_asset_id))
+        producer_info = self.db.retrieve_asset(producer_asset_id).metadata
+        producer_api_url = producer_info['producer_api_url']
         requests.post(
             url='{}/worker/ready/'.format(producer_api_url),
             json={
                 'worker_id': self.asset_id,
-                'task_id': asset_id
+                'task_id': task_declaration_asset_id
             }
         )
+
+    def process_old_task_declarations(self):
+        for task_declaration in TaskDeclaration.list(self, created_by_user=False):
+            if task_declaration.status == TaskDeclaration.Status.COMPLETED or task_declaration.workers_needed == 0:
+                continue
+
+            exists = TaskAssignment.exists(
+                node=self,
+                additional_match={
+                    'assets.data.worker_id': self.asset_id,
+                    'assets.data.task_declaration_id': task_declaration.asset_id,
+                },
+                created_by_user=False
+            )
+
+            if exists:
+                continue
+
+            self.ping_producer(task_declaration.asset_id, task_declaration.owner_producer_id)
+            break
+

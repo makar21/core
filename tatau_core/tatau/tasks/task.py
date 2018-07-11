@@ -45,7 +45,7 @@ class Task:
         return json.dumps(self.get_data())
 
     @classmethod
-    def list(cls, node, additional_match=None):
+    def list(cls, node, additional_match=None, created_by_user=True):
         node.db.connect_to_mongodb()
         match = {
             'assets.data.name': cls.task_type,
@@ -53,4 +53,10 @@ class Task:
 
         if additional_match is not None:
             match.update(additional_match)
-        return [cls.get(node, x) for x in node.db.retrieve_asset_ids(match=match)]
+        return (cls.get(node, x) for x in node.db.retrieve_asset_ids(match=match, created_by_user=created_by_user))
+
+    @classmethod
+    def exists(cls, node, additional_match=None, created_by_user=True):
+        for v in cls.list(node, additional_match, created_by_user):
+            return True
+        return False

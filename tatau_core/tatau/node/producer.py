@@ -40,7 +40,7 @@ class Producer(Node):
         if task_assignment.owner_producer_id != self.asset_id:
             return
 
-        logger.info('Process {}'.format(task_assignment))
+        logger.info('Process: {}'.format(task_assignment))
 
         task_declaration = TaskDeclaration.get(self, task_assignment.task_declaration_id)
         task_declaration.status = TaskDeclaration.Status.RUN
@@ -90,13 +90,16 @@ class Producer(Node):
         if verification_assignment.owner_producer_id != self.asset_id:
             return
 
+        vd = VerificationDeclaration.get(self, verification_assignment.verification_declaration_id)
+        vd.status = VerificationDeclaration.Status.COMPLETED
+
         if verification_assignment.verified:
             logger.info('Task result is verified')
         else:
             logger.info('Task result is not verified')
 
     def on_worker_ping(self, task_asset_id, worker_asset_id):
-        logger.info('Worker:{} requested task: {}'.format(worker_asset_id, task_asset_id))
+        logger.info('Worker: {} requested task: {}'.format(worker_asset_id, task_asset_id))
 
         task_declaration = TaskDeclaration.get(self, task_asset_id)
         if task_declaration.workers_needed == 0:
@@ -107,15 +110,15 @@ class Producer(Node):
         if worker_index < 0:
             return
 
-        already_assigned = TaskAssignment.list(
+        exists = TaskAssignment.exists(
             node=self,
             additional_match={
-                'asset.data.worker_id': worker_asset_id,
-                'asset.data.task_declaration_id': task_asset_id
+                'assets.data.worker_id': worker_asset_id,
+                'assets.data.task_declaration_id': task_asset_id
             }
         )
 
-        if len(already_assigned):
+        if exists:
             logger.info('Worker: {} have already worked on this task: {}'.format(worker_asset_id, task_asset_id))
             return
 
@@ -155,17 +158,18 @@ class Producer(Node):
     def on_verifier_ping(self, task_asset_id, verifier_asset_id):
         verification_declaration = VerificationDeclaration.get(self, task_asset_id)
         if verification_declaration.verifiers_needed == 0:
+            logger.info('No more verifiers needed')
             return
 
-        already_assigned = VerificationAssignment.list(
+        exists = VerificationAssignment.exists(
             node=self,
             additional_match={
-                'asset.data.verifier_id': verifier_asset_id,
-                'asset.data.task_declaration_id': task_asset_id
+                'assets.data.verifier_id': verifier_asset_id,
+                'assets.data.task_declaration_id': verification_declaration.task_declaration_id
             }
         )
 
-        if len(already_assigned):
+        if exists:
             logger.info('Verifier: {} have already worked on this task: {}'.format(verifier_asset_id, task_asset_id))
             return
 
