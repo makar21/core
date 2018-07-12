@@ -4,6 +4,7 @@ import re
 
 from tatau_core import ipfs
 from tatau_core import settings
+from tatau_core.db.exceptions import StopWSClient
 from ..tasks import Task, TaskDeclaration, TaskAssignment, VerificationDeclaration, VerificationAssignment
 from .node import Node
 
@@ -15,6 +16,10 @@ class Producer(Node):
 
     key_name = 'producer'
     asset_name = 'Producer info'
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.exit_on_task_completion = kwargs.get('exit_on_task_completion')
 
     def get_tx_methods(self):
         return {
@@ -100,6 +105,9 @@ class Producer(Node):
             logger.info('Task result is verified')
         else:
             logger.info('Task result is not verified')
+
+        if self.exit_on_task_completion:
+            raise StopWSClient
 
     def assign_task(self, task_assignment):
         task_declaration = TaskDeclaration.get(

@@ -1,0 +1,2 @@
+class StopWSClient(Exception):
+    pass

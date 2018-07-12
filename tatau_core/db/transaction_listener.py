@@ -4,11 +4,16 @@ import websocket
 
 from tatau_core import settings
 
+from .exceptions import StopWSClient
+
 
 class TransactionListener:
     def on_message(self, ws, message):
         data = json.loads(message)
-        self.process_tx(data)
+        try:
+            self.process_tx(data)
+        except StopWSClient:
+            ws.close()
 
     def on_error(self, ws, error):
         print(error)

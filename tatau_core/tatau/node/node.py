@@ -21,7 +21,7 @@ class Node(TransactionListener):
     node_type = None
     asset_name = None
 
-    def __init__(self, rsa_pk_fs_name=None, rsa_pk=None):
+    def __init__(self, rsa_pk_fs_name=None, rsa_pk=None, *args, **kwargs):
         self.db = DB()
         self.bdb = self.db.bdb
         self.encryption = Encryption()
