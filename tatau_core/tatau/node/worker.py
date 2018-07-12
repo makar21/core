@@ -7,8 +7,6 @@ import tempfile
 from importlib import import_module
 from multiprocessing import Process, RLock, Event, Value
 
-import requests
-
 from tatau_core import settings
 from tatau_core.ipfs import IPFS
 from tatau_core.metrics import Snapshot
@@ -65,11 +63,6 @@ class Worker(Node):
     key_name = 'worker'
     asset_name = 'Worker info'
 
-    def get_node_info(self):
-        return {
-            'enc_key': self.encryption.get_public_key().decode(),
-        }
-
     def get_tx_methods(self):
         return {
             Task.TaskType.TASK_DECLARATION: self.process_task_declaration,
@@ -77,9 +70,12 @@ class Worker(Node):
         }
 
     def ignore_operation(self, operation):
-        return operation in ['TRANSFER']
+        return False
 
     def process_task_declaration(self, asset_id, transaction):
+        if transaction['operation'] == 'TRANSFER':
+            return
+
         task_declaration = TaskDeclaration.get(self, asset_id)
         logger.info('Received task declaration asset: {}, producer: {}, workers_needed: {}'.format(
             asset_id, task_declaration.owner_producer_id, task_declaration.workers_needed))
@@ -100,11 +96,20 @@ class Worker(Node):
             logger.info('Worker: {} already worked on task: {}', self.asset_id, task_declaration.asset_id)
             return
 
-        self.ping_producer(asset_id, task_declaration.owner_producer_id)
+        self.add_task_assignment(task_declaration)
 
     def process_task_assignment(self, asset_id, transaction):
+        if transaction['operation'] == 'CREATE':
+            return
+
+        task_assignment = TaskAssignment.get(self, asset_id)
+
         # skip another assignment
-        if TaskAssignment.get(self, asset_id).worker_id != self.asset_id:
+        if task_assignment.worker_id != self.asset_id:
+            return
+
+        # skip assignment that the worker has started working on
+        if not task_assignment.train_data:
             return
 
         logger.info('Received task assignment asset: {}'.format(asset_id))
@@ -205,17 +210,15 @@ class Worker(Node):
 
         logger.info('Stop collect metrics')
 
-    def ping_producer(self, task_declaration_asset_id, producer_asset_id):
-        logger.info('Pinging producer: {}'.format(producer_asset_id))
-        producer_info = self.db.retrieve_asset(producer_asset_id).metadata
-        producer_api_url = producer_info['producer_api_url']
-        requests.post(
-            url='{}/worker/ready/'.format(producer_api_url),
-            json={
-                'worker_id': self.asset_id,
-                'task_id': task_declaration_asset_id
-            }
+    def add_task_assignment(self, task_declaration):
+        task_assignment = TaskAssignment.add(
+            node=self,
+            producer_id=task_declaration.owner_producer_id,
+            task_declaration_id=task_declaration.asset_id,
         )
+        logger.info('Added task assignment: {}'.format(
+            task_assignment.asset_id
+        ))
 
     def process_old_task_declarations(self):
         for task_declaration in TaskDeclaration.list(self, created_by_user=False):
@@ -234,6 +237,5 @@ class Worker(Node):
             if exists:
                 continue
 
-            self.ping_producer(task_declaration.asset_id, task_declaration.owner_producer_id)
+            self.add_task_assignment(task_declaration)
             break
-

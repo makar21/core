@@ -52,7 +52,7 @@ class DB:
         d = json.loads(key)
         self.kp = CryptoKeypair(d['private_key'], d['public_key'])
 
-    def create_asset(self, data, metadata, recipients=None):
+    def create_asset(self, data, metadata=None, recipients=None):
         """
         Makes a CREATE transaction in BigchainDB.
 

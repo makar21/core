@@ -1,6 +1,5 @@
 # Direct
 bigchaindb-driver
-bottle
 gpustat
 ipfsapi
 numpy
@@ -8,7 +7,6 @@ psutil
 pycryptodome
 pymongo
 raven
-requests
 websocket-client
 
 # Others

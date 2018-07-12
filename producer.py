@@ -3,9 +3,6 @@ import signal
 import sys
 from multiprocessing import Process
 
-from bottle import Bottle, request, run
-
-from tatau_core import settings
 from tatau_core.tatau.dataset import DataSet
 from tatau_core.tatau.node.producer import Producer
 from tatau_core.tatau.tasks import TaskDeclaration
@@ -15,53 +12,6 @@ from tatau_core.utils.logging import configure_logging
 configure_logging('producer')
 
 logger = logging.getLogger()
-
-
-class ProducerServer:
-    def __init__(self, producer_node):
-        self.producer = producer_node
-
-    def add_task(self, *args, **kwargs):
-        pass
-
-    def worker_ready(self, *args, **kwargs):
-        worker_id = request.json['worker_id']
-        task_id = request.json['task_id']
-
-        self.producer.on_worker_ping(
-            task_asset_id=task_id,
-            worker_asset_id=worker_id
-        )
-
-    def verifier_ready(self, *args, **kwargs):
-        worker_id = request.json['verifier_id']
-        task_id = request.json['task_id']
-
-        self.producer.on_verifier_ping(
-            task_asset_id=task_id,
-            verifier_asset_id=worker_id
-        )
-
-
-def web_server(producer):
-    producer.db.connect_to_mongodb()
-    producer_server = ProducerServer(producer)
-    bottle = Bottle()
-
-    bottle.post('/add_task/')(producer_server.add_task)
-    bottle.post('/worker/ready/')(producer_server.worker_ready)
-    bottle.post('/verifier/ready/')(producer_server.verifier_ready)
-
-    run(bottle, host=settings.PRODUCER_HOST, port=settings.PRODUCER_PORT)
-
-
-def tx_stream_client(producer):
-    producer.run_transaction_listener()
-
-
-def sigint_handler(signal, frame):
-    logging.info('Exiting')
-    sys.exit(0)
 
 
 if __name__ == '__main__':
@@ -96,17 +46,6 @@ if __name__ == '__main__':
             epochs=3
         )
 
-        process_class = Process
-        if settings.DEBUG:
-            import threading
-            process_class = threading.Thread
-
-        web_server_process = process_class(target=web_server, args=(producer,))
-        web_server_process.start()
-
-        tx_stream_client_process = process_class(target=tx_stream_client, args=(producer,))
-        tx_stream_client_process.start()
-
-        signal.signal(signal.SIGINT, sigint_handler)
+        producer.run_transaction_listener()
     except Exception as e:
         logger.fatal(e)

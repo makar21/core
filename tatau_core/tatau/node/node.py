@@ -60,7 +60,9 @@ class Node(TransactionListener):
         return asset_id
 
     def get_node_info(self):
-        raise NotImplemented
+        return {
+            'enc_key': self.encryption.get_public_key().decode(),
+        }
 
     def process_tx(self, data):
         """

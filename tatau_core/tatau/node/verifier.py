@@ -1,7 +1,5 @@
 import logging
 
-import requests
-
 from ..tasks import Task, VerificationDeclaration, VerificationAssignment
 from .node import Node
 
@@ -14,11 +12,6 @@ class Verifier(Node):
     key_name = 'verifier'
     asset_name = 'Verifier info'
 
-    def get_node_info(self):
-        return {
-            'enc_key': self.encryption.get_public_key().decode(),
-        }
-
     def get_tx_methods(self):
         return {
             Task.TaskType.VERIFICATION_DECLARATION: self.process_verification_declaration,
@@ -26,9 +19,12 @@ class Verifier(Node):
         }
 
     def ignore_operation(self, operation):
-        return operation in ['TRANSFER']
+        return False
 
     def process_verification_declaration(self, asset_id, transaction):
+        if transaction['operation'] == 'TRANSFER':
+            return
+
         verification_declaration = VerificationDeclaration.get(self, asset_id)
         logger.info('Received task verification asset: {}, producer: {}, verifiers_needed: {}'.format(
             asset_id, verification_declaration.owner_producer_id, verification_declaration.verifiers_needed))
@@ -50,12 +46,19 @@ class Verifier(Node):
                         self.asset_id, verification_declaration.task_declaration_id)
             return
 
-        self.ping_producer(asset_id, verification_declaration.owner_producer_id)
+        self.add_verification_assignment(verification_declaration)
 
     def process_verification_assignment(self, asset_id, transaction):
+        if transaction['operation'] == 'CREATE':
+            return
+
         # skip another assignment
         verification_assignment = VerificationAssignment.get(self, asset_id)
         if verification_assignment.verifier_id != self.asset_id:
+            return
+
+        # skip finished
+        if verification_assignment.verified != None:
             return
 
         logger.info('Received verification assignment')
@@ -66,17 +69,16 @@ class Verifier(Node):
         verification_assignment.save(self.db)
         logger.info('Finished verification')
 
-    def ping_producer(self, verification_declaration_asset_id, producer_asset_id):
-        logger.info('Pinging producer: {}'.format(producer_asset_id))
-        producer_info = self.db.retrieve_asset(producer_asset_id).metadata
-        producer_api_url = producer_info['producer_api_url']
-        requests.post(
-            url='{}/verifier/ready/'.format(producer_api_url),
-            json={
-                'verifier_id': self.asset_id,
-                'task_id': verification_declaration_asset_id
-            }
+    def add_verification_assignment(self, verification_declaration):
+        verification_assignment = VerificationAssignment.add(
+            node=self,
+            producer_id=verification_declaration.owner_producer_id,
+            verification_declaration_id=verification_declaration.asset_id,
+            task_declaration_id=verification_declaration.task_declaration_id,
         )
+        logger.info('Added verification assignment: {}'.format(
+            verification_assignment.asset_id
+        ))
 
     def verify(self, verification_assignment, result):
         logger.info('Verified task: {}, results: {}'.format(verification_assignment.asset_id, result))
@@ -109,5 +111,5 @@ class Verifier(Node):
                 )
                 continue
 
-            self.ping_producer(verification_declaration.asset_id, verification_declaration.owner_producer_id)
+            self.add_verification_assignment(verification_declaration)
             break

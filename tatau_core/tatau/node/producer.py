@@ -16,16 +16,6 @@ class Producer(Node):
     key_name = 'producer'
     asset_name = 'Producer info'
 
-    def get_node_info(self):
-        return {
-            'enc_key': self.encryption.get_public_key().decode(),
-            'producer_api_url': self.producer_api_url,
-        }
-
-    @property
-    def producer_api_url(self):
-        return 'http://{}:{}'.format(settings.PRODUCER_HOST, settings.PRODUCER_PORT)
-
     def get_tx_methods(self):
         return {
             Task.TaskType.TASK_ASSIGNMENT: self.process_task_assignment,
@@ -33,7 +23,7 @@ class Producer(Node):
         }
 
     def ignore_operation(self, operation):
-        return operation in ['CREATE']
+        return False
 
     def process_task_assignment(self, asset_id, transaction):
         task_assignment = TaskAssignment.get(self, asset_id)
@@ -41,6 +31,11 @@ class Producer(Node):
             return
 
         logger.info('Process: {}'.format(task_assignment))
+
+        if transaction['operation'] == 'CREATE':
+            logger.info('Worker: {} requested task: {}'.format(task_assignment.worker_id, asset_id))
+            self.assign_task(task_assignment)
+            return
 
         task_declaration = TaskDeclaration.get(self, task_assignment.task_declaration_id)
         task_declaration.status = TaskDeclaration.Status.RUN
@@ -90,36 +85,33 @@ class Producer(Node):
         if verification_assignment.owner_producer_id != self.asset_id:
             return
 
+        if transaction['operation'] == 'CREATE':
+            logger.info('Verifier: {} requested verification: {}'.format(verification_assignment.verifier_id, asset_id))
+            self.assign_verification(verification_assignment)
+            return
+
         vd = VerificationDeclaration.get(self, verification_assignment.verification_declaration_id)
         vd.status = VerificationDeclaration.Status.COMPLETED
+
+        if verification_assignment.verified == None:
+            return
 
         if verification_assignment.verified:
             logger.info('Task result is verified')
         else:
             logger.info('Task result is not verified')
 
-    def on_worker_ping(self, task_asset_id, worker_asset_id):
-        logger.info('Worker: {} requested task: {}'.format(worker_asset_id, task_asset_id))
-
-        task_declaration = TaskDeclaration.get(self, task_asset_id)
+    def assign_task(self, task_assignment):
+        task_declaration = TaskDeclaration.get(
+            self,
+            task_assignment.task_declaration_id
+        )
         if task_declaration.workers_needed == 0:
             logger.info('No more workers needed')
             return
 
         worker_index = task_declaration.workers_requested - task_declaration.workers_needed
         if worker_index < 0:
-            return
-
-        exists = TaskAssignment.exists(
-            node=self,
-            additional_match={
-                'assets.data.worker_id': worker_asset_id,
-                'assets.data.task_declaration_id': task_asset_id
-            }
-        )
-
-        if exists:
-            logger.info('Worker: {} have already worked on this task: {}'.format(worker_asset_id, task_asset_id))
             return
 
         ipfs_dir = ipfs.Directory(multihash=task_declaration.dataset.train_dir_ipfs)
@@ -139,9 +131,8 @@ class Producer(Node):
                 elif f.name[0] == 'y':
                     y_train_ipfs.append(f.multihash)
 
-        TaskAssignment.add(
+        task_assignment.assign(
             node=self,
-            worker_id=worker_asset_id,
             model_code=task_declaration.train_model.code_ipfs,
             x_train_ipfs=x_train_ipfs,
             y_train_ipfs=y_train_ipfs,
@@ -149,37 +140,24 @@ class Producer(Node):
             y_test_ipfs=task_declaration.dataset.y_test_ipfs,
             batch_size=task_declaration.batch_size,
             epochs=task_declaration.epochs,
-            task_declaration_id=task_declaration.asset_id
         )
 
         task_declaration.workers_needed -= 1
         task_declaration.save(self.db)
 
-    def on_verifier_ping(self, task_asset_id, verifier_asset_id):
-        verification_declaration = VerificationDeclaration.get(self, task_asset_id)
+    def assign_verification(self, verification_assignment):
+        verification_declaration = VerificationDeclaration.get(
+            self,
+            verification_assignment.verification_declaration_id
+        )
         if verification_declaration.verifiers_needed == 0:
             logger.info('No more verifiers needed')
             return
 
-        exists = VerificationAssignment.exists(
-            node=self,
-            additional_match={
-                'assets.data.verifier_id': verifier_asset_id,
-                'assets.data.task_declaration_id': verification_declaration.task_declaration_id
-            }
-        )
-
-        if exists:
-            logger.info('Verifier: {} have already worked on this task: {}'.format(verifier_asset_id, task_asset_id))
-            return
-
         task_declaration = TaskDeclaration.get(self, verification_declaration.task_declaration_id)
-        VerificationAssignment.add(
+        verification_assignment.assign(
             node=self,
-            verifier_id=verifier_asset_id,
-            verification_declaration_id=verification_declaration.asset_id,
             train_results=task_declaration.results,
-            task_declaration_id=task_declaration.asset_id
         )
 
         verification_declaration.verifiers_needed -= 1
