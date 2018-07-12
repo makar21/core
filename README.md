@@ -5,7 +5,7 @@ For setting up the project, run the following commands.
 ```shell
 virtualenv .venv -p python3
 source .venv/bin/activate
-cp settings/local_settings.py.in settings/local_settings.py
+cp tatau_core/settings/local_settings.py.in tatau_core/settings/local_settings.py
 pip install -r requirements.txt
 ```
 
