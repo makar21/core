@@ -42,7 +42,13 @@ class TaskDeclaration(Task):
         })
         return data
 
-    def get_metadata(self):
+    def get_metadata(self, encrypted=True):
+        if encrypted:
+            results = self.encrypted_text or self.results
+            errors = self.encrypted_text_errors or self.errors
+        else:
+            results = self.results
+            errors = self.errors
         return {
             'workers_requested': self.workers_requested,
             'verifiers_needed': self.verifiers_needed,
@@ -52,8 +58,8 @@ class TaskDeclaration(Task):
             'status': self.status,
             'progress': self.progress,
             'tflops': self.tflops,
-            'results': self.encrypted_text or self.results,
-            'errors': self.encrypted_text_errors or self.errors,
+            'results': results,
+            'errors': errors,
         }
 
     # noinspection PyMethodOverriding
@@ -125,4 +131,3 @@ class TaskDeclaration(Task):
             encrypted_text=encrypted_text,
             encrypted_text_errors=encrypted_text_errors
         )
-
