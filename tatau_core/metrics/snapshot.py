@@ -1,10 +1,11 @@
-# standard library
 import json
+import logging
 import os
 from datetime import datetime
 
-# third-party
 import psutil
+
+logger = logging.getLogger()
 
 
 class GpuMetric(object):
@@ -33,12 +34,15 @@ class Snapshot(object):
             )
 
         if os.name != 'nt':
-            import gpustat
-            for gpu in gpustat.GPUStatCollection.new_query():
-                memory_load = gpu.memory_used * 100.0 / gpu.memory_total
-                self._gpu_metrics.append(
-                    GpuMetric(uuid=gpu.uuid, gpu_load=gpu.utilization, memory_load=memory_load)
-                )
+            try:
+                import gpustat
+                for gpu in gpustat.GPUStatCollection.new_query():
+                    memory_load = gpu.memory_used * 100.0 / gpu.memory_total
+                    self._gpu_metrics.append(
+                        GpuMetric(uuid=gpu.uuid, gpu_load=gpu.utilization, memory_load=memory_load)
+                    )
+            except Exception as ex:
+                logger.error(ex)
 
         self.timestamp = datetime.utcnow()
 

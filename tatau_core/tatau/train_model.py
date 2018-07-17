@@ -20,10 +20,15 @@ class TrainModel:
             'name': self.asset_name,
         }
 
-    def get_metadata(self):
+    def get_metadata(self, encrypted=True):
+        if encrypted:
+            code_ipfs = self.encrypted_text or self.code_ipfs
+        else:
+            code_ipfs = self.code_ipfs
+
         return {
             'name': self.name,
-            'code_ipfs': self.encrypted_text or self.code_ipfs
+            'code_ipfs': code_ipfs
         }
 
     def save(self, producer):

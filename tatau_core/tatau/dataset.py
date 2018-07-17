@@ -6,12 +6,6 @@ import tempfile
 import numpy as np
 
 from tatau_core.ipfs import IPFS
-import logging
-import os
-import shutil
-import tempfile
-
-import numpy as np
 
 logger = logging.getLogger()
 
@@ -36,12 +30,20 @@ class DataSet:
             'name': self.asset_name,
         }
 
-    def get_metadata(self):
+    def get_metadata(self, encrypted=True):
+        if encrypted:
+            train_dir_ipfs = self.encrypted_train_dir_ipfs or self.train_dir_ipfs
+            x_test_ipfs = self.encrypted_x_test_ipfs or self.x_test_ipfs
+            y_test_ipfs = self.encrypted_y_test_ipfs or self.y_test_ipfs
+        else:
+            train_dir_ipfs = self.train_dir_ipfs
+            x_test_ipfs = self.x_test_ipfs
+            y_test_ipfs = self.y_test_ipfs
         return {
             'name': self.name,
-            'train_dir_ipfs': self.encrypted_train_dir_ipfs or self.train_dir_ipfs,
-            'x_test_ipfs': self.encrypted_x_test_ipfs or self.x_test_ipfs,
-            'y_test_ipfs': self.encrypted_y_test_ipfs or self.y_test_ipfs
+            'train_dir_ipfs': train_dir_ipfs,
+            'x_test_ipfs': x_test_ipfs,
+            'y_test_ipfs': y_test_ipfs
         }
 
     def save(self, producer):
