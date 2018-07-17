@@ -1,12 +1,7 @@
 import logging
-import signal
-import sys
-from multiprocessing import Process
 
-from tatau_core.tatau.dataset import DataSet
+from tatau_core.tatau.models import TrainModel, Dataset, TaskDeclaration
 from tatau_core.tatau.node.producer import Producer
-from tatau_core.tatau.tasks import TaskDeclaration
-from tatau_core.tatau.train_model import TrainModel
 from tatau_core.utils.logging import configure_logging
 
 configure_logging('producer')
@@ -20,14 +15,16 @@ if __name__ == '__main__':
 
         logger.info('Start producer: {}'.format(producer.asset_id))
 
-        train_model = TrainModel.add(
-            producer=producer,
+        train_model = TrainModel.create(
+            db=producer.db,
+            encryption=producer.encryption,
             name='mnist',
             code_path='test_data/models/mnist_train.py'
         )
 
-        dataset = DataSet.add(
-            producer=producer,
+        dataset = Dataset.create(
+            db=producer.db,
+            encryption=producer.encryption,
             name='mnist',
             x_train_path='test_data/datasets/mnist/X_train.npz',
             y_train_path='test_data/datasets/mnist/Y_train.npz',
@@ -36,14 +33,16 @@ if __name__ == '__main__':
             files_count=10
         )
 
-        td = TaskDeclaration.add(
-            node=producer,
-            dataset=dataset,
-            train_model=train_model,
+        td = TaskDeclaration.create(
+            db=producer.db,
+            encryption=producer.encryption,
+            producer_id=producer.asset_id,
+            dataset_id=dataset.asset_id,
+            train_model_id=train_model.asset_id,
             workers_needed=2,
             verifiers_needed=1,
             batch_size=124,
-            epochs=3
+            epochs=1
         )
 
         producer.run_transaction_listener()

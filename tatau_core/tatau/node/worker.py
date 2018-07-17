@@ -10,8 +10,8 @@ from multiprocessing import Process, RLock, Event, Value
 from tatau_core import settings
 from tatau_core.ipfs import IPFS
 from tatau_core.metrics import Snapshot
-from ..tasks import Task, TaskDeclaration, TaskAssignment
-from .node import Node
+from tatau_core.tatau.models import WorkerNode, TaskDeclaration, TaskAssignment
+from tatau_core.tatau.node import Node
 
 logger = logging.getLogger()
 
@@ -23,10 +23,11 @@ class TaskProgress:
         self.interprocess = interprocess
 
     def progress_callback(self, progress):
-        ta = TaskAssignment.get(self.worker, self.asset_id)
+        ta = TaskAssignment.get(self.asset_id, self.worker.db, self.worker.encryption)
+        ta.set_public_key(ta.producer.enc_key)
         ta.progress = progress
         ta.tflops = self.interprocess.get_tflops()
-        ta.save(self.worker.db)
+        ta.save()
 
 
 class WorkerInterprocess:
@@ -59,14 +60,12 @@ class WorkerInterprocess:
 
 class Worker(Node):
     node_type = Node.NodeType.WORKER
-
-    key_name = 'worker'
-    asset_name = 'Worker info'
+    asset_class = WorkerNode
 
     def get_tx_methods(self):
         return {
-            Task.TaskType.TASK_DECLARATION: self.process_task_declaration,
-            Task.TaskType.TASK_ASSIGNMENT: self.process_task_assignment,
+            TaskDeclaration.get_asset_name(): self.process_task_declaration,
+            TaskAssignment.get_asset_name(): self.process_task_assignment,
         }
 
     def ignore_operation(self, operation):
@@ -76,15 +75,16 @@ class Worker(Node):
         if transaction['operation'] == 'TRANSFER':
             return
 
-        task_declaration = TaskDeclaration.get(self, asset_id)
+        task_declaration = TaskDeclaration.get(asset_id, self.db, self.encryption)
         logger.info('Received task declaration asset: {}, producer: {}, workers_needed: {}'.format(
-            asset_id, task_declaration.owner_producer_id, task_declaration.workers_needed))
+            asset_id, task_declaration.producer_id, task_declaration.workers_needed))
 
         if task_declaration.workers_needed == 0:
             return
 
         exists = TaskAssignment.exists(
-            node=self,
+            db=self.db,
+            encryption=self.encryption,
             additional_match={
                 'assets.data.worker_id': self.asset_id,
                 'assets.data.task_declaration_id': task_declaration.asset_id,
@@ -102,14 +102,19 @@ class Worker(Node):
         if transaction['operation'] == 'CREATE':
             return
 
-        task_assignment = TaskAssignment.get(self, asset_id)
+        task_assignment = TaskAssignment.get(asset_id, self.db, self.encryption)
 
         # skip another assignment
         if task_assignment.worker_id != self.asset_id:
             return
 
+        # TODO: optimize
         # skip assignment that the worker has started working on
-        if not task_assignment.train_data:
+        if task_assignment.progress > 0 or task_assignment.tflops > 0:
+            return
+
+        # skip assignment that the worker has finished working on
+        if task_assignment.result is not None:
             return
 
         logger.info('Received task assignment asset: {}'.format(asset_id))
@@ -135,8 +140,8 @@ class Worker(Node):
 
     def work(self, asset_id, interprocess):
         logger.info('Start work process')
-        task_assignment = TaskAssignment.get(self, asset_id)
-        producer_info = self.db.retrieve_asset(task_assignment.owner_producer_id).metadata
+        task_assignment = TaskAssignment.get(asset_id, self.db, self.encryption)
+        task_assignment.set_public_key(task_assignment.producer.enc_key)
 
         ipfs = IPFS()
         model_code = ipfs.read(task_assignment.train_data['model_code'])
@@ -176,23 +181,17 @@ class Worker(Node):
                 if msg:
                     error_dict['message'] = msg
 
-                task_assignment.error = self.encryption.encrypt(
-                    json.dumps(error_dict).encode(),
-                    producer_info['enc_key']
-                ).decode()
+                task_assignment.error = json.dumps(error_dict)
 
                 logger.error('Train is failed: {}'.format(e))
             else:
                 ipfs_file = ipfs.add_file(weights_file_path)
-                task_assignment.result = self.encryption.encrypt(
-                    ipfs_file.multihash.encode(),
-                    producer_info['enc_key']
-                ).decode()
+                task_assignment.result = ipfs_file.multihash
 
             interprocess.stop_collect_metrics()
             task_assignment.tflops = interprocess.get_tflops()
             task_assignment.progress = 100
-            task_assignment.save(self.db)
+            task_assignment.save()
 
             logger.info('Finished task: {}, tflops: {}, result: {}, error: {}'.format(
                 task_assignment.asset_id, task_assignment.tflops, task_assignment.result, task_assignment.error
@@ -211,31 +210,35 @@ class Worker(Node):
         logger.info('Stop collect metrics')
 
     def add_task_assignment(self, task_declaration):
-        task_assignment = TaskAssignment.add(
-            node=self,
-            producer_id=task_declaration.owner_producer_id,
+        task_assignment = TaskAssignment.create(
+            db=self.db,
+            encryption=self.encryption,
+            worker_id=self.asset_id,
+            producer_id=task_declaration.producer_id,
             task_declaration_id=task_declaration.asset_id,
+            recipients=task_declaration.producer.address
         )
         logger.info('Added task assignment: {}'.format(
             task_assignment.asset_id
         ))
 
     def process_old_task_declarations(self):
-        for task_declaration in TaskDeclaration.list(self, created_by_user=False):
-            if task_declaration.status == TaskDeclaration.Status.COMPLETED or task_declaration.workers_needed == 0:
-                continue
-
-            exists = TaskAssignment.exists(
-                node=self,
-                additional_match={
-                    'assets.data.worker_id': self.asset_id,
-                    'assets.data.task_declaration_id': task_declaration.asset_id,
-                },
-                created_by_user=False
-            )
-
-            if exists:
-                continue
-
-            self.add_task_assignment(task_declaration)
-            break
+        pass
+        # for task_declaration in TaskDeclaration.list(self, created_by_user=False):
+        #     if task_declaration.status == TaskDeclaration.Status.COMPLETED or task_declaration.workers_needed == 0:
+        #         continue
+        #
+        #     exists = TaskAssignment.exists(
+        #         node=self,
+        #         additional_match={
+        #             'assets.data.worker_id': self.asset_id,
+        #             'assets.data.task_declaration_id': task_declaration.asset_id,
+        #         },
+        #         created_by_user=False
+        #     )
+        #
+        #     if exists:
+        #         continue
+        #
+        #     self.add_task_assignment(task_declaration)
+        #     break

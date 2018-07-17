@@ -19,7 +19,7 @@ class Node(TransactionListener):
 
     # should be rename by child classes
     node_type = None
-    asset_name = None
+    asset_class = None
 
     def __init__(self, rsa_pk_fs_name=None, rsa_pk=None, *args, **kwargs):
         self.db = DB()
@@ -33,7 +33,11 @@ class Node(TransactionListener):
             seed = hashlib.sha256(rsa_pk).digest()
             self.db.generate_keypair(seed=seed)
 
-        self.asset_id = self.create_info_asset()
+        self.asset = self.create_info_asset()
+
+    @property
+    def asset_id(self):
+        return self.asset.asset_id
 
     def handle_fs_key(self, name):
         path = os.path.join(ROOT_DIR, 'keys/{}.pem'.format(name))
@@ -51,18 +55,11 @@ class Node(TransactionListener):
         self.db.generate_keypair(seed=seed)
 
     def create_info_asset(self):
-        asset_id, created = self.db.create_asset(
-            data={'name': self.asset_name},
-            metadata=self.get_node_info(),
+        return self.asset_class.create(
+            db=self.db,
+            encryption=self.encryption,
+            enc_key=self.encryption.get_public_key().decode()
         )
-        if created:
-            logging.info('{} created info asset: {}'.format(self.node_type, asset_id))
-        return asset_id
-
-    def get_node_info(self):
-        return {
-            'enc_key': self.encryption.get_public_key().decode(),
-        }
 
     def process_tx(self, data):
         """
@@ -80,8 +77,9 @@ class Node(TransactionListener):
         asset_id = data['asset_id']
         asset_create_tx = self.db.retrieve_asset_create_tx(asset_id)
 
-        name = asset_create_tx['asset']['data'].get('name')
-
+        name = asset_create_tx['asset']['data'].get('asset_name')
+        name2 = asset_create_tx['asset']['data'].get('name')
+        name = name or name2
         tx_methods = self.get_tx_methods()
         if name in tx_methods:
             tx_methods[name](asset_id, transaction)

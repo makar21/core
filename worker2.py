@@ -19,7 +19,7 @@ def process_old_task_declarations(worker_node):
 
 if __name__ == '__main__':
     try:
-        worker = Worker(rsa_pk_fs_name='worker')
+        worker = Worker(rsa_pk_fs_name='worker2')
         # read_old_tasks_process = Process()
         # process_class = Process
         # if settings.DEBUG:
