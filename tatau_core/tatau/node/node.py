@@ -2,13 +2,13 @@ import hashlib
 import logging
 import os
 
-from tatau_core.db import DB, TransactionListener
+from tatau_core.db import DB, TransactionListener, NodeInfo
 from tatau_core.encryption import Encryption
 
 from tatau_core.settings import ROOT_DIR
 
 
-logger = logging.getLogger()
+log = logging.getLogger()
 
 
 class Node(TransactionListener):
@@ -25,6 +25,7 @@ class Node(TransactionListener):
         self.db = DB()
         self.bdb = self.db.bdb
         self.encryption = Encryption()
+        NodeInfo.configure(self.db, self.encryption)
 
         if rsa_pk_fs_name:
             self.handle_fs_key(rsa_pk_fs_name)
@@ -34,6 +35,9 @@ class Node(TransactionListener):
             self.db.generate_keypair(seed=seed)
 
         self.asset = self.create_info_asset()
+
+    def __str__(self):
+        return self.asset.__str__()
 
     @property
     def asset_id(self):
@@ -55,11 +59,7 @@ class Node(TransactionListener):
         self.db.generate_keypair(seed=seed)
 
     def create_info_asset(self):
-        return self.asset_class.create(
-            db=self.db,
-            encryption=self.encryption,
-            enc_key=self.encryption.get_public_key().decode()
-        )
+        return self.asset_class.create(enc_key=self.encryption.get_public_key().decode())
 
     def process_tx(self, data):
         """
@@ -78,17 +78,19 @@ class Node(TransactionListener):
         asset_create_tx = self.db.retrieve_asset_create_tx(asset_id)
 
         name = asset_create_tx['asset']['data'].get('asset_name')
-        name2 = asset_create_tx['asset']['data'].get('name')
-        name = name or name2
+        log.debug('{} process tx of "{}": {}'.format(self, name, asset_id))
+
         tx_methods = self.get_tx_methods()
         if name in tx_methods:
             tx_methods[name](asset_id, transaction)
+        else:
+            log.debug('{} skip tx of "{}": {}'.format(self, name, asset_id))
 
     def get_tx_methods(self):
         raise NotImplemented
 
     def ignore_operation(self, operation):
-        raise NotImplemented
+        return False
 
     def encrypt_text(self, text):
         return self.encryption.encrypt(

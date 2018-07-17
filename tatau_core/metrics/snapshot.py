@@ -5,7 +5,7 @@ from datetime import datetime
 
 import psutil
 
-logger = logging.getLogger()
+log = logging.getLogger()
 
 
 class GpuMetric(object):
@@ -42,7 +42,7 @@ class Snapshot(object):
                         GpuMetric(uuid=gpu.uuid, gpu_load=gpu.utilization, memory_load=memory_load)
                     )
             except Exception as ex:
-                logger.error(ex)
+                log.error(ex)
 
         self.timestamp = datetime.utcnow()
 

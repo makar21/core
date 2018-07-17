@@ -1,7 +1,7 @@
 import json
 
 from tatau_core.db.fields import Field, JsonField
-from tatau_core.db import exceptions
+from tatau_core.db import exceptions, NodeInfo
 
 
 class ModelBase(type):
@@ -23,9 +23,9 @@ class ModelBase(type):
 
 
 class Model(metaclass=ModelBase):
-    def __init__(self, db, encryption, **kwargs):
-        self.db = db
-        self.encryption = encryption
+    def __init__(self, db=None, encryption=None, **kwargs):
+        self.db = db or NodeInfo.get_db()
+        self.encryption = encryption or NodeInfo.get_encryption()
         self.asset_id = kwargs.get('asset_id', None)
         self._address = kwargs.get('_address', None)
         self._public_key = None
@@ -40,14 +40,17 @@ class Model(metaclass=ModelBase):
                     value = json.loads(value)
                 attr.__set__(self, value)
 
+    def __str__(self):
+        return '<{}: {}>'.format(self.get_asset_name(), self.asset_id)
+
     @property
     def address(self):
         return self._address
 
-    def get_public_key(self):
+    def get_encryption_key(self):
         return self._public_key
 
-    def set_public_key(self, public_key):
+    def set_encryption_key(self, public_key):
         self._public_key = public_key
 
     @classmethod
@@ -61,7 +64,7 @@ class Model(metaclass=ModelBase):
             raise ValueError('{} is required'.format(name))
 
         if attr.encrypted:
-            return self.encryption.encrypt_text(value, self.get_public_key())
+            return self.encryption.encrypt_text(value, self.get_encryption_key())
 
         if isinstance(attr, JsonField):
             return json.dumps(value)
@@ -83,7 +86,8 @@ class Model(metaclass=ModelBase):
         return metadata or None
 
     @classmethod
-    def get(cls, asset_id, db, encryption):
+    def get(cls, asset_id, db=None, encryption=None):
+        db = db or NodeInfo.get_db()
         asset = db.retrieve_asset(asset_id)
         address = asset.tx['outputs'][0]['public_keys'][0]
 
@@ -117,7 +121,8 @@ class Model(metaclass=ModelBase):
             )
 
     @classmethod
-    def list(cls, db, encryption, additional_match=None, created_by_user=True):
+    def list(cls, db=None, encryption=None, additional_match=None, created_by_user=True):
+        db = db or NodeInfo.get_db()
         db.connect_to_mongodb()
         match = {
             'assets.data.asset_name': cls.get_asset_name(),
@@ -128,7 +133,7 @@ class Model(metaclass=ModelBase):
         return (cls.get(db, encryption, x) for x in db.retrieve_asset_ids(match=match, created_by_user=created_by_user))
 
     @classmethod
-    def exists(cls, db, encryption, additional_match=None, created_by_user=True):
+    def exists(cls, db=None, encryption=None, additional_match=None, created_by_user=True):
         for v in cls.list(db, encryption, additional_match, created_by_user):
             return True
         return False

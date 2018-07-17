@@ -8,7 +8,7 @@ from tatau_core.utils.logging import configure_logging
 
 configure_logging('verifier')
 
-logger = logging.getLogger()
+log = logging.getLogger()
 
 
 def process_old_verification_declarations(verifier_node):
@@ -32,4 +32,4 @@ if __name__ == '__main__':
 
         verifier.run_transaction_listener()
     except Exception as e:
-        logger.fatal(e)
+        log.fatal(e)

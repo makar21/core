@@ -7,8 +7,9 @@ import numpy as np
 
 from tatau_core.db import models, fields
 from tatau_core.ipfs import IPFS
+from tatau_core.utils import cached_property
 
-logger = logging.getLogger()
+log = logging.getLogger()
 
 
 class TrainModel(models.Model):
@@ -103,17 +104,17 @@ class TaskDeclaration(models.Model):
     results = fields.JsonField(initial=[])
     errors = fields.JsonField(initial=[])
 
-    @property
+    @cached_property
     def producer(self):
-        return ProducerNode.get(self.producer_id, self.db, self.encryption)
+        return ProducerNode.get(self.producer_id)
 
-    @property
+    @cached_property
     def dataset(self):
-        return Dataset.get(self.dataset_id, self.db, self.encryption)
+        return Dataset.get(self.dataset_id)
 
-    @property
+    @cached_property
     def train_model(self):
-        return TrainModel.get(self.train_model_id, self.db, self.encryption)
+        return TrainModel.get(self.train_model_id)
 
     @classmethod
     def create(cls, **kwargs):
@@ -132,17 +133,17 @@ class TaskAssignment(models.Model):
     result = fields.CharField(required=False)
     error = fields.CharField(required=False)
 
-    @property
+    @cached_property
     def producer(self):
-        return ProducerNode.get(self.producer_id, self.db, self.encryption)
+        return ProducerNode.get(self.producer_id)
 
-    @property
+    @cached_property
     def worker(self):
-        return WorkerNode.get(self.worker_id, self.db, self.encryption)
+        return WorkerNode.get(self.worker_id)
 
-    @property
+    @cached_property
     def task_declaration(self):
-        return TaskDeclaration.get(self.task_declaration_id, self.db, self.encryption)
+        return TaskDeclaration.get(self.task_declaration_id)
 
 
 class VerificationDeclaration(models.Model):
@@ -158,13 +159,13 @@ class VerificationDeclaration(models.Model):
     status = fields.CharField(initial=Status.PUBLISHED)
     progress = fields.IntegerField(initial=0)
 
-    @property
+    @cached_property
     def producer(self):
-        return ProducerNode.get(self.producer_id, self.db, self.encryption)
+        return ProducerNode.get(self.producer_id)
 
-    @property
+    @cached_property
     def task_declaration(self):
-        return TaskDeclaration.get(self.task_declaration_id, self.db, self.encryption)
+        return TaskDeclaration.get(self.task_declaration_id)
 
 
 class VerificationAssignment(models.Model):
@@ -178,14 +179,14 @@ class VerificationAssignment(models.Model):
     result = fields.CharField(required=False)
     error = fields.CharField(required=False)
 
-    @property
+    @cached_property
     def producer(self):
-        return ProducerNode.get(self.producer_id, self.db, self.encryption)
+        return ProducerNode.get(self.producer_id)
 
-    @property
+    @cached_property
     def verifier(self):
-        return VerifierNode.get(self.verifier_id, self.db, self.encryption)
+        return VerifierNode.get(self.verifier_id)
 
-    @property
+    @cached_property
     def task_declaration(self):
-        return TaskDeclaration.get(self.task_declaration_id, self.db, self.encryption)
+        return TaskDeclaration.get(self.task_declaration_id)

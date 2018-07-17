@@ -6,14 +6,13 @@ from tatau_core.utils.logging import configure_logging
 
 configure_logging('producer')
 
-logger = logging.getLogger()
+log = logging.getLogger()
 
 
 if __name__ == '__main__':
     try:
         producer = Producer(rsa_pk_fs_name='producer')
-
-        logger.info('Start producer: {}'.format(producer.asset_id))
+        log.debug('Start {}'.format(producer))
 
         train_model = TrainModel.create(
             db=producer.db,
@@ -47,4 +46,4 @@ if __name__ == '__main__':
 
         producer.run_transaction_listener()
     except Exception as e:
-        logger.fatal(e)
+        log.fatal(e)

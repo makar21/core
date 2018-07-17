@@ -3,12 +3,12 @@ import logging
 import re
 
 from tatau_core import ipfs
-from tatau_core import settings
 from tatau_core.db.exceptions import StopWSClient
-from tatau_core.tatau.models import ProducerNode, TaskDeclaration, TaskAssignment, VerificationDeclaration, VerificationAssignment
+from tatau_core.tatau.models import ProducerNode, TaskDeclaration, TaskAssignment, VerificationDeclaration, \
+    VerificationAssignment
 from .node import Node
 
-logger = logging.getLogger()
+log = logging.getLogger()
 
 
 class Producer(Node):
@@ -29,18 +29,18 @@ class Producer(Node):
         return False
 
     def process_task_assignment(self, asset_id, transaction):
-        task_assignment = TaskAssignment.get(asset_id, self.db, self.encryption)
+        task_assignment = TaskAssignment.get(asset_id)
         if task_assignment.producer_id != self.asset_id:
             return
 
-        logger.info('Process: {}'.format(task_assignment.asset_id))
+        log.info('Process: {}'.format(task_assignment))
 
         if transaction['operation'] == 'CREATE':
-            logger.info('Worker: {} requested task: {}'.format(task_assignment.worker_id, asset_id))
+            log.info('{} requested {}'.format(task_assignment.worker, task_assignment))
             self.assign_task(task_assignment)
             return
 
-        task_declaration = TaskDeclaration.get(task_assignment.task_declaration_id, self.db, self.encryption)
+        task_declaration = TaskDeclaration.get(task_assignment.task_declaration_id)
         task_declaration.status = TaskDeclaration.Status.RUN
         task_declaration.tflops += task_assignment.tflops
 
@@ -48,7 +48,7 @@ class Producer(Node):
             task_declaration.save()
             return
 
-        logger.info('Task assignment is finished worker: {}'.format(task_assignment.worker_id))
+        log.info('Task assignment is finished worker: {}'.format(task_assignment.worker_id))
 
         if task_assignment.result:
             task_declaration.results.append({
@@ -78,8 +78,6 @@ class Producer(Node):
 
         if publish_verification_declaration:
             VerificationDeclaration.create(
-                db=self.db,
-                encryption=self.encryption,
                 producer_id=task_declaration.producer_id,
                 verifiers_needed=task_declaration.verifiers_needed,
                 verifiers_requested=task_declaration.verifiers_needed,
@@ -87,30 +85,30 @@ class Producer(Node):
             )
 
     def process_verification_assignment(self, asset_id, transaction):
-        verification_assignment = VerificationAssignment.get(asset_id, self.db, self.encryption)
+        verification_assignment = VerificationAssignment.get(asset_id)
         if verification_assignment.producer_id != self.asset_id:
             return
 
         if transaction['operation'] == 'CREATE':
-            logger.info('Verifier: {} requested verification: {}'.format(verification_assignment.verifier_id, asset_id))
+            log.info('Verifier: {} requested verification: {}'.format(verification_assignment.verifier_id, asset_id))
             self.assign_verification(verification_assignment)
             return
 
-        vd = VerificationDeclaration.get(verification_assignment.verification_declaration_id, self.db, self.encryption)
+        vd = VerificationDeclaration.get(verification_assignment.verification_declaration_id)
         vd.status = VerificationDeclaration.Status.COMPLETED
 
         if verification_assignment.result is None:
             return
 
-        logger.info('Task result is verified: {}'.format(verification_assignment.result))
+        log.info('Task result is verified: {}'.format(verification_assignment.result))
 
         if self.exit_on_task_completion:
             raise StopWSClient
 
     def assign_task(self, task_assignment):
-        task_declaration = TaskDeclaration.get(task_assignment.task_declaration_id, self.db, self.encryption)
+        task_declaration = TaskDeclaration.get(task_assignment.task_declaration_id)
         if task_declaration.workers_needed == 0:
-            logger.info('No more workers needed')
+            log.info('No more workers needed')
             return
 
         worker_index = task_declaration.workers_requested - task_declaration.workers_needed
@@ -145,7 +143,7 @@ class Producer(Node):
         )
 
         # encrypt inner data using worker's public key
-        task_assignment.set_public_key(task_assignment.worker.enc_key)
+        task_assignment.set_encryption_key(task_assignment.worker.enc_key)
         task_assignment.save(recipients=task_assignment.worker.address)
 
         task_declaration.workers_needed -= 1
@@ -153,16 +151,16 @@ class Producer(Node):
 
     def assign_verification(self, verification_assignment):
         verification_declaration = VerificationDeclaration.get(
-            verification_assignment.verification_declaration_id, self.db, self.encryption
+            verification_assignment.verification_declaration_id
         )
 
         if verification_declaration.verifiers_needed == 0:
-            logger.info('No more verifiers needed')
+            log.info('No more verifiers needed')
             return
 
-        task_declaration = TaskDeclaration.get(verification_declaration.task_declaration_id, self.db, self.encryption)
+        task_declaration = TaskDeclaration.get(verification_declaration.task_declaration_id)
         verification_assignment.train_results = task_declaration.results
-        verification_assignment.set_public_key(verification_assignment.verifier.enc_key)
+        verification_assignment.set_encryption_key(verification_assignment.verifier.enc_key)
         verification_assignment.save(recipients=verification_assignment.verifier.address)
 
         verification_declaration.verifiers_needed -= 1

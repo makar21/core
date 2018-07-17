@@ -8,7 +8,7 @@ from tatau_core.utils.logging import configure_logging
 
 configure_logging('worker')
 
-logger = logging.getLogger()
+log = logging.getLogger()
 
 
 def process_old_task_declarations(worker_node):
@@ -31,4 +31,4 @@ if __name__ == '__main__':
 
         worker.run_transaction_listener()
     except Exception as ex:
-        logger.fatal(ex)
+        log.fatal(ex)

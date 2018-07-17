@@ -25,12 +25,17 @@ class Asset:
 class DB:
     bdb = BigchainDB(settings.BDB_ROOT_URL)
 
+    def __init__(self):
+        self.mongo_client = None
+        self.mongo_db = None
+
     def connect_to_mongodb(self):
-        self.mongo_client = MongoClient(
-            settings.MONGO_DB_HOST,
-            settings.MONGO_DB_PORT
-        )
-        self.mongo_db = self.mongo_client.bigchain
+        if self.mongo_db is None or self.mongo_client is None:
+            self.mongo_client = MongoClient(
+                settings.MONGO_DB_HOST,
+                settings.MONGO_DB_PORT
+            )
+            self.mongo_db = self.mongo_client.bigchain
 
     def generate_keypair(self, seed=None):
         if seed:

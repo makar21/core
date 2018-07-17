@@ -13,7 +13,7 @@ from tatau_core.metrics import Snapshot
 from tatau_core.tatau.models import WorkerNode, TaskDeclaration, TaskAssignment
 from tatau_core.tatau.node import Node
 
-logger = logging.getLogger()
+log = logging.getLogger()
 
 
 class TaskProgress:
@@ -24,7 +24,7 @@ class TaskProgress:
 
     def progress_callback(self, progress):
         ta = TaskAssignment.get(self.asset_id, self.worker.db, self.worker.encryption)
-        ta.set_public_key(ta.producer.enc_key)
+        ta.set_encryption_key(ta.producer.enc_key)
         ta.progress = progress
         ta.tflops = self.interprocess.get_tflops()
         ta.save()
@@ -75,16 +75,14 @@ class Worker(Node):
         if transaction['operation'] == 'TRANSFER':
             return
 
-        task_declaration = TaskDeclaration.get(asset_id, self.db, self.encryption)
-        logger.info('Received task declaration asset: {}, producer: {}, workers_needed: {}'.format(
+        task_declaration = TaskDeclaration.get(asset_id)
+        log.info('Received task declaration asset: {}, producer: {}, workers_needed: {}'.format(
             asset_id, task_declaration.producer_id, task_declaration.workers_needed))
 
         if task_declaration.workers_needed == 0:
             return
 
         exists = TaskAssignment.exists(
-            db=self.db,
-            encryption=self.encryption,
             additional_match={
                 'assets.data.worker_id': self.asset_id,
                 'assets.data.task_declaration_id': task_declaration.asset_id,
@@ -93,7 +91,7 @@ class Worker(Node):
         )
 
         if exists:
-            logger.info('Worker: {} already worked on task: {}', self.asset_id, task_declaration.asset_id)
+            log.info('Worker: {} already worked on task: {}', self.asset_id, task_declaration.asset_id)
             return
 
         self.add_task_assignment(task_declaration)
@@ -102,7 +100,7 @@ class Worker(Node):
         if transaction['operation'] == 'CREATE':
             return
 
-        task_assignment = TaskAssignment.get(asset_id, self.db, self.encryption)
+        task_assignment = TaskAssignment.get(asset_id)
 
         # skip another assignment
         if task_assignment.worker_id != self.asset_id:
@@ -117,7 +115,7 @@ class Worker(Node):
         if task_assignment.result is not None:
             return
 
-        logger.info('Received task assignment asset: {}'.format(asset_id))
+        log.info('Received task assignment asset: {}'.format(asset_id))
 
         interprocess = WorkerInterprocess()
 
@@ -139,9 +137,9 @@ class Worker(Node):
         work_process.start()
 
     def work(self, asset_id, interprocess):
-        logger.info('Start work process')
-        task_assignment = TaskAssignment.get(asset_id, self.db, self.encryption)
-        task_assignment.set_public_key(task_assignment.producer.enc_key)
+        log.info('Start work process')
+        task_assignment = TaskAssignment.get(asset_id)
+        task_assignment.set_encryption_key(task_assignment.producer.enc_key)
 
         ipfs = IPFS()
         model_code = ipfs.read(task_assignment.train_data['model_code'])
@@ -183,7 +181,7 @@ class Worker(Node):
 
                 task_assignment.error = json.dumps(error_dict)
 
-                logger.error('Train is failed: {}'.format(e))
+                log.error('Train is failed: {}'.format(e))
             else:
                 ipfs_file = ipfs.add_file(weights_file_path)
                 task_assignment.result = ipfs_file.multihash
@@ -193,7 +191,7 @@ class Worker(Node):
             task_assignment.progress = 100
             task_assignment.save()
 
-            logger.info('Finished task: {}, tflops: {}, result: {}, error: {}'.format(
+            log.info('Finished task: {}, tflops: {}, result: {}, error: {}'.format(
                 task_assignment.asset_id, task_assignment.tflops, task_assignment.result, task_assignment.error
             ))
         finally:
@@ -201,24 +199,22 @@ class Worker(Node):
 
     def collect_metrics(self, interprocess):
         interprocess.wait_for_start_collect_metrics()
-        logger.info('Start collect metrics')
+        log.info('Start collect metrics')
 
         while not interprocess.should_stop_collect_metrics(1):
             snapshot = Snapshot()
             interprocess.add_tflops(snapshot.calc_tflops())
 
-        logger.info('Stop collect metrics')
+        log.info('Stop collect metrics')
 
     def add_task_assignment(self, task_declaration):
         task_assignment = TaskAssignment.create(
-            db=self.db,
-            encryption=self.encryption,
             worker_id=self.asset_id,
             producer_id=task_declaration.producer_id,
             task_declaration_id=task_declaration.asset_id,
             recipients=task_declaration.producer.address
         )
-        logger.info('Added task assignment: {}'.format(
+        log.info('Added task assignment: {}'.format(
             task_assignment.asset_id
         ))
 

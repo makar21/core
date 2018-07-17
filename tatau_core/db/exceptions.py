@@ -5,3 +5,7 @@ class StopWSClient(Exception):
 class Asset:
     class WrongType(Exception):
         pass
+
+
+class NodeNotConfigured(Exception):
+    pass
