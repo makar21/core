@@ -4,58 +4,19 @@ import os
 import shutil
 import sys
 import tempfile
+import time
 from importlib import import_module
-from multiprocessing import Process, RLock, Event, Value
+from multiprocessing import Process
 
 from tatau_core import settings
-from tatau_core.ipfs import IPFS
 from tatau_core.metrics import Snapshot
 from tatau_core.tatau.models import WorkerNode, TaskDeclaration, TaskAssignment
 from tatau_core.tatau.node import Node
+from tatau_core.tatau.node.worker.task_progress import TaskProgress
+from tatau_core.tatau.node.worker.worker_interprocess import WorkerInterprocess
+from tatau_core.utils.ipfs import IPFS
 
 log = logging.getLogger()
-
-
-class TaskProgress:
-    def __init__(self, worker, asset_id, interprocess):
-        self.worker = worker
-        self.asset_id = asset_id
-        self.interprocess = interprocess
-
-    def progress_callback(self, progress):
-        ta = TaskAssignment.get(self.asset_id, self.worker.db, self.worker.encryption)
-        ta.set_encryption_key(ta.producer.enc_key)
-        ta.progress = progress
-        ta.tflops = self.interprocess.get_tflops()
-        ta.save()
-
-
-class WorkerInterprocess:
-    def __init__(self):
-        self._event_start_collect_metrics = Event()
-        self._event_stop = Event()
-        self._tflops = Value('i', 0)
-        self._tflops_lock = RLock()
-
-    def get_tflops(self):
-        with self._tflops_lock:
-            return self._tflops.value
-
-    def add_tflops(self, tflops):
-        with self._tflops_lock:
-            self._tflops.value += tflops
-
-    def start_collect_metrics(self):
-        self._event_start_collect_metrics.set()
-
-    def wait_for_start_collect_metrics(self):
-        self._event_start_collect_metrics.wait()
-
-    def should_stop_collect_metrics(self, wait):
-        return self._event_stop.wait(wait)
-
-    def stop_collect_metrics(self):
-        self._event_stop.set()
 
 
 class Worker(Node):
@@ -64,11 +25,11 @@ class Worker(Node):
 
     def get_tx_methods(self):
         return {
-            TaskDeclaration.get_asset_name(): self.process_task_declaration,
-            TaskAssignment.get_asset_name(): self.process_task_assignment,
+            TaskDeclaration.get_asset_name(): self.process_task_declaration_transaction,
+            TaskAssignment.get_asset_name(): self.process_task_assignment_transaction,
         }
 
-    def process_task_declaration(self, asset_id, transaction):
+    def process_task_declaration_transaction(self, asset_id, transaction):
         if transaction['operation'] == 'TRANSFER':
             return
 
@@ -77,6 +38,9 @@ class Worker(Node):
         if task_declaration.workers_needed == 0:
             return
 
+        self.process_task_declaration(task_declaration)
+
+    def process_task_declaration(self, task_declaration):
         exists = TaskAssignment.exists(
             additional_match={
                 'assets.data.worker_id': self.asset_id,
@@ -86,7 +50,7 @@ class Worker(Node):
         )
 
         if exists:
-            log.info('{} has already created task assignment for {}', self, task_declaration)
+            log.info('{} has already created task assignment for {}'.format(self, task_declaration))
             return
 
         task_assignment = TaskAssignment.create(
@@ -95,9 +59,10 @@ class Worker(Node):
             task_declaration_id=task_declaration.asset_id,
             recipients=task_declaration.producer.address
         )
+
         log.info('Added {}'.format(task_assignment))
 
-    def process_task_assignment(self, asset_id, transaction):
+    def process_task_assignment_transaction(self, asset_id, transaction):
         if transaction['operation'] == 'CREATE':
             return
 
@@ -107,6 +72,9 @@ class Worker(Node):
         if task_assignment.worker_id != self.asset_id:
             return
 
+        self.process_task_assignment(task_assignment)
+
+    def process_task_assignment(self, task_assignment):
         # skip assignment that the worker has started working on
         if task_assignment.state == TaskAssignment.State.DATA_IS_READY:
             task_assignment.state = TaskAssignment.State.IN_PROGRESS
@@ -126,7 +94,7 @@ class Worker(Node):
 
             process_class(
                 target=self.work,
-                args=(asset_id, interprocess),
+                args=(task_assignment.asset_id, interprocess),
             ).start()
 
     def work(self, asset_id, interprocess):
@@ -135,9 +103,12 @@ class Worker(Node):
         task_assignment.set_encryption_key(task_assignment.producer.enc_key)
 
         ipfs = IPFS()
+
+        log.info('Train data: {}'.format(task_assignment.train_data))
+
         model_code = ipfs.read(task_assignment.train_data['model_code'])
-        epochs = task_assignment.train_data['epochs']
         batch_size = task_assignment.train_data['batch_size']
+        initial_weights = task_assignment.train_data['initial_weights']
 
         target_dir = tempfile.mkdtemp()
 
@@ -200,3 +171,21 @@ class Worker(Node):
             interprocess.add_tflops(snapshot.calc_tflops())
 
         log.info('Stop collect metrics')
+
+    def process_task_declarations(self):
+        for task_declaration in TaskDeclaration.list(created_by_user=False):
+            if task_declaration.state == TaskDeclaration.State.DEPLOYMENT and task_declaration.workers_needed > 0:
+                self.process_task_declaration(task_declaration)
+
+    def process_task_assignments(self):
+        for task_assignment in TaskAssignment.list():
+            self.process_task_assignment(task_assignment)
+            
+    def search_tasks(self):
+        while True:
+            try:
+                self.process_task_declarations()
+                self.process_task_assignments()
+                time.sleep(settings.WORKER_PROCESS_INTERVAL)
+            except Exception as ex:
+                log.error(ex)

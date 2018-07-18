@@ -3,7 +3,7 @@ import logging
 import os
 
 from tatau_core.db import DB, TransactionListener, NodeInfo
-from tatau_core.encryption import Encryption
+from tatau_core.utils.encryption import Encryption
 
 from tatau_core.settings import ROOT_DIR
 

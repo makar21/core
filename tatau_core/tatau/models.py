@@ -1,14 +1,13 @@
 import logging
 import os
-import re
 import shutil
 import tempfile
 
 import numpy as np
 
 from tatau_core.db import models, fields
-from tatau_core.ipfs import IPFS, Directory
 from tatau_core.utils import cached_property
+from tatau_core.utils.ipfs import IPFS
 
 log = logging.getLogger()
 
@@ -94,6 +93,7 @@ class TaskDeclaration(models.Model):
     producer_id = fields.CharField(immutable=True)
     dataset_id = fields.CharField(immutable=True)
     train_model_id = fields.CharField(immutable=True)
+    weights = fields.CharField(required=False)
     batch_size = fields.IntegerField(immutable=True)
     epochs = fields.IntegerField(immutable=True)
 
@@ -130,7 +130,7 @@ class TaskDeclaration(models.Model):
     def ready_for_start(self):
         return self.workers_needed == 0 and self.verifiers_needed == 0
 
-    def get_task_assignments(self):
+    def get_task_assignments(self, exclude_states=None):
         ret = []
         task_assignments = TaskAssignment.list(
             additional_match={
@@ -139,11 +139,11 @@ class TaskDeclaration(models.Model):
             created_by_user=False
         )
         for ta in task_assignments:
-            if ta.state not in (TaskAssignment.State.REJECTED, TaskAssignment.State.INITIAL):
+            if exclude_states is None or ta.state not in exclude_states:
                 ret.append(ta)
         return ret
 
-    def get_verification_assignments(self):
+    def get_verification_assignments(self, exclude_states=None):
         ret = []
         task_assignments = VerificationAssignment.list(
             additional_match={
@@ -152,64 +152,9 @@ class TaskDeclaration(models.Model):
             created_by_user=False
         )
         for ta in task_assignments:
-            if ta.state not in (VerificationAssignment.State.REJECTED, VerificationAssignment.State.INITIAL):
+            if exclude_states is None or ta.state not in exclude_states:
                 ret.append(ta)
         return ret
-
-    def assign_train_data(self):
-        # check is it last epoch?
-
-        task_assignments = self.get_task_assignments()
-        self.current_epoch += 1
-        self.results = []
-
-        worker_index = 0
-        for task_assignment in task_assignments:
-            ipfs_dir = Directory(multihash=self.dataset.train_dir_ipfs)
-            dirs, files = ipfs_dir.ls()
-
-            # TODO: optimize this shit
-            files_count_for_worker = int(len(files) / (2 * self.workers_requested))
-            file_indexes = [x + files_count_for_worker * worker_index for x in range(files_count_for_worker)]
-
-            x_train_ipfs = []
-            y_train_ipfs = []
-            for f in files:
-                index = int(re.findall('\d+', f.name)[0])
-                if index in file_indexes:
-                    if f.name[0] == 'x':
-                        x_train_ipfs.append(f.multihash)
-                    elif f.name[0] == 'y':
-                        y_train_ipfs.append(f.multihash)
-
-            task_assignment.train_data = dict(
-                model_code=self.train_model.code_ipfs,
-                x_train_ipfs=x_train_ipfs,
-                y_train_ipfs=y_train_ipfs,
-                x_test_ipfs=self.dataset.x_test_ipfs,
-                y_test_ipfs=self.dataset.y_test_ipfs,
-                batch_size=self.batch_size,
-                epochs=self.epochs
-            )
-
-            task_assignment.current_epoch = self.current_epoch
-            task_assignment.state = TaskAssignment.State.DATA_IS_READY
-            # encrypt inner data using worker's public key
-            task_assignment.set_encryption_key(task_assignment.worker.enc_key)
-            task_assignment.save(recipients=task_assignment.worker.address)
-
-            worker_index += 1
-
-        self.state = TaskDeclaration.State.EPOCH_IN_PROGRESS
-        self.save()
-
-    def assign_verification_data(self):
-        for va in self.get_verification_assignments():
-            va.train_results = self.results
-            va.state = VerificationAssignment.State.DATA_IS_READY
-            va.save(recipients=va.verifier.address)
-        self.state = TaskDeclaration.State.VERIFY_IN_PROGRESS
-        self.save()
 
     def is_task_assignment_allowed(self, task_assignment):
         if self.workers_needed == 0:
@@ -240,19 +185,27 @@ class TaskDeclaration(models.Model):
         return False
 
     def epoch_is_ready(self):
-        for ta in self.get_task_assignments():
+        task_assignments = self.get_task_assignments(
+            exclude_states=(TaskAssignment.State.REJECTED, TaskAssignment.State.INITIAL)
+        )
+
+        for ta in task_assignments:
             if ta.state != TaskAssignment.State.FINISHED:
                 return False
         return True
 
     def verification_is_ready(self):
-        for ta in self.get_verification_assignments():
-            if ta.state != VerificationAssignment.State.FINISHED:
+        verification_assignments = self.get_verification_assignments(
+            exclude_states=(VerificationAssignment.State.REJECTED, VerificationAssignment.State.INITIAL)
+        )
+
+        for va in verification_assignments:
+            if va.state != VerificationAssignment.State.FINISHED:
                 return False
         return True
 
     def all_done(self):
-        return self.epochs == self.current_epoch
+        return self.epochs == self.current_epoch and self.verification_is_ready()
 
 
 class TaskAssignment(models.Model):
