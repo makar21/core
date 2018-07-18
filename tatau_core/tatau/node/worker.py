@@ -68,17 +68,12 @@ class Worker(Node):
             TaskAssignment.get_asset_name(): self.process_task_assignment,
         }
 
-    def ignore_operation(self, operation):
-        return False
-
     def process_task_declaration(self, asset_id, transaction):
         if transaction['operation'] == 'TRANSFER':
             return
 
         task_declaration = TaskDeclaration.get(asset_id)
-        log.info('Received task declaration asset: {}, producer: {}, workers_needed: {}'.format(
-            asset_id, task_declaration.producer_id, task_declaration.workers_needed))
-
+        log.info('Received {}, workers_needed: {}'.format(task_declaration, task_declaration.workers_needed))
         if task_declaration.workers_needed == 0:
             return
 
@@ -91,10 +86,16 @@ class Worker(Node):
         )
 
         if exists:
-            log.info('Worker: {} already worked on task: {}', self.asset_id, task_declaration.asset_id)
+            log.info('{} has already created task assignment for {}', self, task_declaration)
             return
 
-        self.add_task_assignment(task_declaration)
+        task_assignment = TaskAssignment.create(
+            worker_id=self.asset_id,
+            producer_id=task_declaration.producer_id,
+            task_declaration_id=task_declaration.asset_id,
+            recipients=task_declaration.producer.address
+        )
+        log.info('Added {}'.format(task_assignment))
 
     def process_task_assignment(self, asset_id, transaction):
         if transaction['operation'] == 'CREATE':
@@ -106,35 +107,27 @@ class Worker(Node):
         if task_assignment.worker_id != self.asset_id:
             return
 
-        # TODO: optimize
         # skip assignment that the worker has started working on
-        if task_assignment.progress > 0 or task_assignment.tflops > 0:
-            return
+        if task_assignment.state == TaskAssignment.State.DATA_IS_READY:
+            task_assignment.state = TaskAssignment.State.IN_PROGRESS
+            task_assignment.save()
 
-        # skip assignment that the worker has finished working on
-        if task_assignment.result is not None:
-            return
+            interprocess = WorkerInterprocess()
 
-        log.info('Received task assignment asset: {}'.format(asset_id))
+            process_class = Process
+            if settings.DEBUG:
+                import threading
+                process_class = threading.Thread
 
-        interprocess = WorkerInterprocess()
+            process_class(
+                target=self.collect_metrics,
+                args=(interprocess,)
+            ).start()
 
-        process_class = Process
-        if settings.DEBUG:
-            import threading
-            process_class = threading.Thread
-
-        report_process = process_class(
-            target=self.collect_metrics,
-            args=[interprocess]
-        )
-        report_process.start()
-
-        work_process = process_class(
-            target=self.work,
-            args=(asset_id, interprocess),
-        )
-        work_process.start()
+            process_class(
+                target=self.work,
+                args=(asset_id, interprocess),
+            ).start()
 
     def work(self, asset_id, interprocess):
         log.info('Start work process')
@@ -170,7 +163,7 @@ class Worker(Node):
             try:
                 m = import_module(asset_id)
                 weights_file_path = str(m.run(
-                    train_x_paths, train_y_paths, test_x_path, test_y_path, batch_size, epochs, target_dir,
+                    train_x_paths, train_y_paths, test_x_path, test_y_path, batch_size, 1, target_dir,
                     progress.progress_callback)
                 )
             except Exception as e:
@@ -189,10 +182,11 @@ class Worker(Node):
             interprocess.stop_collect_metrics()
             task_assignment.tflops = interprocess.get_tflops()
             task_assignment.progress = 100
-            task_assignment.save()
+            task_assignment.state = TaskAssignment.State.FINISHED
+            task_assignment.save(recipients=task_assignment.producer.address)
 
-            log.info('Finished task: {}, tflops: {}, result: {}, error: {}'.format(
-                task_assignment.asset_id, task_assignment.tflops, task_assignment.result, task_assignment.error
+            log.info('Finished {}, tflops: {}, result: {}, error: {}'.format(
+                task_assignment, task_assignment.tflops, task_assignment.result, task_assignment.error
             ))
         finally:
             shutil.rmtree(target_dir)
@@ -206,35 +200,3 @@ class Worker(Node):
             interprocess.add_tflops(snapshot.calc_tflops())
 
         log.info('Stop collect metrics')
-
-    def add_task_assignment(self, task_declaration):
-        task_assignment = TaskAssignment.create(
-            worker_id=self.asset_id,
-            producer_id=task_declaration.producer_id,
-            task_declaration_id=task_declaration.asset_id,
-            recipients=task_declaration.producer.address
-        )
-        log.info('Added task assignment: {}'.format(
-            task_assignment.asset_id
-        ))
-
-    def process_old_task_declarations(self):
-        pass
-        # for task_declaration in TaskDeclaration.list(self, created_by_user=False):
-        #     if task_declaration.status == TaskDeclaration.Status.COMPLETED or task_declaration.workers_needed == 0:
-        #         continue
-        #
-        #     exists = TaskAssignment.exists(
-        #         node=self,
-        #         additional_match={
-        #             'assets.data.worker_id': self.asset_id,
-        #             'assets.data.task_declaration_id': task_declaration.asset_id,
-        #         },
-        #         created_by_user=False
-        #     )
-        #
-        #     if exists:
-        #         continue
-        #
-        #     self.add_task_assignment(task_declaration)
-        #     break

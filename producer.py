@@ -39,9 +39,9 @@ if __name__ == '__main__':
             dataset_id=dataset.asset_id,
             train_model_id=train_model.asset_id,
             workers_needed=2,
-            verifiers_needed=1,
+            verifiers_needed=2,
             batch_size=124,
-            epochs=1
+            epochs=2
         )
 
         producer.run_transaction_listener()

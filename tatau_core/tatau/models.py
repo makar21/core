@@ -1,12 +1,13 @@
 import logging
 import os
+import re
 import shutil
 import tempfile
 
 import numpy as np
 
 from tatau_core.db import models, fields
-from tatau_core.ipfs import IPFS
+from tatau_core.ipfs import IPFS, Directory
 from tatau_core.utils import cached_property
 
 log = logging.getLogger()
@@ -84,25 +85,29 @@ class VerifierNode(models.Model):
 
 
 class TaskDeclaration(models.Model):
-    class Status:
+    class State:
         DEPLOYMENT = 'deployment'
-        RUN = 'run'
+        EPOCH_IN_PROGRESS = 'training'
+        VERIFY_IN_PROGRESS = 'verifying'
         COMPLETED = 'completed'
 
     producer_id = fields.CharField(immutable=True)
     dataset_id = fields.CharField(immutable=True)
     train_model_id = fields.CharField(immutable=True)
-    workers_requested = fields.IntegerField(immutable=True)
-    workers_needed = fields.IntegerField()
-    verifiers_requested = fields.IntegerField(immutable=True)
-    verifiers_needed = fields.IntegerField()
     batch_size = fields.IntegerField(immutable=True)
     epochs = fields.IntegerField(immutable=True)
-    status = fields.CharField(initial=Status.DEPLOYMENT)
+
+    workers_requested = fields.IntegerField(immutable=True)
+    verifiers_requested = fields.IntegerField(immutable=True)
+
+    workers_needed = fields.IntegerField()
+    verifiers_needed = fields.IntegerField()
+
+    state = fields.CharField(initial=State.DEPLOYMENT)
+    current_epoch = fields.IntegerField(initial=0)
     progress = fields.IntegerField(initial=0)
     tflops = fields.IntegerField(initial=0)
     results = fields.JsonField(initial=[])
-    errors = fields.JsonField(initial=[])
 
     @cached_property
     def producer(self):
@@ -122,14 +127,155 @@ class TaskDeclaration(models.Model):
         kwargs['verifiers_requested'] = kwargs['verifiers_needed']
         return super(TaskDeclaration, cls).create(**kwargs)
 
+    def ready_for_start(self):
+        return self.workers_needed == 0 and self.verifiers_needed == 0
+
+    def get_task_assignments(self):
+        ret = []
+        task_assignments = TaskAssignment.list(
+            additional_match={
+                'assets.data.task_declaration_id': self.asset_id
+            },
+            created_by_user=False
+        )
+        for ta in task_assignments:
+            if ta.state not in (TaskAssignment.State.REJECTED, TaskAssignment.State.INITIAL):
+                ret.append(ta)
+        return ret
+
+    def get_verification_assignments(self):
+        ret = []
+        task_assignments = VerificationAssignment.list(
+            additional_match={
+                'assets.data.task_declaration_id': self.asset_id
+            },
+            created_by_user=False
+        )
+        for ta in task_assignments:
+            if ta.state not in (VerificationAssignment.State.REJECTED, VerificationAssignment.State.INITIAL):
+                ret.append(ta)
+        return ret
+
+    def assign_train_data(self):
+        # check is it last epoch?
+
+        task_assignments = self.get_task_assignments()
+        self.current_epoch += 1
+        self.results = []
+
+        worker_index = 0
+        for task_assignment in task_assignments:
+            ipfs_dir = Directory(multihash=self.dataset.train_dir_ipfs)
+            dirs, files = ipfs_dir.ls()
+
+            # TODO: optimize this shit
+            files_count_for_worker = int(len(files) / (2 * self.workers_requested))
+            file_indexes = [x + files_count_for_worker * worker_index for x in range(files_count_for_worker)]
+
+            x_train_ipfs = []
+            y_train_ipfs = []
+            for f in files:
+                index = int(re.findall('\d+', f.name)[0])
+                if index in file_indexes:
+                    if f.name[0] == 'x':
+                        x_train_ipfs.append(f.multihash)
+                    elif f.name[0] == 'y':
+                        y_train_ipfs.append(f.multihash)
+
+            task_assignment.train_data = dict(
+                model_code=self.train_model.code_ipfs,
+                x_train_ipfs=x_train_ipfs,
+                y_train_ipfs=y_train_ipfs,
+                x_test_ipfs=self.dataset.x_test_ipfs,
+                y_test_ipfs=self.dataset.y_test_ipfs,
+                batch_size=self.batch_size,
+                epochs=self.epochs
+            )
+
+            task_assignment.current_epoch = self.current_epoch
+            task_assignment.state = TaskAssignment.State.DATA_IS_READY
+            # encrypt inner data using worker's public key
+            task_assignment.set_encryption_key(task_assignment.worker.enc_key)
+            task_assignment.save(recipients=task_assignment.worker.address)
+
+            worker_index += 1
+
+        self.state = TaskDeclaration.State.EPOCH_IN_PROGRESS
+        self.save()
+
+    def assign_verification_data(self):
+        for va in self.get_verification_assignments():
+            va.train_results = self.results
+            va.state = VerificationAssignment.State.DATA_IS_READY
+            va.save(recipients=va.verifier.address)
+        self.state = TaskDeclaration.State.VERIFY_IN_PROGRESS
+        self.save()
+
+    def is_task_assignment_allowed(self, task_assignment):
+        if self.workers_needed == 0:
+            return False
+
+        match = {
+            'assets.data.worker_id': task_assignment.worker_id,
+            'assets.data.task_declaration_id': self.asset_id
+        }
+
+        if TaskAssignment.count(additional_match=match, created_by_user=False) == 1:
+            return True
+
+        return False
+
+    def is_verification_assignment_allowed(self, verification_assignment):
+        if self.verifiers_needed == 0:
+            return False
+
+        match = {
+            'assets.data.verifier_id': verification_assignment.verifier_id,
+            'assets.data.task_declaration_id': self.asset_id
+        }
+
+        if VerificationAssignment.count(additional_match=match, created_by_user=False) == 1:
+            return True
+
+        return False
+
+    def epoch_is_ready(self):
+        for ta in self.get_task_assignments():
+            if ta.state != TaskAssignment.State.FINISHED:
+                return False
+        return True
+
+    def verification_is_ready(self):
+        for ta in self.get_verification_assignments():
+            if ta.state != VerificationAssignment.State.FINISHED:
+                return False
+        return True
+
+    def all_done(self):
+        return self.epochs == self.current_epoch
+
 
 class TaskAssignment(models.Model):
+    class State:
+        INITIAL = 'initial'
+        REJECTED = 'rejected'
+        ACCEPTED = 'accepted'
+        DATA_IS_READY = 'data is ready'
+        IN_PROGRESS = 'in progress'
+        FINISHED = 'finished'
+
     producer_id = fields.CharField(immutable=True)
     worker_id = fields.CharField(immutable=True)
     task_declaration_id = fields.CharField(immutable=True)
+
+    state = fields.CharField(initial=State.INITIAL)
+
     train_data = fields.JsonField(required=False)
+    current_epoch = fields.IntegerField(initial=0)
+
     progress = fields.IntegerField(initial=0)
     tflops = fields.IntegerField(initial=0)
+
     result = fields.CharField(required=False)
     error = fields.CharField(required=False)
 
@@ -146,37 +292,25 @@ class TaskAssignment(models.Model):
         return TaskDeclaration.get(self.task_declaration_id)
 
 
-class VerificationDeclaration(models.Model):
-    class Status:
-        PUBLISHED = 'published'
-        RUN = 'run'
-        COMPLETED = 'completed'
-
-    producer_id = fields.CharField(immutable=True)
-    verifiers_requested = fields.IntegerField(immutable=True)
-    verifiers_needed = fields.IntegerField()
-    task_declaration_id = fields.CharField(immutable=True)
-    status = fields.CharField(initial=Status.PUBLISHED)
-    progress = fields.IntegerField(initial=0)
-
-    @cached_property
-    def producer(self):
-        return ProducerNode.get(self.producer_id)
-
-    @cached_property
-    def task_declaration(self):
-        return TaskDeclaration.get(self.task_declaration_id)
-
-
 class VerificationAssignment(models.Model):
+    class State:
+        INITIAL = 'initial'
+        REJECTED = 'rejected'
+        ACCEPTED = 'accepted'
+        DATA_IS_READY = 'data is ready'
+        IN_PROGRESS = 'in progress'
+        FINISHED = 'finished'
+
     producer_id = fields.CharField(immutable=True)
     verifier_id = fields.CharField(immutable=True)
     task_declaration_id = fields.CharField(immutable=True)
-    verification_declaration_id = fields.CharField(immutable=True)
+
+    state = fields.CharField(initial=State.INITIAL)
     train_results = fields.JsonField(required=False)
+
     progress = fields.IntegerField(initial=0)
     tflops = fields.IntegerField(initial=0)
-    result = fields.CharField(required=False)
+    result = fields.JsonField(required=False)
     error = fields.CharField(required=False)
 
     @cached_property

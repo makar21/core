@@ -130,7 +130,7 @@ class Model(metaclass=ModelBase):
 
         if additional_match is not None:
             match.update(additional_match)
-        return (cls.get(db, encryption, x) for x in db.retrieve_asset_ids(match=match, created_by_user=created_by_user))
+        return (cls.get(x, db, encryption) for x in db.retrieve_asset_ids(match=match, created_by_user=created_by_user))
 
     @classmethod
     def exists(cls, db=None, encryption=None, additional_match=None, created_by_user=True):
@@ -138,6 +138,17 @@ class Model(metaclass=ModelBase):
             return True
         return False
 
+    @classmethod
+    def count(cls, db=None, additional_match=None, created_by_user=True):
+        db = db or NodeInfo.get_db()
+        db.connect_to_mongodb()
+        match = {
+            'assets.data.asset_name': cls.get_asset_name(),
+        }
+
+        if additional_match is not None:
+            match.update(additional_match)
+        return len(list(db.retrieve_asset_ids(match=match, created_by_user=created_by_user)))
 
 
 
