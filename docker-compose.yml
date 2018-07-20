@@ -3,7 +3,7 @@ version: '3'
 services:
   tendermint:
     container_name: tendermint
-    image: tataucloud/tendermint
+    image: tataucloud/tendermint:0.22.4
     ports:
       - "26656-26657:26656-26657"
     restart: always
