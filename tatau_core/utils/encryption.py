@@ -58,3 +58,21 @@ class Encryption:
         data = cipher_aes.decrypt_and_verify(ciphertext, tag)
 
         return data
+
+    def encrypt_text(self, text, public_key):
+        if text is None:
+            return None
+
+        return self.encrypt(
+            text.encode(),
+            public_key or self.get_public_key()
+        ).decode()
+
+    def decrypt_text(self, encrypted_text):
+        if encrypted_text is None:
+            return None
+
+        try:
+            return self.decrypt(encrypted_text.encode()).decode()
+        except ValueError:
+            return encrypted_text
