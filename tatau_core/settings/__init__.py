@@ -24,8 +24,8 @@ BDB_ROOT_URL = 'http://{}:9984'.format(BDB_HOST)
 MONGO_DB_HOST = os.getenv('TATAU_MONGO_DB_HOST')
 MONGO_DB_PORT = os.getenv('TATAU_MONGO_DB_PORT')
 
-IPFS_HOST = local_settings.IPFS_HOST
-IPFS_PORT = local_settings.IPFS_PORT
+IPFS_HOST = os.getenv('TATAU_IPFS_HOST')
+IPFS_PORT = os.getenv('TATAU_IPFS_PORT')
 
 
 PRODUCER_PROCESS_INTERVAL = 5
