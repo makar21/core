@@ -2,13 +2,13 @@ import hashlib
 import logging
 import os
 
-from tatau_core.db import DB, TransactionListener
-from tatau_core.encryption import Encryption
+from tatau_core.db import DB, TransactionListener, NodeInfo
+from tatau_core.utils.encryption import Encryption
 
 from tatau_core.settings import ROOT_DIR
 
 
-logger = logging.getLogger()
+log = logging.getLogger()
 
 
 class Node(TransactionListener):
@@ -19,12 +19,13 @@ class Node(TransactionListener):
 
     # should be rename by child classes
     node_type = None
-    asset_name = None
+    asset_class = None
 
     def __init__(self, rsa_pk_fs_name=None, rsa_pk=None, *args, **kwargs):
         self.db = DB()
         self.bdb = self.db.bdb
         self.encryption = Encryption()
+        NodeInfo.configure(self.db, self.encryption)
 
         if rsa_pk_fs_name:
             self.handle_fs_key(rsa_pk_fs_name)
@@ -33,7 +34,14 @@ class Node(TransactionListener):
             seed = hashlib.sha256(rsa_pk).digest()
             self.db.generate_keypair(seed=seed)
 
-        self.asset_id = self.create_info_asset()
+        self.asset = self.create_info_asset()
+
+    def __str__(self):
+        return self.asset.__str__()
+
+    @property
+    def asset_id(self):
+        return self.asset.asset_id
 
     def handle_fs_key(self, name):
         path = os.path.join(ROOT_DIR, 'keys/{}.pem'.format(name))
@@ -51,18 +59,7 @@ class Node(TransactionListener):
         self.db.generate_keypair(seed=seed)
 
     def create_info_asset(self):
-        asset_id, created = self.db.create_asset(
-            data={'name': self.asset_name},
-            metadata=self.get_node_info(),
-        )
-        if created:
-            logging.info('{} created info asset: {}'.format(self.node_type, asset_id))
-        return asset_id
-
-    def get_node_info(self):
-        return {
-            'enc_key': self.encryption.get_public_key().decode(),
-        }
+        return self.asset_class.create(enc_key=self.encryption.get_public_key().decode())
 
     def process_tx(self, data):
         """
@@ -80,17 +77,20 @@ class Node(TransactionListener):
         asset_id = data['asset_id']
         asset_create_tx = self.db.retrieve_asset_create_tx(asset_id)
 
-        name = asset_create_tx['asset']['data'].get('name')
+        name = asset_create_tx['asset']['data'].get('asset_name')
+        log.debug('{} process tx of "{}": {}'.format(self, name, asset_id))
 
         tx_methods = self.get_tx_methods()
         if name in tx_methods:
             tx_methods[name](asset_id, transaction)
+        else:
+            log.debug('{} skip tx of "{}": {}'.format(self, name, asset_id))
 
     def get_tx_methods(self):
         raise NotImplemented
 
     def ignore_operation(self, operation):
-        raise NotImplemented
+        return False
 
     def encrypt_text(self, text):
         return self.encryption.encrypt(

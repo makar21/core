@@ -1,10 +1,12 @@
 import json
+import logging
 
 import websocket
 
 from tatau_core import settings
-
 from .exceptions import StopWSClient
+
+log = logging.getLogger()
 
 
 class TransactionListener:
@@ -16,13 +18,13 @@ class TransactionListener:
             ws.close()
 
     def on_error(self, ws, error):
-        print(error)
+        log.error(error)
 
     def on_close(self, ws):
-        print('WS connection closed')
+        log.info('WS connection closed')
 
     def on_open(self, ws):
-        print('WS connection opened')
+        log.info('WS connection opened')
 
     def process_tx(self, data):
         raise NotImplemented
