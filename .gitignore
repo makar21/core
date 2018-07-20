@@ -108,3 +108,6 @@ keys/
 
 # Test data
 test_data/
+docker/volumes
+cluster/tmdata
+cluster/docker-compose.yml
