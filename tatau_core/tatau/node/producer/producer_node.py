@@ -19,6 +19,12 @@ class Producer(Node):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.exit_on_task_completion = kwargs.get('exit_on_task_completion')
+        # if 2 instances of producers with websocket will be started, then without filtering will be shit
+        self.task_declaration_asset_id = kwargs.get('task_declaration_asset_id')
+
+    def ignore_task_declaration(self, task_declaration_asset_id):
+        return self.task_declaration_asset_id is not None \
+               and self.task_declaration_asset_id != task_declaration_asset_id
 
     def get_tx_methods(self):
         return {
@@ -30,6 +36,9 @@ class Producer(Node):
     def process_task_assignment_transaction(self, asset_id, transaction):
         task_assignment = TaskAssignment.get(asset_id)
         if task_assignment.producer_id != self.asset_id:
+            return
+
+        if self.ignore_task_declaration(task_assignment.task_declaration_id):
             return
 
         self.process_task_assignment(task_assignment, task_assignment.task_declaration)
@@ -64,6 +73,9 @@ class Producer(Node):
         if verification_assignment.producer_id != self.asset_id:
             return
 
+        if self.ignore_task_declaration(verification_assignment.task_declaration_id):
+            return
+
         self.process_verification_assignment(verification_assignment, verification_assignment.task_declaration)
 
     def process_verification_assignment(self, verification_assignment, task_declaration, save=True):
@@ -93,6 +105,9 @@ class Producer(Node):
 
     def process_task_declaration_transaction(self, asset_id, transaction):
         if transaction['operation'] == 'CREATE':
+            return
+
+        if self.ignore_task_declaration(asset_id):
             return
 
         task_declaration = TaskDeclaration.get(asset_id)

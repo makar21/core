@@ -17,10 +17,9 @@ class TrainModel(models.Model):
     code_ipfs = fields.EncryptedCharField()
 
     @classmethod
-    def create(cls, **kwargs):
-        code_path = kwargs.pop('code_path')
-        kwargs['code_ipfs'] = IPFS().add_file(code_path).multihash
-        return super(TrainModel, cls).create(**kwargs)
+    def upload_and_create(cls, code_path, **kwargs):
+        code_ipfs = IPFS().add_file(code_path).multihash
+        return cls.create(code_ipfs=code_ipfs, **kwargs)
 
 
 class Dataset(models.Model):
@@ -30,13 +29,7 @@ class Dataset(models.Model):
     y_test_ipfs = fields.EncryptedCharField()
 
     @classmethod
-    def create(cls, **kwargs):
-        x_train_path = kwargs.pop('x_train_path')
-        y_train_path = kwargs.pop('y_train_path')
-        x_test_path = kwargs.pop('x_test_path')
-        y_test_path = kwargs.pop('y_test_path')
-        files_count = kwargs.pop('files_count')
-
+    def upload_and_create(cls, x_train_path, y_train_path, x_test_path, y_test_path, files_count, **kwargs):
         ipfs = IPFS()
 
         kwargs['x_test_ipfs'] = ipfs.add_file(x_test_path).multihash
@@ -59,7 +52,7 @@ class Dataset(models.Model):
         finally:
             shutil.rmtree(directory)
 
-        return super(Dataset, cls).create(**kwargs)
+        return cls.create(**kwargs)
 
 
 class NodeType:

@@ -10,5 +10,4 @@ log = logging.getLogger()
 
 if __name__ == '__main__':
     verifier = Verifier(rsa_pk_fs_name='verifier')
-    # verifier.search_tasks()
     verifier.run_transaction_listener()

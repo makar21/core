@@ -43,6 +43,17 @@ class Model(metaclass=ModelBase):
     def __str__(self):
         return '<{}: {}>'.format(self.get_asset_name(), self.asset_id)
 
+    @classmethod
+    def get_fields(cls):
+        fields = []
+        for name, attr in cls._attrs.items():
+            if isinstance(attr, Field):
+                fields.append({
+                    'name': name,
+                    'class': attr
+                })
+        return fields
+
     @property
     def address(self):
         return self._address
