@@ -1,0 +1,58 @@
+version: '3'
+
+services:
+  tendermint:
+    container_name: tendermint
+    image: tataucloud/tendermint:0.22.4
+    ports:
+      - "26656-26657:26656-26657"
+    restart: always
+
+  mongodb:
+    image: mongo:3.6
+    ports:
+      - "127.0.0.1:27017:27017"
+    restart: always
+
+  bigchaindb:
+    image: bigchaindb/bigchaindb:2.0.0-beta3
+    depends_on:
+      - mongodb
+      - tendermint
+    links:
+      - mongodb
+      - tendermint
+    environment:
+      BIGCHAINDB_DATABASE_BACKEND: localmongodb
+      BIGCHAINDB_DATABASE_HOST: mongodb
+      BIGCHAINDB_DATABASE_PORT: 27017
+      BIGCHAINDB_SERVER_BIND: 0.0.0.0:9984
+      BIGCHAINDB_WSSERVER_HOST: 0.0.0.0
+      BIGCHAINDB_WSSERVER_ADVERTISED_HOST: bigchaindb
+      BIGCHAINDB_TENDERMINT_HOST: tendermint
+      BIGCHAINDB_TENDERMINT_PORT: 26657
+    ports:
+      - "127.0.0.1:9984:9984"
+      - "127.0.0.1:9985:9985"
+      - "127.0.0.1:26658:26658"
+    volumes:
+      - $BIGCHAINDB_DATA:/data
+      - $BIGCHAINDB_CERTS:/certs
+    healthcheck:
+      test: ["CMD", "bash", "-c", "curl http://bigchaindb:9984 && curl http://tendermint:26657/abci_query"]
+      interval: 3s
+      timeout: 5s
+      retries: 3
+    entrypoint: sh -c "bigchaindb -l INFO -y configure && bigchaindb -l DEBUG start"
+    restart: always
+
+  ipfs:
+    image: ipfs/go-ipfs:v0.4.16
+    volumes:
+      - $IPFS_STAGING:/export
+      - $IPFS_DATA:/data/ipfs
+    ports:
+      - "4001:4001"
+      - "127.0.0.1:8080:8080"
+      - "127.0.0.1:5001:5001"
+    restart: always

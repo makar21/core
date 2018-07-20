@@ -5,31 +5,12 @@ For setting up the project, run the following commands.
 ```shell
 virtualenv .venv -p python3
 source .venv/bin/activate
-cp tatau_core/settings/local_settings.py.in tatau_core/settings/local_settings.py
 pip install -r requirements.txt
+
+cp .env.example .env
+docker-compose up
+
 ```
-
-Read [here](https://docs.bigchaindb.com/projects/py-driver/en/latest/quickstart.html) about BigchainDB driver dependencies.
-
-You will also need a BigchainDB node.
-
-# Get BigchainDB Server
-
-To get BigchainDB Server, clone the git repository:
-
-```shell
-git clone https://github.com/bigchaindb/bigchaindb.git
-```
-
-To run BigchainDB Server:
-
-    docker-compose up
-
-# DB
-
-BigchainDB assets can be created, updated and retrieved with the `db` module.
-
-A key pair is generated automatically when the `DB` class is initialized.
 
 # Encryption
 
@@ -82,17 +63,3 @@ python producer.py
 The producer creates a **Task declaration** asset in BigchainDB containing its API URL, waits for a worker to make a call to its API, and then creates a **Task assignment** asset in BigchainDB. The asset’s recipient is the worker.
 
 After a worker adds a result, the producer creates a **Verification declaration** asset in BigchainDB containing its API URL, waits for a verifier to make a call to its API, and then creates a **Verification assignment** asset in BigchainDB. The asset’s recipient is the verifier.
-
-
-# Install IPFS
-
-[Install instructions](https://ipfs.io/docs/install/)
-
-After install run:
-```shell
-ipfs daemon --init
-```
-
-[Docker instructions](https://hub.docker.com/r/jbenet/go-ipfs/), read Docker Usage
-
-[IPFS API Reference](https://ipfs.io/docs/api/)
