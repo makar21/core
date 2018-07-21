@@ -8,6 +8,7 @@ log = logging.getLogger()
 
 
 def verify_train_results(train_results):
+    log.info('Verify results: {}'.format(train_results))
     target_dir = tempfile.mkdtemp()
     try:
         ipfs = IPFS()
