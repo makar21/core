@@ -100,7 +100,6 @@ class Worker(Node):
     def work(self, asset_id, interprocess):
         log.info('Start work process')
         task_assignment = TaskAssignment.get(asset_id)
-        task_assignment.set_encryption_key(task_assignment.producer.enc_key)
 
         ipfs = IPFS()
 
@@ -160,6 +159,7 @@ class Worker(Node):
             task_assignment.tflops = interprocess.get_tflops()
             task_assignment.progress = 100
             task_assignment.state = TaskAssignment.State.FINISHED
+            task_assignment.set_encryption_key(task_assignment.producer.enc_key)
             task_assignment.save(recipients=task_assignment.producer.address)
 
             log.info('Finished {}, tflops: {}, result: {}, error: {}'.format(

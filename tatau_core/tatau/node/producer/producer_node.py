@@ -210,6 +210,7 @@ class Producer(Node):
         for verification_assignment in verification_assignments:
             verification_assignment.train_results = task_declaration.results
             verification_assignment.state = VerificationAssignment.State.DATA_IS_READY
+            verification_assignment.set_encryption_key(verification_assignment.verifier.enc_key)
             verification_assignment.save(recipients=verification_assignment.verifier.address)
 
         task_declaration.state = TaskDeclaration.State.VERIFY_IN_PROGRESS

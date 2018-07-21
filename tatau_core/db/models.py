@@ -1,6 +1,6 @@
 import json
 
-from tatau_core.db.fields import Field, JsonField
+from tatau_core.db.fields import Field, JsonField, EncryptedJsonField
 from tatau_core.db import exceptions, NodeInfo
 
 
@@ -37,7 +37,13 @@ class Model(metaclass=ModelBase):
                 if attr.encrypted and kwargs.get('_decrypt_values', False):
                     value = self.encryption.decrypt_text(value)
                 if isinstance(attr, JsonField) and isinstance(value, str):
-                    value = json.loads(value)
+                    try:
+                        value = json.loads(value)
+                    except json.JSONDecodeError:
+                        if attr.encrypted:
+                            value = value
+                        else:
+                            raise
                 attr.__set__(self, value)
 
     def __str__(self):
@@ -75,6 +81,8 @@ class Model(metaclass=ModelBase):
             raise ValueError('{} is required'.format(name))
 
         if attr.encrypted:
+            if isinstance(attr, EncryptedJsonField):
+                value = json.dumps(value)
             return self.encryption.encrypt_text(value, self.get_encryption_key())
 
         if isinstance(attr, JsonField):
@@ -99,6 +107,8 @@ class Model(metaclass=ModelBase):
     @classmethod
     def get(cls, asset_id, db=None, encryption=None):
         db = db or NodeInfo.get_db()
+        encryption = encryption or NodeInfo.get_encryption()
+
         asset = db.retrieve_asset(asset_id)
         address = asset.tx['outputs'][0]['public_keys'][0]
 
@@ -134,6 +144,8 @@ class Model(metaclass=ModelBase):
     @classmethod
     def list(cls, db=None, encryption=None, additional_match=None, created_by_user=True):
         db = db or NodeInfo.get_db()
+        encryption = encryption or NodeInfo.get_encryption()
+
         db.connect_to_mongodb()
         match = {
             'assets.data.asset_name': cls.get_asset_name(),
@@ -152,6 +164,7 @@ class Model(metaclass=ModelBase):
     @classmethod
     def count(cls, db=None, additional_match=None, created_by_user=True):
         db = db or NodeInfo.get_db()
+
         db.connect_to_mongodb()
         match = {
             'assets.data.asset_name': cls.get_asset_name(),
@@ -161,5 +174,21 @@ class Model(metaclass=ModelBase):
             match.update(additional_match)
         return len(list(db.retrieve_asset_ids(match=match, created_by_user=created_by_user)))
 
+    @classmethod
+    def get_history(cls, asset_id, db=None, encryption=None):
+        db = db or NodeInfo.get_db()
+        encryption = encryption or NodeInfo.get_encryption()
+
+        data = None
+        for transaction in db.retrieve_asset_transactions(asset_id):
+            if transaction['operation'] == 'CREATE':
+                data = transaction['asset']['data']
+                if data['asset_name'] != cls.get_asset_name():
+                    raise exceptions.Asset.WrongType()
+
+            metadata = transaction['metadata']
+            kwars = data
+            kwars.update(metadata)
+            yield cls(db=db, encryption=encryption, asset_id=asset_id, **kwars)
 
 
