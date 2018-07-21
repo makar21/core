@@ -1,2 +1,2 @@
 #!/bin/bash
-docker run -it --rm -v $PWD/testnet:/tendermint tendermint/tendermint:0.22.4 testnet --hostname-prefix tatau --o tatau --populate-persistent-peers --starting-ip-address 192.167.10.2 --n 1 --v 4
+docker run -it --rm -v $PWD/testnet:/tendermint tendermint/tendermint:0.22.4 testnet --hostname-prefix tatau --o tatau --v 4
