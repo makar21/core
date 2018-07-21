@@ -33,10 +33,24 @@ class EncryptedCharField(CharField):
 class IntegerField(Field):
     def __set__(self, obj, val):
         if val is not None and not isinstance(val, int):
-            raise ValueError('{} must be a integer instance.'.format(self._name))
+            raise ValueError('{} must be an integer instance.'.format(self._name))
 
         super(IntegerField, self).__set__(obj, val if val is None else val)
 
 
 class JsonField(Field):
-    pass
+    def __set__(self, obj, val):
+        if val is not None and not isinstance(val, dict) and not isinstance(val, list):
+            raise ValueError('{} must be a dict instance.'.format(self._name))
+
+        super(JsonField, self).__set__(obj, val if val is None else val)
+
+
+class EncryptedJsonField(JsonField):
+    encrypted = True
+
+    def __set__(self, obj, val):
+        if val is not None and not isinstance(val, dict) and not isinstance(val, list) and not isinstance(val, str):
+            raise ValueError('{} must be a dict instance.'.format(self._name))
+
+        super(JsonField, self).__set__(obj, val if val is None else val)

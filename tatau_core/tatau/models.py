@@ -86,7 +86,7 @@ class TaskDeclaration(models.Model):
     producer_id = fields.CharField(immutable=True)
     dataset_id = fields.CharField(immutable=True)
     train_model_id = fields.CharField(immutable=True)
-    weights = fields.CharField(required=False)
+    weights = fields.EncryptedCharField(required=False)
     batch_size = fields.IntegerField(immutable=True)
     epochs = fields.IntegerField(immutable=True)
 
@@ -100,7 +100,7 @@ class TaskDeclaration(models.Model):
     current_epoch = fields.IntegerField(initial=0)
     progress = fields.IntegerField(initial=0)
     tflops = fields.IntegerField(initial=0)
-    results = fields.JsonField(initial=[])
+    results = fields.EncryptedJsonField(initial=[])
 
     @cached_property
     def producer(self):
@@ -224,14 +224,14 @@ class TaskAssignment(models.Model):
 
     state = fields.CharField(initial=State.INITIAL)
 
-    train_data = fields.JsonField(required=False)
+    train_data = fields.EncryptedJsonField(required=False)
     current_epoch = fields.IntegerField(initial=0)
 
     progress = fields.IntegerField(initial=0)
     tflops = fields.IntegerField(initial=0)
 
-    result = fields.CharField(required=False)
-    error = fields.CharField(required=False)
+    result = fields.EncryptedCharField(required=False)
+    error = fields.EncryptedCharField(required=False)
 
     @cached_property
     def producer(self):
@@ -260,12 +260,12 @@ class VerificationAssignment(models.Model):
     task_declaration_id = fields.CharField(immutable=True)
 
     state = fields.CharField(initial=State.INITIAL)
-    train_results = fields.JsonField(required=False)
+    train_results = fields.EncryptedJsonField(required=False)
 
     progress = fields.IntegerField(initial=0)
     tflops = fields.IntegerField(initial=0)
-    result = fields.JsonField(required=False)
-    error = fields.CharField(required=False)
+    result = fields.EncryptedJsonField(required=False)
+    error = fields.EncryptedCharField(required=False)
 
     @cached_property
     def producer(self):

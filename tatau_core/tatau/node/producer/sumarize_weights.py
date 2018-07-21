@@ -25,5 +25,9 @@ def summarize_weights(train_results):
 
 
 def summarize(downloaded_results):
-    ipfs = IPFS()
-    return ipfs.add_file(downloaded_results[0]).multihash
+    log.info('Summarize {}'.format(downloaded_results))
+    if len(downloaded_results):
+        ipfs = IPFS()
+        return ipfs.add_file(downloaded_results[0]).multihash
+    else:
+        return 'error: list of weights is empty'

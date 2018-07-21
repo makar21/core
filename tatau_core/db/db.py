@@ -163,6 +163,12 @@ class DB:
 
         return Asset(tx=latest_tx, asset_id=asset_id, first_tx=transactions[0])
 
+    def retrieve_asset_transactions(self, asset_id):
+        """
+        Retrieves transactions for an asset.
+        """
+        return self.bdb.transactions.get(asset_id=asset_id)
+
     def retrieve_asset_metadata(self, asset_id):
         """
         Retrieves all metadata for an asset.
