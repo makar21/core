@@ -2,7 +2,6 @@ version: '3'
 
 services:
   tendermint:
-    container_name: tendermint
     image: tendermint/tendermint:0.22.4
     ports:
       - "26656:26656"
