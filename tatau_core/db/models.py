@@ -189,6 +189,6 @@ class Model(metaclass=ModelBase):
             metadata = transaction['metadata']
             kwars = data
             kwars.update(metadata)
-            yield cls(db=db, encryption=encryption, **kwars)
+            yield cls(db=db, encryption=encryption, asset_id=asset_id, **kwars)
 
 
