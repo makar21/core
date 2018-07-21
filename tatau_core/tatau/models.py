@@ -136,6 +136,10 @@ class TaskDeclaration(models.Model):
                 ret.append(ta)
         return ret
 
+    @property
+    def task_assignments(self):
+        return self.get_task_assignments()
+
     def get_verification_assignments(self, exclude_states=None):
         ret = []
         task_assignments = VerificationAssignment.list(
@@ -148,6 +152,10 @@ class TaskDeclaration(models.Model):
             if exclude_states is None or ta.state not in exclude_states:
                 ret.append(ta)
         return ret
+
+    @property
+    def verification_assignments(self):
+        return self.get_verification_assignments()
 
     def is_task_assignment_allowed(self, task_assignment):
         if self.workers_needed == 0:
