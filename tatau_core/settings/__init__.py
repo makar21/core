@@ -6,7 +6,7 @@ import os
 load_dotenv(find_dotenv(), override=True)
 
 
-DEBUG = bool(os.getenv('TATAU_DEBUG'))
+DEBUG = os.getenv('TATAU_DEBUG').lower() == 'true'
 
 RAVEN_DSN = os.getenv('TATAU_RAVEN_DSN')
 
