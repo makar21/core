@@ -131,12 +131,21 @@ class Worker(Node):
 
             progress = TaskProgress(self, asset_id, interprocess)
             interprocess.start_collect_metrics()
+
+            # reset data from previous epoch
+            task_assignment.result = None
+            task_assignment.error = None
+
             try:
                 m = import_module(asset_id)
                 weights_file_path = str(m.run(
                     train_x_paths, train_y_paths, test_x_path, test_y_path, batch_size, 1, target_dir,
                     progress.progress_callback)
                 )
+
+                ipfs_file = ipfs.add_file(weights_file_path)
+                task_assignment.result = ipfs_file.multihash
+
             except Exception as e:
                 error_dict = {'exception': type(e).__name__}
                 msg = str(e)
@@ -146,9 +155,6 @@ class Worker(Node):
                 task_assignment.error = json.dumps(error_dict)
 
                 log.error('Train is failed: {}'.format(e))
-            else:
-                ipfs_file = ipfs.add_file(weights_file_path)
-                task_assignment.result = ipfs_file.multihash
 
             interprocess.stop_collect_metrics()
             task_assignment.tflops = interprocess.get_tflops()
