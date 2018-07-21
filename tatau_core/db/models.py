@@ -1,6 +1,6 @@
 import json
 
-from tatau_core.db.fields import Field, JsonField
+from tatau_core.db.fields import Field, JsonField, EncryptedJsonField
 from tatau_core.db import exceptions, NodeInfo
 
 
@@ -37,7 +37,13 @@ class Model(metaclass=ModelBase):
                 if attr.encrypted and kwargs.get('_decrypt_values', False):
                     value = self.encryption.decrypt_text(value)
                 if isinstance(attr, JsonField) and isinstance(value, str):
-                    value = json.loads(value)
+                    try:
+                        value = json.loads(value)
+                    except json.JSONDecodeError:
+                        if attr.encrypted:
+                            value = value
+                        else:
+                            raise
                 attr.__set__(self, value)
 
     def __str__(self):
@@ -75,6 +81,8 @@ class Model(metaclass=ModelBase):
             raise ValueError('{} is required'.format(name))
 
         if attr.encrypted:
+            if isinstance(attr, EncryptedJsonField):
+                value = json.dumps(value)
             return self.encryption.encrypt_text(value, self.get_encryption_key())
 
         if isinstance(attr, JsonField):
