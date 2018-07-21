@@ -1,0 +1,39 @@
+{
+  "genesis_time": "2018-07-18T21:05:51.330630088Z",
+  "chain_id": "chain-CqokBG",
+  "validators": [
+    {
+      "pub_key": {
+        "type": "tendermint/PubKeyEd25519",
+        "value": "vEZj8AlXRzXwOfQTz2CfQiiqrN6MnVVgAVyDY8DE1OE="
+      },
+      "power": "1",
+      "name": "node0"
+    },
+    {
+      "pub_key": {
+        "type": "tendermint/PubKeyEd25519",
+        "value": "QtY8fF+4ZECjzKjS7KZlRDq+Z+6g2AGd5lzsabGdgPk="
+      },
+      "power": "1",
+      "name": "node1"
+    },
+    {
+      "pub_key": {
+        "type": "tendermint/PubKeyEd25519",
+        "value": "nWi/ywHRRunPvL1mQE3h6T8MB2KCQ3d8thTO8QBjJZ4="
+      },
+      "power": "1",
+      "name": "node2"
+    },
+    {
+      "pub_key": {
+        "type": "tendermint/PubKeyEd25519",
+        "value": "A99bleI8uuM+5DaK2hYCKOGxfmKbN1+XDlYC7wAV8YY="
+      },
+      "power": "1",
+      "name": "node3"
+    }
+  ],
+  "app_hash": ""
+}
