@@ -11,4 +11,4 @@ log = logging.getLogger()
 if __name__ == '__main__':
     producer = Producer(rsa_pk_fs_name='producer')
     log.debug('Start {}'.format(producer))
-    producer.run_transaction_listener()
+    producer.process_tasks()

@@ -131,7 +131,10 @@ class TaskDeclaration(models.Model):
         return super(TaskDeclaration, cls).create(**kwargs)
 
     def ready_for_start(self):
-        return self.workers_needed == 0 and self.verifiers_needed == 0
+        ready = self.workers_needed == 0 and self.verifiers_needed == 0
+        log.info('{} ready:{} workers_needed:{} verifiers_needed:{}'.format(
+            self, ready, self.workers_needed, self.verifiers_needed))
+        return ready
 
     def get_task_assignments(self, exclude_states=None):
         ret = []
@@ -176,9 +179,13 @@ class TaskDeclaration(models.Model):
             'assets.data.task_declaration_id': self.asset_id
         }
 
-        if TaskAssignment.count(additional_match=match, created_by_user=False) == 1:
+        count = TaskAssignment.count(additional_match=match, created_by_user=False)
+        if count == 1:
+            log.info('{} allowed for {}'.format(task_assignment, self))
             return True
 
+        log.info('{} not allowed for {}, worker created {} assignment for this task'.format(
+            task_assignment, self, count))
         return False
 
     def is_verification_assignment_allowed(self, verification_assignment):
@@ -190,9 +197,13 @@ class TaskDeclaration(models.Model):
             'assets.data.task_declaration_id': self.asset_id
         }
 
-        if VerificationAssignment.count(additional_match=match, created_by_user=False) == 1:
+        count = VerificationAssignment.count(additional_match=match, created_by_user=False)
+        if count == 1:
+            log.info('{} allowed for {}'.format(verification_assignment, self))
             return True
 
+        log.info('{} not allowed for {}, verifier created {} assignment for this task'.format(
+            verification_assignment, self, count))
         return False
 
     def epoch_is_ready(self):

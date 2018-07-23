@@ -42,7 +42,7 @@ class Snapshot(object):
                         GpuMetric(uuid=gpu.uuid, gpu_load=gpu.utilization, memory_load=memory_load)
                     )
             except Exception as ex:
-                log.error(ex)
+                log.error('Collect metrics error: {}'.format(ex))
 
         self.timestamp = datetime.utcnow()
 
