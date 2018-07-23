@@ -12,13 +12,11 @@ class TaskProgress:
         self.interprocess = interprocess
 
     def progress_callback(self, progress):
-        pass
-        # task_assignment = TaskAssignment.get(self.asset_id, self.worker.db, self.worker.encryption)
+        task_assignment = TaskAssignment.get(self.asset_id, self.worker.db, self.worker.encryption)
 
-        # log.debug('{} progress is {}'.format(task_assignment, progress))
+        log.debug('{} progress is {}'.format(task_assignment, progress))
 
-        # task_assignment.set_encryption_key(task_assignment.producer.enc_key)
-        # task_assignment.progress = progress
-        # task_assignment.tflops = self.interprocess.get_tflops()
-        # do not update very often asset
-        # task_assignment.save()
+        task_assignment.set_encryption_key(task_assignment.producer.enc_key)
+        task_assignment.progress = progress
+        task_assignment.tflops = self.interprocess.get_tflops()
+        task_assignment.save()

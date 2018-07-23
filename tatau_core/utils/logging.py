@@ -12,7 +12,7 @@ def configure_logging(name):
 
     logging.basicConfig(
         format='%(asctime)s P%(process)d %(levelname)s |%(name)s| %(message)s',
-        level=logging.DEBUG,
+        level=logging.INFO,
         handlers=[
             # logging.FileHandler('{}.log'.format(name)),
             logging.StreamHandler(),

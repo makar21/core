@@ -256,3 +256,19 @@ class Producer(Node):
                 time.sleep(settings.PRODUCER_PROCESS_INTERVAL)
             except Exception as e:
                 log.fatal(e)
+
+    def process_tasks(self):
+        while True:
+            try:
+                for task_declaration in TaskDeclaration.list():
+                    if task_declaration.state == TaskDeclaration.State.COMPLETED:
+                        continue
+
+                    self.process_performers(task_declaration)
+                    self.process_task_declaration(task_declaration)
+
+                time.sleep(settings.PRODUCER_PROCESS_INTERVAL)
+            except Exception as e:
+                log.fatal(e)
+
+

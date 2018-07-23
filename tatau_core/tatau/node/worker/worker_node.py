@@ -41,6 +41,7 @@ class Worker(Node):
         self.process_task_declaration(task_declaration)
 
     def process_task_declaration(self, task_declaration):
+        log.info('Process {}'.format(task_declaration))
         exists = TaskAssignment.exists(
             additional_match={
                 'assets.data.worker_id': self.asset_id,
@@ -75,6 +76,7 @@ class Worker(Node):
         self.process_task_assignment(task_assignment)
 
     def process_task_assignment(self, task_assignment):
+        log.info('{} proces {} state:{}'.format(self, task_assignment, task_assignment.state))
         # skip assignment that the worker has started working on
         if task_assignment.state == TaskAssignment.State.DATA_IS_READY:
             task_assignment.state = TaskAssignment.State.IN_PROGRESS
@@ -144,7 +146,6 @@ class Worker(Node):
 
                 ipfs_file = ipfs.add_file(weights_file_path)
                 task_assignment.result = ipfs_file.multihash
-
             except Exception as e:
                 error_dict = {'exception': type(e).__name__}
                 msg = str(e)
@@ -152,7 +153,6 @@ class Worker(Node):
                     error_dict['message'] = msg
 
                 task_assignment.error = json.dumps(error_dict)
-
                 log.error('Train is failed: {}'.format(e))
 
             interprocess.stop_collect_metrics()

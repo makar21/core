@@ -85,6 +85,8 @@ class DB:
             prepared_create_tx, private_keys=self.kp.private_key
         )
 
+        # TODO: use send_commit and send_sync if commit is timeout
+        # (while node is not synced, commit will be with timeout)
         try:
             self.bdb.transactions.send_sync(fulfilled_create_tx)
         except bigchaindb_driver.exceptions.BadRequest as e:

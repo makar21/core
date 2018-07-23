@@ -1,8 +1,6 @@
 import logging
-import time
-from multiprocessing import Process
+import sys
 
-from tatau_core import settings
 from tatau_core.tatau.node.worker import Worker
 from tatau_core.utils.logging import configure_logging
 
@@ -12,5 +10,9 @@ log = logging.getLogger()
 
 
 if __name__ == '__main__':
-    worker = Worker(rsa_pk_fs_name='worker')
+    try:
+        index = sys.argv[1]
+    except IndexError:
+        index = ''
+    worker = Worker(rsa_pk_fs_name='worker{}'.format(index))
     worker.run_transaction_listener()
