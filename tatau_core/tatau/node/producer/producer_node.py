@@ -16,11 +16,12 @@ class Producer(Node):
     node_type = Node.NodeType.PRODUCER
     asset_class = ProducerNode
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.exit_on_task_completion = kwargs.get('exit_on_task_completion')
+    def __init__(self, rsa_pk_fs_name=None, rsa_pk=None, exit_on_task_completion=None, task_declaration_asset_id=None,
+                 *args, **kwargs):
+        super(Producer, self).__init__(rsa_pk_fs_name, rsa_pk, *args, **kwargs)
+        self.exit_on_task_completion = exit_on_task_completion
         # if 2 instances of producers with websocket will be started, then without filtering will be shit
-        self.task_declaration_asset_id = kwargs.get('task_declaration_asset_id')
+        self.task_declaration_asset_id = task_declaration_asset_id
 
     def ignore_task_declaration(self, task_declaration_asset_id):
         return self.task_declaration_asset_id is not None \
@@ -129,7 +130,10 @@ class Producer(Node):
             if task_declaration.epoch_is_ready():
                 log.info('{} train epoch {} is ready'.format(task_declaration, task_declaration.current_epoch))
                 # collect results from epoch
-                for task_assignment in task_declaration.get_task_assignments():
+                task_assignments = task_declaration.get_task_assignments(
+                    exclude_states=(TaskAssignment.State.REJECTED, TaskAssignment.State.INITIAL)
+                )
+                for task_assignment in task_assignments:
                     task_declaration.results.append({
                         'worker_id': task_assignment.worker_id,
                         'result': task_assignment.result,
@@ -252,3 +256,19 @@ class Producer(Node):
                 time.sleep(settings.PRODUCER_PROCESS_INTERVAL)
             except Exception as e:
                 log.fatal(e)
+
+    def process_tasks(self):
+        while True:
+            try:
+                for task_declaration in TaskDeclaration.list():
+                    if task_declaration.state == TaskDeclaration.State.COMPLETED:
+                        continue
+
+                    self.process_performers(task_declaration)
+                    self.process_task_declaration(task_declaration)
+
+                time.sleep(settings.PRODUCER_PROCESS_INTERVAL)
+            except Exception as e:
+                log.fatal(e)
+
+
