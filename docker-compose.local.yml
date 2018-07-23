@@ -1,0 +1,163 @@
+version: '3'
+
+services:
+  tendermint_node0:
+    image: tendermint/tendermint:0.22.4
+    restart: always
+    entrypoint: ''
+    command: sh -c "tendermint node --consensus.create_empty_blocks=false --proxy_app=tcp://bigchaindb_node0:26658 --p2p.persistent_peers=$PEERS --log_level=*:info"
+    volumes:
+      - ./tmdata/$NET_NAME/node0/config:/tendermint/config
+      - ./docker/volumes/tendermint/$NET_NAME/node0/data:/tendermint/data
+
+  mongodb_node0:
+    image: mongo:3.6
+    volumes:
+      - ./docker/volumes/mono/node0:/data/db
+    restart: always
+
+  bigchaindb_node0:
+    image: bigchaindb/bigchaindb:2.0.0-beta3
+    links:
+      - mongodb_node0:mongodb
+      - tendermint_node0:tendermint
+    environment:
+      BIGCHAINDB_DATABASE_BACKEND: localmongodb
+      BIGCHAINDB_DATABASE_HOST: mongodb
+      BIGCHAINDB_DATABASE_PORT: 27017
+      BIGCHAINDB_SERVER_BIND: 0.0.0.0:9984
+      BIGCHAINDB_WSSERVER_HOST: 0.0.0.0
+      BIGCHAINDB_WSSERVER_ADVERTISED_HOST: bigchaindb
+      BIGCHAINDB_TENDERMINT_HOST: tendermint
+      BIGCHAINDB_TENDERMINT_PORT: 26657
+    volumes:
+      - ./docker/volumes/bigchaindb/node0/data:/data
+      - ./docker/volumes/bigchaindb/node0/certs:/certs
+    healthcheck:
+      test: ["CMD", "bash", "-c", "curl http://bigchaindb_node0:9984 && curl http://tendermint:26657/abci_query"]
+      interval: 3s
+      timeout: 5s
+      retries: 3
+    entrypoint: sh -c "bigchaindb -l INFO -y configure && bigchaindb -l DEBUG start"
+    restart: always
+
+  tendermint_node1:
+    image: tendermint/tendermint:0.22.4
+    restart: always
+    entrypoint: ''
+    command: sh -c "tendermint node --consensus.create_empty_blocks=false --proxy_app=tcp://bigchaindb_node1:26658 --p2p.persistent_peers=$PEERS --log_level=*:info"
+    volumes:
+      - ./tmdata/$NET_NAME/node1/config:/tendermint/config
+      - ./docker/volumes/tendermint/$NET_NAME/node1/data:/tendermint/data
+
+  mongodb_node1:
+    image: mongo:3.6
+    volumes:
+      - ./docker/volumes/mono/node1:/data/db
+    restart: always
+
+  bigchaindb_node1:
+    image: bigchaindb/bigchaindb:2.0.0-beta3
+    links:
+      - mongodb_node1:mongodb
+      - tendermint_node1:tendermint
+    environment:
+      BIGCHAINDB_DATABASE_BACKEND: localmongodb
+      BIGCHAINDB_DATABASE_HOST: mongodb
+      BIGCHAINDB_DATABASE_PORT: 27017
+      BIGCHAINDB_SERVER_BIND: 0.0.0.0:9984
+      BIGCHAINDB_WSSERVER_HOST: 0.0.0.0
+      BIGCHAINDB_WSSERVER_ADVERTISED_HOST: bigchaindb
+      BIGCHAINDB_TENDERMINT_HOST: tendermint
+      BIGCHAINDB_TENDERMINT_PORT: 26657
+    volumes:
+      - ./docker/volumes/bigchaindb/node1/data:/data
+      - ./docker/volumes/bigchaindb/node1/certs:/certs
+    healthcheck:
+      test: ["CMD", "bash", "-c", "curl http://bigchaindb_node1:9984 && curl http://tendermint:26657/abci_query"]
+      interval: 3s
+      timeout: 5s
+      retries: 3
+    entrypoint: sh -c "bigchaindb -l INFO -y configure && bigchaindb -l DEBUG start"
+    restart: always
+
+
+  tendermint_node2:
+    image: tendermint/tendermint:0.22.4
+    restart: always
+    entrypoint: ''
+    command: sh -c "tendermint node --consensus.create_empty_blocks=false --proxy_app=tcp://bigchaindb_node2:26658 --p2p.persistent_peers=$PEERS --log_level=*:info"
+    volumes:
+      - ./tmdata/$NET_NAME/node2/config:/tendermint/config
+      - ./docker/volumes/tendermint/$NET_NAME/node2/data:/tendermint/data
+
+  mongodb_node2:
+    image: mongo:3.6
+    volumes:
+      - ./docker/volumes/mono/node2:/data/db
+    restart: always
+
+  bigchaindb_node2:
+    image: bigchaindb/bigchaindb:2.0.0-beta3
+    links:
+      - mongodb_node2:mongodb
+      - tendermint_node2:tendermint
+    environment:
+      BIGCHAINDB_DATABASE_BACKEND: localmongodb
+      BIGCHAINDB_DATABASE_HOST: mongodb
+      BIGCHAINDB_DATABASE_PORT: 27017
+      BIGCHAINDB_SERVER_BIND: 0.0.0.0:9984
+      BIGCHAINDB_WSSERVER_HOST: 0.0.0.0
+      BIGCHAINDB_WSSERVER_ADVERTISED_HOST: bigchaindb
+      BIGCHAINDB_TENDERMINT_HOST: tendermint
+      BIGCHAINDB_TENDERMINT_PORT: 26657
+    volumes:
+      - ./docker/volumes/bigchaindb/node2/data:/data
+      - ./docker/volumes/bigchaindb/node2/certs:/certs
+    healthcheck:
+      test: ["CMD", "bash", "-c", "curl http://bigchaindb_node2:9984 && curl http://tendermint:26657/abci_query"]
+      interval: 3s
+      timeout: 5s
+      retries: 3
+    entrypoint: sh -c "bigchaindb -l INFO -y configure && bigchaindb -l DEBUG start"
+    restart: always
+
+  tendermint_node3:
+    image: tendermint/tendermint:0.22.4
+    restart: always
+    entrypoint: ''
+    command: sh -c "tendermint node --consensus.create_empty_blocks=false --proxy_app=tcp://bigchaindb_node3:26658 --p2p.persistent_peers=$PEERS --log_level=*:info"
+    volumes:
+      - ./tmdata/$NET_NAME/node3/config:/tendermint/config
+      - ./docker/volumes/tendermint/$NET_NAME/node3/data:/tendermint/data
+
+  mongodb_node3:
+    image: mongo:3.6
+    volumes:
+      - ./docker/volumes/mono/node3:/data/db
+    restart: always
+
+  bigchaindb_node3:
+    image: bigchaindb/bigchaindb:2.0.0-beta3
+    links:
+      - mongodb_node3:mongodb
+      - tendermint_node3:tendermint
+    environment:
+      BIGCHAINDB_DATABASE_BACKEND: localmongodb
+      BIGCHAINDB_DATABASE_HOST: mongodb
+      BIGCHAINDB_DATABASE_PORT: 27017
+      BIGCHAINDB_SERVER_BIND: 0.0.0.0:9984
+      BIGCHAINDB_WSSERVER_HOST: 0.0.0.0
+      BIGCHAINDB_WSSERVER_ADVERTISED_HOST: bigchaindb
+      BIGCHAINDB_TENDERMINT_HOST: tendermint
+      BIGCHAINDB_TENDERMINT_PORT: 26657
+    volumes:
+      - ./docker/volumes/bigchaindb/node3/data:/data
+      - ./docker/volumes/bigchaindb/node3/certs:/certs
+    healthcheck:
+      test: ["CMD", "bash", "-c", "curl http://bigchaindb_node3:9984 && curl http://tendermint:26657/abci_query"]
+      interval: 3s
+      timeout: 5s
+      retries: 3
+    entrypoint: sh -c "bigchaindb -l INFO -y configure && bigchaindb -l DEBUG start"
+    restart: always

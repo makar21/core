@@ -1,11 +1,11 @@
 import logging
-
+from tatau_core.nn.models.tatau import TrainProgress
 from tatau_core.tatau.models import TaskAssignment
 
 log = logging.getLogger()
 
 
-class TaskProgress:
+class TaskProgress(TrainProgress):
     def __init__(self, worker, asset_id, interprocess):
         self.worker = worker
         self.asset_id = asset_id

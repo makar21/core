@@ -1,36 +1,39 @@
 version: '3'
 
 services:
-  tendermint:
+  tendermint_this:
     image: tendermint/tendermint:0.22.4
     ports:
       - "26656:26656"
       - "127.0.0.1:26657:26657"
     restart: always
     entrypoint: ''
-    command: sh -c "tendermint init && tendermint node --consensus.create_empty_blocks=false --proxy_app=tcp://bigchaindb:26658 --p2p.persistent_peers=$PEERS --log_level=*:debug"
-    # command: sh -c "echo $PEERS"
+    command: sh -c "tendermint node --consensus.create_empty_blocks=false --proxy_app=tcp://bigchaindb_this:26658 --p2p.persistent_peers=$PEERS --log_level=*:info"
     volumes:
-      - ./tmdata/$NET_NAME:/tendermint/config
-    #  - ./docker/volumes/tendermint/$NET_NAME:/tendermint/data Permission Issue on Linux
-    environment:
-      PEERS: $PEERS
+      - ./tmdata/$NET_NAME/this/config:/tendermint/config
+      - ./docker/volumes/$NET_NAME/tendermint/$NET_NAME/this/data:/tendermint/data
+#    links:
+#      - tendermint_node0
+#      - tendermint_node1
+#      - tendermint_node2
+#      - tendermint_node3
 
-
-  mongodb:
+  mongodb_this:
     image: mongo:3.6
     ports:
       - "127.0.0.1:27017:27017"
+    volumes:
+      - ./docker/volumes/$NET_NAME/mono/this:/data/db
     restart: always
 
-  bigchaindb:
+  bigchaindb_this:
     image: bigchaindb/bigchaindb:2.0.0-beta3
     depends_on:
-      - mongodb
-      - tendermint
+      - mongodb_this
+      - tendermint_this
     links:
-      - mongodb
-      - tendermint
+      - mongodb_this:mongodb
+      - tendermint_this:tendermint
     environment:
       BIGCHAINDB_DATABASE_BACKEND: localmongodb
       BIGCHAINDB_DATABASE_HOST: mongodb
@@ -45,10 +48,10 @@ services:
       - "127.0.0.1:9985:9985"
       - "127.0.0.1:26658:26658"
     volumes:
-      - $BIGCHAINDB_DATA:/data
-      - $BIGCHAINDB_CERTS:/certs
+      - ./docker/volumes/$NET_NAME/bigchaindb/this/data:/data
+      - ./docker/volumes/$NET_NAME/bigchaindb/this/certs:/certs
     healthcheck:
-      test: ["CMD", "bash", "-c", "curl http://bigchaindb:9984 && curl http://tendermint:26657/abci_query"]
+      test: ["CMD", "bash", "-c", "curl http://bigchaindb_this:9984 && curl http://tendermint:26657/abci_query"]
       interval: 3s
       timeout: 5s
       retries: 3
@@ -58,8 +61,8 @@ services:
   ipfs:
     image: ipfs/go-ipfs:v0.4.16
     volumes:
-      - $IPFS_STAGING:/export
-      - $IPFS_DATA:/data/ipfs
+      - ./docker/volumes/$NET_NAME/ipfs/staging:/export
+      - ./docker/volumes/$NET_NAME/ipfs/data:/data/ipfs
     ports:
       - "4001:4001"
       - "127.0.0.1:8080:8080"

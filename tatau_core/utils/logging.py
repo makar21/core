@@ -17,5 +17,7 @@ def configure_logging(name):
             # logging.FileHandler('{}.log'.format(name)),
             logging.StreamHandler(),
             SentryHandler(client, level=logging.ERROR)
-        ]
+        ],
     )
+    logging.getLogger(name).setLevel('DEBUG')
+    logging.getLogger('tatau_core').setLevel('DEBUG')
