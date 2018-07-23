@@ -9,6 +9,9 @@ from Crypto.Random import get_random_bytes
 class Encryption:
     modulus_length = 2048
 
+    def __init__(self):
+        self.private_key = None
+
     def generate_key(self):
         self.private_key = RSA.generate(self.modulus_length)
 

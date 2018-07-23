@@ -8,7 +8,7 @@ services:
       - "127.0.0.1:26657:26657"
     restart: always
     entrypoint: ''
-    command: sh -c "tendermint node --consensus.create_empty_blocks=false --proxy_app=tcp://bigchaindb:26658 --p2p.persistent_peers=$PEERS --log_level=*:debug"
+    command: sh -c "tendermint init && tendermint node --consensus.create_empty_blocks=false --proxy_app=tcp://bigchaindb:26658 --p2p.persistent_peers=$PEERS --log_level=*:debug"
     # command: sh -c "echo $PEERS"
     volumes:
       - ./tmdata/$NET_NAME:/tendermint/config
