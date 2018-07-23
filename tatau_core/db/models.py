@@ -23,18 +23,18 @@ class ModelBase(type):
 
 
 class Model(metaclass=ModelBase):
-    def __init__(self, db=None, encryption=None, **kwargs):
+    def __init__(self, db=None, encryption=None, asset_id=None, _address=None, _decrypt_values=False, **kwargs):
         self.db = db or NodeInfo.get_db()
         self.encryption = encryption or NodeInfo.get_encryption()
-        self.asset_id = kwargs.get('asset_id', None)
-        self._address = kwargs.get('_address', None)
+        self.asset_id = asset_id
+        self._address = _address
         self._public_key = None
 
         for name, attr in self._attrs.items():
             if isinstance(attr, Field):
                 attr._name = name
                 value = kwargs[name] if name in kwargs else attr.initial
-                if attr.encrypted and kwargs.get('_decrypt_values', False):
+                if attr.encrypted and _decrypt_values:
                     value = self.encryption.decrypt_text(value)
                 if isinstance(attr, JsonField) and isinstance(value, str):
                     try:

@@ -86,7 +86,7 @@ class DB:
         )
 
         try:
-            self.bdb.transactions.send_commit(fulfilled_create_tx)
+            self.bdb.transactions.send_sync(fulfilled_create_tx)
         except bigchaindb_driver.exceptions.BadRequest as e:
             if not 'already exists' in e.info['message']:
                 raise
