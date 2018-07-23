@@ -57,7 +57,7 @@ def train_remote(x_train_path, y_train_path, x_test_path, y_test_path, args):
         y_train_path=y_train_path,
         x_test_path=x_test_path,
         y_test_path=y_test_path,
-        batch_size=args.batch
+        minibatch_size=1000
     )
 
     logger.info('Dataset created: {}'.format(dataset))

@@ -2,9 +2,7 @@ from logging import getLogger
 import os
 import shutil
 import tempfile
-
 import numpy as np
-
 from tatau_core.db import models, fields
 from tatau_core.utils import cached_property
 from tatau_core.utils.ipfs import IPFS
@@ -29,7 +27,7 @@ class Dataset(models.Model):
     y_test_ipfs = fields.EncryptedCharField()
 
     @classmethod
-    def upload_and_create(cls, x_train_path, y_train_path, x_test_path, y_test_path, batch_size, **kwargs):
+    def upload_and_create(cls, x_train_path, y_train_path, x_test_path, y_test_path, minibatch_size, **kwargs):
         logger.info("Creating dataset")
         ipfs = IPFS()
 
@@ -44,11 +42,11 @@ class Dataset(models.Model):
             # files_count = int(file_size / 4096)
             x_train = np.load(x_train_path)
             y_train = np.load(y_train_path)
-            batches = int(len(x_train) / batch_size)
+            batches = int(len(x_train) / minibatch_size)
             logger.info("Split dataset to {} batches".format(batches))
             for batch_idx in range(0, batches):
-                start_idx = batch_idx * batch_size
-                end_idx = start_idx + batch_size
+                start_idx = batch_idx * minibatch_size
+                end_idx = start_idx + minibatch_size
                 x_batch = x_train[start_idx: end_idx]
                 y_batch = y_train[start_idx: end_idx]
                 x_path = os.path.join(directory, 'x_{:04d}'.format(batch_idx))
@@ -132,7 +130,7 @@ class TaskDeclaration(models.Model):
 
     def ready_for_start(self):
         ready = self.workers_needed == 0 and self.verifiers_needed == 0
-        log.info('{} ready:{} workers_needed:{} verifiers_needed:{}'.format(
+        logger.info('{} ready:{} workers_needed:{} verifiers_needed:{}'.format(
             self, ready, self.workers_needed, self.verifiers_needed))
         return ready
 
@@ -181,10 +179,10 @@ class TaskDeclaration(models.Model):
 
         count = TaskAssignment.count(additional_match=match, created_by_user=False)
         if count == 1:
-            log.info('{} allowed for {}'.format(task_assignment, self))
+            logger.info('{} allowed for {}'.format(task_assignment, self))
             return True
 
-        log.info('{} not allowed for {}, worker created {} assignment for this task'.format(
+        logger.info('{} not allowed for {}, worker created {} assignment for this task'.format(
             task_assignment, self, count))
         return False
 
@@ -199,10 +197,10 @@ class TaskDeclaration(models.Model):
 
         count = VerificationAssignment.count(additional_match=match, created_by_user=False)
         if count == 1:
-            log.info('{} allowed for {}'.format(verification_assignment, self))
+            logger.info('{} allowed for {}'.format(verification_assignment, self))
             return True
 
-        log.info('{} not allowed for {}, verifier created {} assignment for this task'.format(
+        logger.info('{} not allowed for {}, verifier created {} assignment for this task'.format(
             verification_assignment, self, count))
         return False
 
