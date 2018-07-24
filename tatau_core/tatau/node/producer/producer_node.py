@@ -255,6 +255,7 @@ class Producer(Node):
             task_declaration.save()
 
     def train_task(self, asset_id):
+        counter = 0
         while True:
             try:
                 task_declaration = TaskDeclaration.get(asset_id)
@@ -267,6 +268,15 @@ class Producer(Node):
                     self.process_task_declaration(task_declaration)
 
                 time.sleep(settings.PRODUCER_PROCESS_INTERVAL)
+
+                # TODO: add state failed
+                # remove infinity loop
+                counter += 1
+                if counter == 1000:
+                    task_declaration.state = TaskDeclaration.State.COMPLETED
+                    task_declaration.save()
+                    break
+
             except Exception as e:
                 logger.exception(e)
 
