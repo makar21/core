@@ -30,7 +30,6 @@ class Model(metaclass=ModelBase):
         self.asset_id = asset_id
         self._address = _address
         self._public_key = None
-        self._timestamp = kwargs.get('timestamp')
 
         for name, attr in self._attrs.items():
             if isinstance(attr, Field):
@@ -66,10 +65,6 @@ class Model(metaclass=ModelBase):
     def address(self):
         return self._address
 
-    @property
-    def timestamp(self):
-        return self._timestamp
-
     def get_encryption_key(self):
         return self._public_key
 
@@ -104,7 +99,7 @@ class Model(metaclass=ModelBase):
         return data
 
     def get_metadata(self):
-        metadata = dict(timestamp=current_timestamp())
+        metadata = {}
         for name, attr in self._attrs.items():
             if isinstance(attr, Field) and not attr.immutable:
                 metadata[name] = self._prepare_value(name, attr)
