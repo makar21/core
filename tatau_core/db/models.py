@@ -2,6 +2,7 @@ import json
 
 from tatau_core.db.fields import Field, JsonField, EncryptedJsonField
 from tatau_core.db import exceptions, NodeInfo
+from tatau_core.utils.misc import current_timestamp
 
 
 class ModelBase(type):
@@ -29,6 +30,7 @@ class Model(metaclass=ModelBase):
         self.asset_id = asset_id
         self._address = _address
         self._public_key = None
+        self._timestamp = kwargs.get('timestamp')
 
         for name, attr in self._attrs.items():
             if isinstance(attr, Field):
@@ -64,6 +66,10 @@ class Model(metaclass=ModelBase):
     def address(self):
         return self._address
 
+    @property
+    def timestamp(self):
+        return self._timestamp
+
     def get_encryption_key(self):
         return self._public_key
 
@@ -98,11 +104,11 @@ class Model(metaclass=ModelBase):
         return data
 
     def get_metadata(self):
-        metadata = dict()
+        metadata = dict(timestamp=current_timestamp())
         for name, attr in self._attrs.items():
             if isinstance(attr, Field) and not attr.immutable:
                 metadata[name] = self._prepare_value(name, attr)
-        return metadata or None
+        return metadata
 
     @classmethod
     def get(cls, asset_id, db=None, encryption=None):

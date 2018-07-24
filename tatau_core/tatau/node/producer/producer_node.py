@@ -270,6 +270,6 @@ class Producer(Node):
 
                 time.sleep(settings.PRODUCER_PROCESS_INTERVAL)
             except Exception as e:
-                log.fatal(e)
+                log.exception(e)
 
 

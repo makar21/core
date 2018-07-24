@@ -27,7 +27,7 @@ def summarize_weights(train_results):
         shutil.rmtree(target_dir)
 
 
-def summarize(downloaded_results:deque):
+def summarize(downloaded_results: deque):
     if not len(downloaded_results):
         logger.error('list of weights is empty')
         raise ValueError('list of weights is empty')
@@ -36,12 +36,13 @@ def summarize(downloaded_results:deque):
     summarizer = summarizers.Median()
 
     for weights_path in downloaded_results:
-        weights = np.load(weights_path)
+        weights_file = np.load(weights_path)
+        weights = [weights_file[r] for r in weights_file.files]
         summarizer.update(weights=weights)
 
     target_dir = tempfile.mkdtemp()
-    result_weights_path = os.path.join(target_dir, "result_weights.npy")
-    np.save(result_weights_path, summarizer.commit())
+    result_weights_path = os.path.join(target_dir, "result_weights.npz")
+    np.savez(result_weights_path, *summarizer.commit())
 
     try:
         file_hash = IPFS().add_file(result_weights_path).multihash
