@@ -68,7 +68,7 @@ class Model(metaclass=ModelBase):
 
     @property
     def timestamp(self):
-        return self.timestamp
+        return self._timestamp
 
     def get_encryption_key(self):
         return self._public_key
