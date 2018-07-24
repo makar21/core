@@ -60,9 +60,9 @@ class Node(TransactionListener):
 
     def create_info_asset(self):
         node_assets = list(self.asset_class.list())
-        if len(node_assets) > 1:
-            log.fatal('WTF?, this should not happen.')
-        elif len(node_assets) == 1:
+        assert len(node_assets) <= 1
+
+        if len(node_assets) == 1:
             return node_assets[0]
         else:
             return self.asset_class.create(enc_key=self.encryption.get_public_key().decode())
