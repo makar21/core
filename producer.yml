@@ -1,0 +1,19 @@
+version: '3'
+
+services:
+  producer:
+    image: tataucloud/core_cpu
+    build:
+      context: .
+      dockerfile: ./docker/images/core/cpu/Dockerfile
+    command: sh -c "python producer.py"
+    env_file:
+      - ./docker/docker.env
+    volumes:
+      - ./keys:/app/keys
+    restart: always
+    links:
+      - ipfs
+      - bigchaindb_this:bigchaindb
+      - mongodb_this:mongodb
+      - tendermint_this:tendermint

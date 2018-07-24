@@ -1,0 +1,13 @@
+# Created by .ignore support plugin (hsz.mobi)
+docker/volumes
+docker/images
+keys
+bin
+venv
+.venv
+.env.example
+.gitignore
+/docker-compose.*.yml
+/docker-compose.yml
+/tmdata
+/keys
