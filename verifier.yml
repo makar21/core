@@ -6,9 +6,9 @@ services:
     build:
       context: .
       dockerfile: ./docker/images/core/cpu/Dockerfile
-    command: sh -c "env && python verifier.py"
+    command: sh -c "python verifier.py"
     env_file:
-      - $PWD/docker/.env
+      - ./docker/docker.env
     volumes:
       - $PWD/keys:/app/keys
     restart: always

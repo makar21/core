@@ -6,9 +6,9 @@ services:
     build:
       context: .
       dockerfile: ./docker/images/core/${CORE}/Dockerfile
-    command: sh -c "env && python worker.py"
+    command: sh -c "python worker.py"
     env_file:
-      - ./docker/.env
+      - ./docker/docker.env
     volumes:
       - ./keys:/app/keys
     restart: always
