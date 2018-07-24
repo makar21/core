@@ -1,0 +1,19 @@
+version: '3'
+
+services:
+  worker:
+    image: tataucloud/core_${CORE}
+    build:
+      context: .
+      dockerfile: ./docker/images/core/${CORE}/Dockerfile
+    command: sh -c "env && python worker.py"
+    env_file:
+      - ./docker/.env
+    volumes:
+      - ./keys:/app/keys
+    restart: always
+    links:
+      - ipfs
+      - bigchaindb_this:bigchaindb
+      - mongodb_this:mongodb
+      - tendermint_this:tendermint

@@ -4,7 +4,7 @@ ENV LANG C.UTF-8
 
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-		tk-dev wget build-essential build-essential libbz2-dev libssl-dev libreadline-dev libpng-dev libfreetype6-dev \
+		tk-dev wget ca-certificates build-essential build-essential libbz2-dev libssl-dev libreadline-dev libpng-dev libfreetype6-dev \
 	&& rm -rf /var/lib/apt/lists/*
 
 ENV GPG_KEY 0D96DF4D4110E5C43FBFB17F2D347EA6AA65421D
@@ -75,30 +75,16 @@ RUN set -ex; \
 		\) -exec rm -rf '{}' +; \
 	rm -f get-pip.py
 
-RUN pip install --upgrade pip
-RUN pip install tensorflow_gpu
+ENV PYTHONUNBUFFERED 1
+RUN mkdir /app
+WORKDIR /app
 
-#ENV PYTHONUNBUFFERED 1
-#RUN apt-get update && \
-#    apt-get install -y apt-utils netcat && \
-#    apt-get clean && \
-#    rm -rf /var/lib/apt/lists/*
-#
-#RUN mkdir /app
-#RUN mkdir /app/static
-#WORKDIR /app
-## RUN pip install pip -U
-#COPY requirements.txt /app/
-#RUN pip install --no-cache-dir -r requirements.txt
-#
-#COPY ./webapp/ /app/webapp/
-#COPY ./core/tatau_core /app/core/tatau_core
-#COPY ./manage.py /app/manage.py
-#COPY ./submodules.py /app/submodules.py
-# COPY /.env.docker /app/.env
-# COPY ./bin/wait_for_it /bin/wait_for_it
-# ENV TATAU_DEBUG "False"
-# RUN python manage.py check
+COPY requirements.txt requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
 
-# RUN python manage.py collectstatic --noinput
+COPY requirements.gpu.txt requirements.gpu.txt
+RUN pip install --no-cache-dir -r requirements.gpu.txt
 
+COPY ./tatau_core ./tatau_core
+COPY ./examples ./examples
+COPY ./*.py ./
