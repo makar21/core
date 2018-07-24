@@ -173,8 +173,18 @@ class Worker(Node):
 
                 model = TatauModel.load_model(path=model_code_path)
                 model.set_weights(weights=initial_weights)
-                train_history = model.train(x=x_train, y=y_train, batch_size=batch_size, nb_epochs=1, train_progress=progress)
-                eval_metrics = model.eval(x=x_test, y=y_test)
+                train_history = model.train(
+                    x=x_train, y=y_train, batch_size=batch_size, nb_epochs=1, train_progress=progress)
+
+                task_assignment.train_history = {
+                    'epoch': train_history.epoch,
+                    'history': train_history.history,
+                    'params': train_history.params
+                }
+
+                loss, accuracy = model.eval(x=x_test, y=y_test)
+                task_assignment.loss = loss
+                task_assignment.accuracy = accuracy
 
                 weights = model.get_weights()
                 weights_file_path = os.path.join(target_dir, 'train_weights.npz')

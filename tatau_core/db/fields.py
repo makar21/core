@@ -54,3 +54,17 @@ class EncryptedJsonField(JsonField):
             raise ValueError('{} must be a dict instance.'.format(self._name))
 
         super(JsonField, self).__set__(obj, val if val is None else val)
+
+
+# when transaction is CREATE this field will affect the creation of a new asset
+class TimestampField(IntegerField):
+    def __init__(self, *args, **kwargs):
+        super(TimestampField, self).__init__(initial=None, immutable=False, required=False, null=True)
+
+
+class FloatField(Field):
+    def __set__(self, obj, val):
+        if val is not None and not isinstance(val, float):
+            raise ValueError('{} must be an integer instance.'.format(self._name))
+
+        super(FloatField, self).__set__(obj, val if val is None else val)

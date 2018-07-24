@@ -1,12 +1,12 @@
-import logging
 import time
+from logging import getLogger
 
 from tatau_core import settings
 from tatau_core.tatau.models import VerifierNode, TaskDeclaration, VerificationAssignment
 from tatau_core.tatau.node.node import Node
 from tatau_core.tatau.node.verifier.verify_weights import verify_train_results
 
-log = logging.getLogger()
+logger = getLogger()
 
 
 class Verifier(Node):
@@ -39,7 +39,7 @@ class Verifier(Node):
         )
 
         if exists:
-            log.debug('{} has already created verification assignment to {}'.format(self, task_declaration))
+            logger.debug('{} has already created verification assignment to {}'.format(self, task_declaration))
             return
 
         verification_assignment = VerificationAssignment.create(
@@ -48,7 +48,7 @@ class Verifier(Node):
             task_declaration_id=task_declaration.asset_id,
             recipients=task_declaration.producer.address
         )
-        log.info('{} added {}'.format(self, verification_assignment))
+        logger.info('{} added {}'.format(self, verification_assignment))
 
     def process_verification_assignment_transaction(self, asset_id, transaction):
         if transaction['operation'] == 'CREATE':
@@ -63,7 +63,7 @@ class Verifier(Node):
 
     def process_verification_assignment(self, verification_assignment):
         if verification_assignment.state == VerificationAssignment.State.DATA_IS_READY:
-            log.info('{} start verify {}'.format(self, verification_assignment))
+            logger.info('{} start verify {}'.format(self, verification_assignment))
 
             verification_assignment.result = verify_train_results(verification_assignment.train_results)
             verification_assignment.progress = 100
@@ -72,7 +72,7 @@ class Verifier(Node):
             verification_assignment.set_encryption_key(verification_assignment.producer.enc_key)
             verification_assignment.save(recipients=verification_assignment.producer.address)
 
-            log.info('{} finish verify {} results: {}'.format(
+            logger.info('{} finish verify {} results: {}'.format(
                 self, verification_assignment, verification_assignment.result)
             )
 
@@ -91,5 +91,5 @@ class Verifier(Node):
                 self.process_task_declarations()
                 self.process_verification_assignments()
                 time.sleep(settings.VERIFIER_PROCESS_INTERVAL)
-            except Exception as ex:
-                log.error(ex)
+            except Exception as e:
+                logger.exception(e)

@@ -229,8 +229,13 @@ class Producer(Node):
         )
 
         task_declaration.weights = weights_ipfs
+        task_declaration.loss = loss
+        task_declaration.accuracy = acc
 
     def process_performers(self, task_declaration):
+        worker_needed = task_declaration.workers_needed
+        verifiers_needed = task_declaration.verifiers_needed
+
         task_assignments = task_declaration.get_task_assignments(
             exclude_states=(TaskAssignment.State.ACCEPTED,)
         )
@@ -244,6 +249,10 @@ class Producer(Node):
 
         for verification_assignment in verification_assignments:
             self.process_verification_assignment(verification_assignment, task_declaration, save=False)
+
+        # save if were changes
+        if task_declaration.workers_needed != worker_needed or task_declaration.verifiers_needed != verifiers_needed:
+            task_declaration.save()
 
     def train_task(self, asset_id):
         while True:

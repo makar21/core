@@ -1,14 +1,12 @@
 import hashlib
-import logging
 import os
+from logging import getLogger
 
 from tatau_core.db import DB, TransactionListener, NodeInfo
+from tatau_core.settings import ROOT_DIR
 from tatau_core.utils.encryption import Encryption
 
-from tatau_core.settings import ROOT_DIR
-
-
-log = logging.getLogger()
+logger = getLogger()
 
 
 class Node(TransactionListener):
@@ -84,13 +82,13 @@ class Node(TransactionListener):
         asset_create_tx = self.db.retrieve_asset_create_tx(asset_id)
 
         name = asset_create_tx['asset']['data'].get('asset_name')
-        log.debug('{} process tx of "{}": {}'.format(self, name, asset_id))
+        logger.debug('{} process tx of "{}": {}'.format(self, name, asset_id))
 
         tx_methods = self.get_tx_methods()
         if name in tx_methods:
             tx_methods[name](asset_id, transaction)
         else:
-            log.debug('{} skip tx of "{}": {}'.format(self, name, asset_id))
+            logger.debug('{} skip tx of "{}": {}'.format(self, name, asset_id))
 
     def get_tx_methods(self):
         raise NotImplemented

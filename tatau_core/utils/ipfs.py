@@ -1,8 +1,11 @@
 import os
+from logging import getLogger
 
 import ipfsapi
 
 from tatau_core import settings
+
+logger = getLogger()
 
 
 class File:
@@ -28,9 +31,11 @@ class File:
         return self._size
 
     def read(self):
+        logger.debug('Reading {}'.format(self.multihash))
         return self._ipfs.api.cat(self.multihash)
 
     def download_to(self, target_dir):
+        logger.debug('Downloading file {} to {}'.format(self.multihash, target_dir))
         return self._ipfs.download(self.multihash, target_dir)
 
 
@@ -83,6 +88,7 @@ class IPFS:
         return self.api.cat(multihash)
 
     def add_file(self, file_path):
+        logger.debug('Uploading file {}'.format(file_path))
         if os.path.isdir(file_path):
             raise ValueError('"{}" must be a path to file, not a to dir'.format(file_path))
 
@@ -90,6 +96,7 @@ class IPFS:
         return File(ipfs_data=data)
 
     def add_dir(self, dir_path, recursive=False):
+        logger.debug('Uploading directory {}'.format(dir_path))
         if not os.path.isdir(dir_path):
             raise ValueError('"{}" must be a path to dir, not a to file'.format(dir_path))
 

@@ -1,8 +1,8 @@
-import logging
+from logging import getLogger
 
-log = logging.getLogger()
+logger = getLogger()
 
 
 def issue_job(task_declaration):
-    log.info('Issue job {}'.format(task_declaration))
+    logger.info('Issue job {}'.format(task_declaration))
 
