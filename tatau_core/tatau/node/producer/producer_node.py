@@ -239,7 +239,8 @@ class Producer(Node):
             for verification_assignment in verification_assignments:
                 self.process_verification_assignment(verification_assignment, task_declaration, save=False)
         finally:
-            task_declaration.save()
+            pass
+            # task_declaration.save()
 
     def train_task(self, asset_id):
         while True:

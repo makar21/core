@@ -1,10 +1,13 @@
-import logging
+from logging import getLogger
 import shutil
 import tempfile
-
+from collections import deque
+import numpy as np
+from tatau_core.nn import summarizers
 from tatau_core.utils.ipfs import IPFS
+import os
 
-log = logging.getLogger()
+logger = getLogger()
 
 
 def summarize_weights(train_results):
@@ -12,7 +15,7 @@ def summarize_weights(train_results):
     try:
         ipfs = IPFS()
 
-        downloaded_results = []
+        downloaded_results = deque()
         for worker_result in train_results:
             if worker_result['result'] is None:
                 # TODO: handle this
@@ -24,10 +27,25 @@ def summarize_weights(train_results):
         shutil.rmtree(target_dir)
 
 
-def summarize(downloaded_results):
-    log.info('Summarize {}'.format(downloaded_results))
-    if len(downloaded_results):
-        ipfs = IPFS()
-        return ipfs.add_file(downloaded_results[0]).multihash
-    else:
-        return 'error: list of weights is empty'
+def summarize(downloaded_results:deque):
+    if not len(downloaded_results):
+        logger.error('list of weights is empty')
+        raise ValueError('list of weights is empty')
+
+    logger.info('Summarize {}'.format(downloaded_results))
+    summarizer = summarizers.Median()
+
+    for weights_path in downloaded_results:
+        weights = np.load(weights_path)
+        summarizer.update(weights=weights)
+
+    target_dir = tempfile.mkdtemp()
+    result_weights_path = os.path.join(target_dir, "result_weights.npy")
+    np.save(result_weights_path, summarizer.commit())
+
+    try:
+        file_hash = IPFS().add_file(result_weights_path).multihash
+    finally:
+        shutil.rmtree(target_dir)
+
+    return file_hash
