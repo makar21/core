@@ -6,6 +6,7 @@ import numpy as np
 from tatau_core.nn import summarizers
 from tatau_core.utils.ipfs import IPFS
 import os
+from tatau_core.nn.models.tatau import TatauModel
 
 logger = getLogger()
 
@@ -27,25 +28,32 @@ def summarize_weights(train_results):
         shutil.rmtree(target_dir)
 
 
-def summarize(downloaded_results:deque):
-    if not len(downloaded_results):
+def summarize(weights_updates: deque, x_test_path: str, y_test_path: str, model_code_path: str):
+    if not len(weights_updates):
         logger.error('list of weights is empty')
         raise ValueError('list of weights is empty')
 
-    logger.info('Summarize {}'.format(downloaded_results))
-    summarizer = summarizers.Median()
-
-    for weights_path in downloaded_results:
-        weights = np.load(weights_path)
-        summarizer.update(weights=weights)
-
     target_dir = tempfile.mkdtemp()
-    result_weights_path = os.path.join(target_dir, "result_weights.npy")
-    np.save(result_weights_path, summarizer.commit())
 
     try:
+        logger.info('Summarize {}'.format(weights_updates))
+        summarizer = summarizers.Median()
+
+        for weights_path in weights_updates:
+            weights = np.load(weights_path)
+            summarizer.update(weights=weights)
+
+        result_weights_path = os.path.join(target_dir, "result_weights.npy")
+        np.save(result_weights_path, summarizer.commit())
+
+        x_test = np.load(x_test_path)
+        y_test = np.load(y_test_path)
+        model = TatauModel.load_model(model_code_path)
+        eval_metrics = model.eval(x=x_test, y=y_test)
+
         file_hash = IPFS().add_file(result_weights_path).multihash
+
     finally:
         shutil.rmtree(target_dir)
 
-    return file_hash
+    return file_hash, eval_metrics
