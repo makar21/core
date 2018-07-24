@@ -1,8 +1,9 @@
-import logging
+from logging import getLogger
+
 from tatau_core.nn.models.tatau import TrainProgress
 from tatau_core.tatau.models import TaskAssignment
 
-log = logging.getLogger()
+logger = getLogger()
 
 
 class TaskProgress(TrainProgress):
@@ -14,7 +15,7 @@ class TaskProgress(TrainProgress):
     def progress_callback(self, progress):
         task_assignment = TaskAssignment.get(self.asset_id, self.worker.db, self.worker.encryption)
 
-        log.debug('{} progress is {}'.format(task_assignment, progress))
+        logger.debug('{} progress is {}'.format(task_assignment, progress))
 
         task_assignment.set_encryption_key(task_assignment.producer.enc_key)
         task_assignment.progress = progress

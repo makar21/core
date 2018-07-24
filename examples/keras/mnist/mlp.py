@@ -27,7 +27,7 @@ class Model(KerasModel):
         # ensures the output is a valid probaility distribution, that is
         # that its values are all non-negative and sum to 1.
 
-        model.compile(loss='categorical_crossentropy', optimizer='adam')
+        model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
         return model
 
     @classmethod

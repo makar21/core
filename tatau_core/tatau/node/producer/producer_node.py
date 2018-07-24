@@ -1,15 +1,15 @@
-import logging
 import re
 import time
+from logging import getLogger
 
 from tatau_core import settings
 from tatau_core.tatau.models import ProducerNode, TaskDeclaration, TaskAssignment, VerificationAssignment
+from tatau_core.tatau.node.node import Node
 from tatau_core.tatau.node.producer import poa_wrapper
 from tatau_core.tatau.node.producer.sumarize_weights import summarize_weights
 from tatau_core.utils.ipfs import Directory
-from tatau_core.tatau.node.node import Node
 
-log = logging.getLogger()
+logger = getLogger()
 
 
 class Producer(Node):
@@ -48,9 +48,9 @@ class Producer(Node):
         if task_assignment.state == TaskAssignment.State.REJECTED:
             return
 
-        log.info('Process: {}, state: {}'.format(task_assignment, task_assignment.state))
+        logger.info('Process: {}, state: {}'.format(task_assignment, task_assignment.state))
         if task_assignment.state == TaskAssignment.State.INITIAL:
-            log.info('{} requested {}'.format(task_assignment.worker, task_assignment))
+            logger.info('{} requested {}'.format(task_assignment.worker, task_assignment))
             if task_declaration.is_task_assignment_allowed(task_assignment):
                 task_assignment.state = TaskAssignment.State.ACCEPTED
                 task_assignment.save()
@@ -83,9 +83,9 @@ class Producer(Node):
         if verification_assignment.state == VerificationAssignment.State.REJECTED:
             return
 
-        log.info('Process: {}, state: {}'.format(verification_assignment, verification_assignment.state))
+        logger.info('Process: {}, state: {}'.format(verification_assignment, verification_assignment.state))
         if verification_assignment.state == VerificationAssignment.State.INITIAL:
-            log.info('{} requested {}'.format(verification_assignment.verifier, verification_assignment))
+            logger.info('{} requested {}'.format(verification_assignment.verifier, verification_assignment))
             if task_declaration.is_verification_assignment_allowed(verification_assignment):
                 verification_assignment.state = VerificationAssignment.State.ACCEPTED
                 verification_assignment.save()
@@ -128,7 +128,7 @@ class Producer(Node):
 
         if task_declaration.state == TaskDeclaration.State.EPOCH_IN_PROGRESS:
             if task_declaration.epoch_is_ready():
-                log.info('{} train epoch {} is ready'.format(task_declaration, task_declaration.current_epoch))
+                logger.info('{} train epoch {} is ready'.format(task_declaration, task_declaration.current_epoch))
                 # collect results from epoch
                 task_assignments = task_declaration.get_task_assignments(
                     exclude_states=(TaskAssignment.State.REJECTED, TaskAssignment.State.INITIAL)
@@ -144,7 +144,7 @@ class Producer(Node):
 
         if task_declaration.state == TaskDeclaration.State.VERIFY_IN_PROGRESS:
             if task_declaration.verification_is_ready():
-                log.info('{} verification epoch {} is ready'.format(task_declaration, task_declaration.current_epoch))
+                logger.info('{} verification epoch {} is ready'.format(task_declaration, task_declaration.current_epoch))
 
                 # TODO: check for failed workers
 
@@ -152,7 +152,7 @@ class Producer(Node):
                 if task_declaration.all_done():
                     task_declaration.state = TaskDeclaration.State.COMPLETED
                     task_declaration.save()
-                    log.info('{} is finished'.format(task_declaration))
+                    logger.info('{} is finished'.format(task_declaration))
                 else:
                     self.assign_train_data(task_declaration)
             return
@@ -221,26 +221,38 @@ class Producer(Node):
         task_declaration.save()
 
     def summarize_epoch_resuts(self, task_declaration):
-        task_declaration.weights = summarize_weights(task_declaration.results)
+        weights_ipfs, loss, acc = summarize_weights(
+            train_results=task_declaration.results,
+            x_test_ipfs=task_declaration.dataset.x_test_ipfs,
+            y_test_ipfs=task_declaration.dataset.y_test_ipfs,
+            model_code_ipfs=task_declaration.train_model.code_ipfs
+        )
+
+        task_declaration.weights = weights_ipfs
+        task_declaration.loss = loss
+        task_declaration.accuracy = acc
 
     def process_performers(self, task_declaration):
-        try:
-            task_assignments = task_declaration.get_task_assignments(
-                exclude_states=(TaskAssignment.State.ACCEPTED,)
-            )
+        worker_needed = task_declaration.workers_needed
+        verifiers_needed = task_declaration.verifiers_needed
 
-            for task_assignment in task_assignments:
-                self.process_task_assignment(task_assignment, task_declaration, save=False)
+        task_assignments = task_declaration.get_task_assignments(
+            exclude_states=(TaskAssignment.State.ACCEPTED,)
+        )
 
-            verification_assignments = task_declaration.get_verification_assignments(
-                exclude_states=(VerificationAssignment.State.ACCEPTED,)
-            )
+        for task_assignment in task_assignments:
+            self.process_task_assignment(task_assignment, task_declaration, save=False)
 
-            for verification_assignment in verification_assignments:
-                self.process_verification_assignment(verification_assignment, task_declaration, save=False)
-        finally:
-            pass
-            # task_declaration.save()
+        verification_assignments = task_declaration.get_verification_assignments(
+            exclude_states=(VerificationAssignment.State.ACCEPTED,)
+        )
+
+        for verification_assignment in verification_assignments:
+            self.process_verification_assignment(verification_assignment, task_declaration, save=False)
+
+        # save if were changes
+        if task_declaration.workers_needed != worker_needed or task_declaration.verifiers_needed != verifiers_needed:
+            task_declaration.save()
 
     def train_task(self, asset_id):
         while True:
@@ -256,7 +268,7 @@ class Producer(Node):
 
                 time.sleep(settings.PRODUCER_PROCESS_INTERVAL)
             except Exception as e:
-                log.fatal(e)
+                logger.exception(e)
 
     def process_tasks(self):
         while True:
@@ -270,6 +282,6 @@ class Producer(Node):
 
                 time.sleep(settings.PRODUCER_PROCESS_INTERVAL)
             except Exception as e:
-                log.exception(e)
+                logger.exception(e)
 
 

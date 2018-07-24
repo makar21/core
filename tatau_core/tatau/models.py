@@ -95,6 +95,9 @@ class TaskDeclaration(models.Model):
     dataset_id = fields.CharField(immutable=True)
     train_model_id = fields.CharField(immutable=True)
     weights = fields.EncryptedCharField(required=False)
+    loss = fields.FloatField(required=False)
+    accuracy = fields.FloatField(required=False)
+
     batch_size = fields.IntegerField(immutable=True)
     epochs = fields.IntegerField(immutable=True)
 
@@ -250,6 +253,10 @@ class TaskAssignment(models.Model):
     tflops = fields.IntegerField(initial=0)
 
     result = fields.EncryptedCharField(required=False)
+    loss = fields.FloatField(required=False)
+    accuracy = fields.FloatField(required=False)
+    train_history = fields.JsonField(required=False)
+
     error = fields.EncryptedCharField(required=False)
 
     @cached_property

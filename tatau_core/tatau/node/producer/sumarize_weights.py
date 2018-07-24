@@ -11,10 +11,16 @@ from tatau_core.nn.models.tatau import TatauModel
 logger = getLogger()
 
 
-def summarize_weights(train_results):
+def summarize_weights(train_results, x_test_ipfs: str, y_test_ipfs: str, model_code_ipfs: str):
     target_dir = tempfile.mkdtemp()
     try:
         ipfs = IPFS()
+        x_test_path = ipfs.download(x_test_ipfs, target_dir)
+        y_test_path = ipfs.download(y_test_ipfs, target_dir)
+
+        model_code_path_tmp = ipfs.download(model_code_ipfs, target_dir)
+        model_code_path = model_code_path_tmp + '.py'
+        os.rename(model_code_path_tmp, model_code_path)
 
         downloaded_results = deque()
         for worker_result in train_results:
@@ -23,7 +29,7 @@ def summarize_weights(train_results):
                 pass
             else:
                 downloaded_results.append(ipfs.download(worker_result['result'], target_dir))
-        return summarize(downloaded_results)
+        return summarize(downloaded_results, x_test_path, y_test_path, model_code_path)
     finally:
         shutil.rmtree(target_dir)
 
@@ -44,18 +50,19 @@ def summarize(weights_updates: deque, x_test_path: str, y_test_path: str, model_
             weights = [weights_file[r] for r in weights_file.files]
             summarizer.update(weights=weights)
 
-        result_weights_path = os.path.join(target_dir, "result_weights.npy")
+        result_weights_path = os.path.join(target_dir, 'result_weights')
         result_weights = summarizer.commit()
-        np.save(result_weights_path, result_weights)
+        np.savez(result_weights_path, *result_weights)
+        result_weights_path += '.npz'
 
         x_test = np.load(x_test_path)
         y_test = np.load(y_test_path)
         model = TatauModel.load_model(model_code_path)
         model.set_weights(result_weights)
-        eval_metrics = model.eval(x=x_test, y=y_test)
+        loss, acc = model.eval(x=x_test, y=y_test)
         file_hash = IPFS().add_file(result_weights_path).multihash
 
     finally:
         shutil.rmtree(target_dir)
 
-    return file_hash, eval_metrics
+    return file_hash, loss, acc

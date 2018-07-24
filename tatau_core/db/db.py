@@ -1,6 +1,7 @@
 import json
 
 import nacl.signing
+import requests
 
 from cryptoconditions.crypto import Base58Encoder
 
@@ -78,7 +79,7 @@ class DB:
             signers=self.kp.public_key,
             asset=asset,
             recipients=recipients,
-            metadata=metadata,
+            metadata=metadata
         )
 
         fulfilled_create_tx = self.bdb.transactions.fulfill(
@@ -87,17 +88,20 @@ class DB:
 
         # TODO: use send_commit and send_sync if commit is timeout
         # (while node is not synced, commit will be with timeout)
+        created = True
         try:
-            self.bdb.transactions.send_sync(fulfilled_create_tx)
+            self.bdb.transactions.send_commit(fulfilled_create_tx)
         except bigchaindb_driver.exceptions.BadRequest as e:
-            if not 'already exists' in e.info['message']:
-                raise
-            created = False
-        else:
-            created = True
+            if isinstance(e, bigchaindb_driver.exceptions.BadRequest):
+                if not 'already exists' in e.info['message']:
+                    raise
+                created = False
+        except bigchaindb_driver.exceptions.TransportError as e:
+            self.bdb.transactions.send_sync(fulfilled_create_tx)
+        except requests.exceptions.ConnectionError as e:
+            self.bdb.transactions.send_sync(fulfilled_create_tx)
 
         txid = fulfilled_create_tx['id']
-
         return (txid, created)
 
     def update_asset(self, asset_id, metadata, recipients=None):
