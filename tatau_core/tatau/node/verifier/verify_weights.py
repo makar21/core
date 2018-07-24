@@ -1,14 +1,14 @@
-import logging
 import shutil
 import tempfile
+from logging import getLogger
 
 from tatau_core.utils.ipfs import IPFS
 
-log = logging.getLogger()
+logger = getLogger()
 
 
 def verify_train_results(train_results):
-    log.info('Verify results: {}'.format(train_results))
+    logger.info('Verify results: {}'.format(train_results))
     target_dir = tempfile.mkdtemp()
     try:
         ipfs = IPFS()

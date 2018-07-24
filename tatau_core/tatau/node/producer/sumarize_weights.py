@@ -50,9 +50,10 @@ def summarize(weights_updates: deque, x_test_path: str, y_test_path: str, model_
             weights = [weights_file[r] for r in weights_file.files]
             summarizer.update(weights=weights)
 
-        result_weights_path = os.path.join(target_dir, "result_weights.npy")
+        result_weights_path = os.path.join(target_dir, 'result_weights')
         result_weights = summarizer.commit()
-        np.save(result_weights_path, result_weights)
+        np.savez(result_weights_path, *result_weights)
+        result_weights_path += '.npz'
 
         x_test = np.load(x_test_path)
         y_test = np.load(y_test_path)

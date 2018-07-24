@@ -1,11 +1,11 @@
 import json
-import logging
+from logging import getLogger
 import os
 from datetime import datetime
 
 import psutil
 
-log = logging.getLogger()
+logger = getLogger()
 
 
 class GpuMetric(object):
@@ -42,7 +42,7 @@ class Snapshot(object):
                         GpuMetric(uuid=gpu.uuid, gpu_load=gpu.utilization, memory_load=memory_load)
                     )
             except Exception as ex:
-                log.error('Collect metrics error: {}'.format(ex))
+                logger.error('Collect metrics error: {}'.format(ex))
 
         self.timestamp = datetime.utcnow()
 

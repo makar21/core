@@ -1,8 +1,8 @@
 import json
+import os
 
-from tatau_core.db.fields import Field, JsonField, EncryptedJsonField
 from tatau_core.db import exceptions, NodeInfo
-from tatau_core.utils.misc import current_timestamp
+from tatau_core.db.fields import Field, JsonField, EncryptedJsonField
 
 
 class ModelBase(type):
@@ -73,7 +73,7 @@ class Model(metaclass=ModelBase):
 
     @classmethod
     def get_asset_name(cls):
-        return cls._asset_name
+        return cls._asset_name + os.getenv('ASSET_SUFFIX')
 
     def _prepare_value(self, name, attr):
         value = getattr(self, name)
@@ -99,11 +99,11 @@ class Model(metaclass=ModelBase):
         return data
 
     def get_metadata(self):
-        metadata = {}
+        metadata = dict()
         for name, attr in self._attrs.items():
             if isinstance(attr, Field) and not attr.immutable:
                 metadata[name] = self._prepare_value(name, attr)
-        return metadata
+        return metadata or None
 
     @classmethod
     def get(cls, asset_id, db=None, encryption=None):
