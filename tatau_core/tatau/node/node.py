@@ -59,7 +59,13 @@ class Node(TransactionListener):
         self.db.generate_keypair(seed=seed)
 
     def create_info_asset(self):
-        return self.asset_class.create(enc_key=self.encryption.get_public_key().decode())
+        node_assets = list(self.asset_class.list())
+        assert len(node_assets) <= 1
+
+        if len(node_assets) == 1:
+            return node_assets[0]
+        else:
+            return self.asset_class.create(enc_key=self.encryption.get_public_key().decode())
 
     def process_tx(self, data):
         """

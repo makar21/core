@@ -40,7 +40,8 @@ def summarize(weights_updates: deque, x_test_path: str, y_test_path: str, model_
         summarizer = summarizers.Median()
 
         for weights_path in weights_updates:
-            weights = np.load(weights_path)
+            weights_file = np.load(weights_path)
+            weights = [weights_file[r] for r in weights_file.files]
             summarizer.update(weights=weights)
 
         result_weights_path = os.path.join(target_dir, "result_weights.npy")

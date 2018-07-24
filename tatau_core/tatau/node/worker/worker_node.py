@@ -189,7 +189,7 @@ class Worker(Node):
                     error_dict['message'] = msg
 
                 task_assignment.error = json.dumps(error_dict)
-                logger.error('Train is failed: {}'.format(e))
+                logger.exception(e)
 
             interprocess.stop_collect_metrics()
             task_assignment.tflops = interprocess.get_tflops()

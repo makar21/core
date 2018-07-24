@@ -1,2 +1,2 @@
 from .median import Median
-from .mean import M
+from .mean import Mean
