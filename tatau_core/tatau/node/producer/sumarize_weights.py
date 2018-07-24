@@ -44,13 +44,14 @@ def summarize(weights_updates: deque, x_test_path: str, y_test_path: str, model_
             summarizer.update(weights=weights)
 
         result_weights_path = os.path.join(target_dir, "result_weights.npy")
-        np.save(result_weights_path, summarizer.commit())
+        result_weights = summarizer.commit()
+        np.save(result_weights_path, result_weights)
 
         x_test = np.load(x_test_path)
         y_test = np.load(y_test_path)
         model = TatauModel.load_model(model_code_path)
+        model.set_weights(result_weights)
         eval_metrics = model.eval(x=x_test, y=y_test)
-
         file_hash = IPFS().add_file(result_weights_path).multihash
 
     finally:
