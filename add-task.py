@@ -26,7 +26,8 @@ def train_local(x_train_path, y_train_path, x_test_path, y_test_path, model_path
             logger.info("Progress: {:.2f}".format(progress))
 
     model.train(x=x_train, y=y_train, batch_size=batch_size, nb_epochs=epochs, train_progress=LocalProgress())
-    model.eval(x=x_test, y=y_test)
+    loss, acc = model.eval(x=x_test, y=y_test)
+    print('loss:{}, acc:{}'.format(loss, acc))
 
 
 def train_remote(x_train_path, y_train_path, x_test_path, y_test_path, args):
