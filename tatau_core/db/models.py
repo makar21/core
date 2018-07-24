@@ -73,7 +73,7 @@ class Model(metaclass=ModelBase):
 
     @classmethod
     def get_asset_name(cls):
-        return cls._asset_name + os.getenv('ASSET_SUFFIX')
+        return cls._asset_name + os.getenv('RING')
 
     def _prepare_value(self, name, attr):
         value = getattr(self, name)
