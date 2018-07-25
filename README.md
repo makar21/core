@@ -1,3 +1,11 @@
+# Quick start
+
+```shell
+cp .env.example .env
+cp docker/docker.env.example docker/docker.env
+bin/core-up <cpu|gpu>
+```
+
 # Local setup
 
 For setting up the project, run the following commands.
