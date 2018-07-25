@@ -143,7 +143,7 @@ class Model(metaclass=ModelBase):
             )
 
     @classmethod
-    def list(cls, db=None, encryption=None, additional_match=None, created_by_user=True):
+    def enumerate(cls, db=None, encryption=None, additional_match=None, created_by_user=True):
         db = db or NodeInfo.get_db()
         encryption = encryption or NodeInfo.get_encryption()
 
@@ -157,8 +157,12 @@ class Model(metaclass=ModelBase):
         return (cls.get(x, db, encryption) for x in db.retrieve_asset_ids(match=match, created_by_user=created_by_user))
 
     @classmethod
+    def list(cls, db=None, encryption=None, additional_match=None, created_by_user=True):
+        return list(cls.enumerate(db, encryption, additional_match, created_by_user))
+
+    @classmethod
     def exists(cls, db=None, encryption=None, additional_match=None, created_by_user=True):
-        for v in cls.list(db, encryption, additional_match, created_by_user):
+        for v in cls.enumerate(db, encryption, additional_match, created_by_user):
             return True
         return False
 

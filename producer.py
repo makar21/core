@@ -12,3 +12,4 @@ if __name__ == '__main__':
     producer = Producer(rsa_pk_fs_name='producer')
     logger.debug('Start {}'.format(producer))
     producer.run_transaction_listener()
+

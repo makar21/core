@@ -138,34 +138,36 @@ class TaskDeclaration(models.Model):
             self, ready, self.workers_needed, self.verifiers_needed))
         return ready
 
-    def get_task_assignments(self, exclude_states=None):
-        ret = []
-        task_assignments = TaskAssignment.list(
+    def get_task_assignments(self, states=None):
+        task_assignments = TaskAssignment.enumerate(
             additional_match={
                 'assets.data.task_declaration_id': self.asset_id
             },
             created_by_user=False
         )
-        for ta in task_assignments:
-            if exclude_states is None or ta.state not in exclude_states:
-                ret.append(ta)
+
+        ret = []
+        for task_assignment in task_assignments:
+            if states is None or task_assignment.state in states:
+                ret.append(task_assignment)
         return ret
 
     @property
     def task_assignments(self):
         return self.get_task_assignments()
 
-    def get_verification_assignments(self, exclude_states=None):
-        ret = []
-        task_assignments = VerificationAssignment.list(
+    def get_verification_assignments(self, states=None):
+        verification_assignments = VerificationAssignment.enumerate(
             additional_match={
                 'assets.data.task_declaration_id': self.asset_id
             },
             created_by_user=False
         )
-        for ta in task_assignments:
-            if exclude_states is None or ta.state not in exclude_states:
-                ret.append(ta)
+
+        ret = []
+        for verification_assignment in verification_assignments:
+            if states is None or verification_assignment.state in states:
+                ret.append(verification_assignment)
         return ret
 
     @property
@@ -176,12 +178,17 @@ class TaskDeclaration(models.Model):
         if self.workers_needed == 0:
             return False
 
-        match = {
-            'assets.data.worker_id': task_assignment.worker_id,
-            'assets.data.task_declaration_id': self.asset_id
-        }
+        if task_assignment.state != TaskAssignment.State.INITIAL:
+            return False
 
-        count = TaskAssignment.count(additional_match=match, created_by_user=False)
+        count = TaskAssignment.count(
+            additional_match={
+                'assets.data.worker_id': task_assignment.worker_id,
+                'assets.data.task_declaration_id': self.asset_id
+            },
+            created_by_user=False
+        )
+
         if count == 1:
             logger.info('{} allowed for {}'.format(task_assignment, self))
             return True
@@ -194,12 +201,17 @@ class TaskDeclaration(models.Model):
         if self.verifiers_needed == 0:
             return False
 
-        match = {
-            'assets.data.verifier_id': verification_assignment.verifier_id,
-            'assets.data.task_declaration_id': self.asset_id
-        }
+        if verification_assignment.state != VerificationAssignment.State.INITIAL:
+            return False
 
-        count = VerificationAssignment.count(additional_match=match, created_by_user=False)
+        count = VerificationAssignment.count(
+            additional_match={
+                'assets.data.verifier_id': verification_assignment.verifier_id,
+                'assets.data.task_declaration_id': self.asset_id
+            },
+            created_by_user=False
+        )
+
         if count == 1:
             logger.info('{} allowed for {}'.format(verification_assignment, self))
             return True
@@ -210,7 +222,11 @@ class TaskDeclaration(models.Model):
 
     def epoch_is_ready(self):
         task_assignments = self.get_task_assignments(
-            exclude_states=(TaskAssignment.State.REJECTED, TaskAssignment.State.INITIAL)
+            states=(
+                TaskAssignment.State.DATA_IS_READY,
+                TaskAssignment.State.IN_PROGRESS,
+                TaskAssignment.State.FINISHED
+            )
         )
 
         for ta in task_assignments:
@@ -220,7 +236,11 @@ class TaskDeclaration(models.Model):
 
     def verification_is_ready(self):
         verification_assignments = self.get_verification_assignments(
-            exclude_states=(VerificationAssignment.State.REJECTED, VerificationAssignment.State.INITIAL)
+            states=(
+                VerificationAssignment.State.DATA_IS_READY,
+                VerificationAssignment.State.IN_PROGRESS,
+                VerificationAssignment.State.FINISHED
+            )
         )
 
         for va in verification_assignments:
@@ -235,13 +255,13 @@ class TaskDeclaration(models.Model):
 class TaskAssignment(models.Model):
     class State:
         INITIAL = 'initial'
+        RETRY = 'retry'
         REJECTED = 'rejected'
         ACCEPTED = 'accepted'
         DATA_IS_READY = 'data is ready'
         IN_PROGRESS = 'in progress'
         FINISHED = 'finished'
-        FAILED = 'failed'
-        REJECTED_FAKE = 'rejected fake'
+        FAKE_RESULTS = 'fake results'
 
     producer_id = fields.CharField(immutable=True)
     worker_id = fields.CharField(immutable=True)
@@ -283,7 +303,6 @@ class VerificationAssignment(models.Model):
         DATA_IS_READY = 'data is ready'
         IN_PROGRESS = 'in progress'
         FINISHED = 'finished'
-        FAILED = 'failed'
 
     producer_id = fields.CharField(immutable=True)
     verifier_id = fields.CharField(immutable=True)
