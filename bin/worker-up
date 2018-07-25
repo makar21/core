@@ -1,2 +1,10 @@
 #!/bin/bash
-docker-compose -f common.yml -f producer.yml -f verifier.yml -f worker.yml up -d
+TPU=gpu
+docker build . -f docker/images/core/${TPU}/Dockerfile -t tataucloud/worker_${TPU}
+nvidia-docker run \
+    --env-file docker/worker.env \
+    --name worker_${TPU} \
+    --restart unless-stopped \
+    -v ${PWD}/keys:/app/keys \
+    tataucloud/worker_${TPU} \
+    sh -c "python worker.py"

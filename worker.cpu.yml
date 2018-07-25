@@ -1,12 +1,12 @@
-version: '2.3'
+version: '3'
 
 services:
-  verifier:
+  worker:
     image: tataucloud/core_cpu
     build:
       context: .
       dockerfile: ./docker/images/core/cpu/Dockerfile
-    command: sh -c "python verifier.py"
+    command: sh -c "python worker.py"
     env_file:
       - ./docker/docker.env
     volumes:

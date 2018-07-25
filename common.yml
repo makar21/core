@@ -1,4 +1,4 @@
-version: '3'
+version: '2.3'
 
 services:
   tendermint_this:
@@ -67,5 +67,4 @@ services:
       - "4001:4001"
       - "127.0.0.1:8080:8080"
       - "127.0.0.1:5001:5001"
-
 

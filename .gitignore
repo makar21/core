@@ -114,3 +114,4 @@ cluster/docker-compose.yml
 testnet/config
 testnet/tatau
 tmdata/local
+docker/docker.env

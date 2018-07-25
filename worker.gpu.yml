@@ -1,16 +1,17 @@
-version: '3'
+version: '2.3'
 
 services:
   worker:
-    image: tataucloud/core_${CORE}
+    image: tataucloud/core_gpu
     build:
       context: .
-      dockerfile: ./docker/images/core/${CORE}/Dockerfile
+      dockerfile: ./docker/images/core/gpu/Dockerfile
     command: sh -c "python worker.py"
+    runtime: nvidia
     env_file:
       - ./docker/docker.env
     volumes:
-      - ./keys:/app/keys
+      - ./keys/${RING}:/app/keys
     restart: always
     links:
       - ipfs
