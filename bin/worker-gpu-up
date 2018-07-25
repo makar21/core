@@ -1,2 +1,0 @@
-#!/bin/bash
-nvidia-docker-compose -f common.yml -f producer.yml -f verifier.yml -f worker.yml up -d

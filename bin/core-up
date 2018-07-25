@@ -1,0 +1,2 @@
+#!/bin/bash
+docker-compose -f common.yml -f producer.yml -f verifier.yml up -d
