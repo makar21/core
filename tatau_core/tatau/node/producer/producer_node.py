@@ -139,6 +139,9 @@ class Producer(Node):
                         'result': task_assignment.result,
                         'error': task_assignment.error
                     })
+                    assert task_assignment.state == TaskAssignment.State.FINISHED
+                    task_declaration.tflops += task_assignment.tflops
+
                 self.assign_verification_data(task_declaration)
             return
 
@@ -146,8 +149,14 @@ class Producer(Node):
             if task_declaration.verification_is_ready():
                 logger.info('{} verification epoch {} is ready'.format(task_declaration, task_declaration.current_epoch))
 
-                # TODO: check for failed workers
+                verification_assignments = task_declaration.get_verification_assignments(
+                    exclude_states=(VerificationAssignment.State.REJECTED, VerificationAssignment.State.INITIAL)
+                )
+                for verification_assignment in verification_assignments:
+                    assert verification_assignment.state == VerificationAssignment.State.FINISHED
+                    task_declaration.tflops += verification_assignment.tflops
 
+                # TODO: check for failed workers
                 self.summarize_epoch_resuts(task_declaration)
                 if task_declaration.all_done():
                     task_declaration.state = TaskDeclaration.State.COMPLETED
@@ -162,6 +171,7 @@ class Producer(Node):
             exclude_states=(TaskAssignment.State.INITIAL, TaskAssignment.State.REJECTED)
         )
 
+        task_declaration.progress = int(task_declaration.current_epoch * 100 / task_declaration.epochs)
         task_declaration.current_epoch += 1
         task_declaration.results = []
 
