@@ -5,6 +5,6 @@ nvidia-docker run \
     --env-file docker/worker.env \
     --name worker_${TPU} \
     --restart unless-stopped \
-    -v '$PWD/keys/${RING}:/app/keys' \
+    -v '${PWD}/keys/${RING}:/app/keys' \
     tataucloud/worker_${TPU} \
     sh -c "python worker.py"

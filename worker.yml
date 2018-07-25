@@ -2,10 +2,10 @@ version: '3'
 
 services:
   worker:
-    image: tataucloud/core_${CORE}
+    image: tataucloud/core_cpu
     build:
       context: .
-      dockerfile: ./docker/images/core/${CORE}/Dockerfile
+      dockerfile: ./docker/images/core/cpu/Dockerfile
     command: sh -c "python worker.py"
     env_file:
       - ./docker/docker.env
