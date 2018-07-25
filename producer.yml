@@ -10,7 +10,7 @@ services:
     env_file:
       - ./docker/docker.env
     volumes:
-      - ./keys:/app/keys
+      - ./keys/${RING}:/app/keys
     restart: always
     links:
       - ipfs
