@@ -241,6 +241,7 @@ class TaskAssignment(models.Model):
         IN_PROGRESS = 'in progress'
         FINISHED = 'finished'
         FAILED = 'failed'
+        REJECTED_FAKE = 'rejected fake'
 
     producer_id = fields.CharField(immutable=True)
     worker_id = fields.CharField(immutable=True)

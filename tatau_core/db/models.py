@@ -1,6 +1,6 @@
 import json
-import os
 
+from tatau_core import settings
 from tatau_core.db import exceptions, NodeInfo
 from tatau_core.db.fields import Field, JsonField, EncryptedJsonField
 
@@ -73,7 +73,7 @@ class Model(metaclass=ModelBase):
 
     @classmethod
     def get_asset_name(cls):
-        return cls._asset_name + os.getenv('RING')
+        return cls._asset_name + settings.RING_NAME
 
     def _prepare_value(self, name, attr):
         value = getattr(self, name)

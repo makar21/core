@@ -1,12 +1,13 @@
 import json
-from logging import getLogger
 import os
 import shutil
-import sys
 import tempfile
-from collections import deque
 import time
+from collections import deque
+from logging import getLogger
 from multiprocessing import Process
+
+import numpy as np
 
 from tatau_core import settings
 from tatau_core.metrics import Snapshot
@@ -16,7 +17,6 @@ from tatau_core.tatau.node import Node
 from tatau_core.tatau.node.worker.task_progress import TaskProgress
 from tatau_core.tatau.node.worker.worker_interprocess import WorkerInterprocess
 from tatau_core.utils.ipfs import IPFS
-import numpy as np
 
 logger = getLogger()
 
@@ -86,20 +86,24 @@ class Worker(Node):
 
             interprocess = WorkerInterprocess()
 
-            process_class = Process
-            if settings.DEBUG:
-                import threading
-                process_class = threading.Thread
-
-            process_class(
+            Process(
                 target=self.collect_metrics,
                 args=(interprocess,)
             ).start()
 
-            process_class(
+            work_process = Process(
                 target=self.work,
                 args=(task_assignment.asset_id, interprocess),
-            ).start()
+            )
+            work_process.start()
+
+            # work_process.join()
+            #
+            # # retry if failed work
+            # task_assignment = TaskAssignment.get(task_assignment.asset_id)
+            # if task_assignment.state == TaskAssignment.State.IN_PROGRESS:
+            #     task_assignment.state = TaskAssignment.State.DATA_IS_READY
+            #     task_assignment.save()
 
     # TODO: refactor to iterable
     @classmethod
