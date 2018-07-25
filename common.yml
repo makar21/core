@@ -11,7 +11,7 @@ services:
     command: sh -c "tendermint node --consensus.create_empty_blocks=false --proxy_app=tcp://bigchaindb_this:26658 --p2p.persistent_peers=$PEERS --log_level=*:info"
     volumes:
       - ./tmdata/$NET_NAME/this/config:/tendermint/config
-      - tendermint_data_this_${NET_NAME}:/tendermint/data
+      - ./docker/volumes/$NET_NAME/tendermint/$NET_NAME/this/data:/tendermint/data
 #    links:
 #      - tendermint_node0
 #      - tendermint_node1
@@ -68,10 +68,3 @@ services:
       - "127.0.0.1:8080:8080"
       - "127.0.0.1:5001:5001"
 
-
-volumes:
-  tendermint_data_this_tatau:
-    driver: local
-
-  tendermint_data_this_local:
-    driver: local
