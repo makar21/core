@@ -28,7 +28,7 @@ class Dataset(models.Model):
 
     @classmethod
     def upload_and_create(cls, x_train_path, y_train_path, x_test_path, y_test_path, minibatch_size, **kwargs):
-        logger.info("Creating dataset")
+        logger.info('Creating dataset')
         ipfs = IPFS()
 
         kwargs['x_test_ipfs'] = ipfs.add_file(x_test_path).multihash
@@ -43,7 +43,7 @@ class Dataset(models.Model):
             x_train = np.load(x_train_path)
             y_train = np.load(y_train_path)
             batches = int(len(x_train) / minibatch_size)
-            logger.info("Split dataset to {} batches".format(batches))
+            logger.info('Split dataset to {} batches'.format(batches))
             for batch_idx in range(0, batches):
                 start_idx = batch_idx * minibatch_size
                 end_idx = start_idx + minibatch_size
@@ -53,11 +53,11 @@ class Dataset(models.Model):
                 np.save(x_path, x_batch)
                 y_path = os.path.join(directory, 'y_{:04d}'.format(batch_idx))
                 np.save(y_path, y_batch)
-            logger.info("Upload dataset to IPFS")
+            logger.info('Upload dataset to IPFS')
             kwargs['train_dir_ipfs'] = ipfs.add_dir(directory).multihash
-            logger.info("Dataset was uploaded")
+            logger.info('Dataset was uploaded')
         finally:
-            logger.debug("Cleanup dataset tmp dir")
+            logger.debug('Cleanup dataset tmp dir')
             shutil.rmtree(directory)
 
         return cls.create(**kwargs)
@@ -90,6 +90,7 @@ class TaskDeclaration(models.Model):
         EPOCH_IN_PROGRESS = 'training'
         VERIFY_IN_PROGRESS = 'verifying'
         COMPLETED = 'completed'
+        FAILED = 'failed'
 
     producer_id = fields.CharField(immutable=True)
     dataset_id = fields.CharField(immutable=True)
@@ -239,6 +240,7 @@ class TaskAssignment(models.Model):
         DATA_IS_READY = 'data is ready'
         IN_PROGRESS = 'in progress'
         FINISHED = 'finished'
+        FAILED = 'failed'
 
     producer_id = fields.CharField(immutable=True)
     worker_id = fields.CharField(immutable=True)
@@ -280,6 +282,7 @@ class VerificationAssignment(models.Model):
         DATA_IS_READY = 'data is ready'
         IN_PROGRESS = 'in progress'
         FINISHED = 'finished'
+        FAILED = 'failed'
 
     producer_id = fields.CharField(immutable=True)
     verifier_id = fields.CharField(immutable=True)
