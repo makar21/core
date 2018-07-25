@@ -1,7 +1,7 @@
 #!/bin/bash
 TPU=gpu
 docker build . -f docker/images/core/${TPU}/Dockerfile -t tataucloud/worker_${TPU}
-nvidia-docker run --rm \
+nvidia-docker run \
     --env-file docker/worker.env \
     --name worker_${TPU} \
     --restart unless-stopped \
