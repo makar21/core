@@ -4,7 +4,7 @@ ENV LANG C.UTF-8
 
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-		tk-dev wget ca-certificates build-essential build-essential libbz2-dev libssl-dev libreadline-dev libpng-dev libfreetype6-dev \
+		apt-utils libncurses5-dev libncursesw5-dev tk-dev wget li ca-certificates build-essential build-essential libbz2-dev libssl-dev libreadline-dev libpng-dev libfreetype6-dev \
 	&& rm -rf /var/lib/apt/lists/*
 
 ENV GPG_KEY 0D96DF4D4110E5C43FBFB17F2D347EA6AA65421D
