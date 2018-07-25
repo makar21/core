@@ -1,0 +1,20 @@
+version: '3'
+
+services:
+  worker:
+    image: tataucloud/core_gpu
+    build:
+      context: .
+      dockerfile: ./docker/images/core/gpu/Dockerfile
+    command: sh -c "python worker.py"
+    runtime: nvidia
+    env_file:
+      - ./docker/docker.env
+    volumes:
+      - ./keys/${RING}:/app/keys
+    restart: always
+    links:
+      - ipfs
+      - bigchaindb_this:bigchaindb
+      - mongodb_this:mongodb
+      - tendermint_this:tendermint
