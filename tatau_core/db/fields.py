@@ -64,7 +64,7 @@ class TimestampField(IntegerField):
 
 class FloatField(Field):
     def __set__(self, obj, val):
-        if val is not None and not isinstance(val, float):
+        if val is not None and not isinstance(val, float) and not isinstance(val, int):
             raise ValueError('{} must be an integer instance.'.format(self._name))
 
-        super(FloatField, self).__set__(obj, val if val is None else val)
+        super(FloatField, self).__set__(obj, val if val is None else float(val))
