@@ -45,7 +45,7 @@ docker logs tatau_core_tendermint_this_1 -f --tail 0
 export WORKERS=10
 
 # Deploy cifar10 job
-docker exec -it tatau_producer_1 sh -c "\
+docker exec -it tatau_core_producer_1 sh -c "\
 cd examples/keras/cifar10/ && \
 wget https://s3.amazonaws.com/tatau-public/datasets/cifar10/x_test.npy && \
 wget https://s3.amazonaws.com/tatau-public/datasets/cifar10/y_test.npy && \

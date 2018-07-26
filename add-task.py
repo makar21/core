@@ -25,7 +25,21 @@ def train_local(x_train_path, y_train_path, x_test_path, y_test_path, model_path
         def progress_callback(self, progress):
             logger.info("Progress: {:.2f}".format(progress))
 
-    model.train(x=x_train, y=y_train, batch_size=batch_size, nb_epochs=epochs, train_progress=LocalProgress())
+    history = model.train(x=x_train, y=y_train, batch_size=batch_size, nb_epochs=epochs, train_progress=LocalProgress())
+
+    train_history = dict()
+    for metric in history.history.keys():
+        train_history[metric] = [float(val) for val in history.history[metric]]
+
+    for lr in history.history['lr']:
+        print('lr({}):{}'.format(lr.__class__.__name__, lr))
+
+    for loss in history.history['loss']:
+        print('loss({}):{}'.format(loss.__class__.__name__, loss))
+
+    for acc in history.history['acc']:
+        print('acc({}):{}'.format(acc.__class__.__name__, acc))
+
     loss, acc = model.eval(x=x_test, y=y_test)
 
     print('loss({}):{}, acc({}):{}'.format(loss.__class__.__name__, loss, acc.__class__.__name__, acc))
