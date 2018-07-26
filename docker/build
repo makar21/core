@@ -1,0 +1,3 @@
+#!/bin/bash
+APP=python make -f docker/Makefile release
+# APP=python make -f docker/Makefile push
