@@ -1,12 +1,12 @@
-import logging
 import sys
+from logging import getLogger
 
 from tatau_core.tatau.node import Verifier
 from tatau_core.utils.logging import configure_logging
 
 configure_logging('verifier-no-socket')
 
-log = logging.getLogger()
+logger = getLogger()
 
 
 if __name__ == '__main__':
@@ -16,4 +16,5 @@ if __name__ == '__main__':
         index = ''
 
     verifier = Verifier(rsa_pk_fs_name='verifier-no-socket{}'.format(index))
+    logger.info('Start {}'.format(verifier.asset))
     verifier.search_tasks()

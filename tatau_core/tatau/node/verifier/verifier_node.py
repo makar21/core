@@ -13,13 +13,13 @@ class Verifier(Node):
     node_type = Node.NodeType.VERIFIER
     asset_class = VerifierNode
 
-    def get_tx_methods(self):
+    def _get_tx_methods(self):
         return {
-            TaskDeclaration.get_asset_name(): self.process_task_declaration_transaction,
-            VerificationAssignment.get_asset_name(): self.process_verification_assignment_transaction,
+            TaskDeclaration.get_asset_name(): self._process_task_declaration_transaction,
+            VerificationAssignment.get_asset_name(): self._process_verification_assignment_transaction,
         }
 
-    def process_task_declaration_transaction(self, asset_id, transaction):
+    def _process_task_declaration_transaction(self, asset_id, transaction):
         if transaction['operation'] == 'TRANSFER':
             return
 
@@ -27,9 +27,12 @@ class Verifier(Node):
         if task_declaration.verifiers_needed == 0:
             return
 
-        self.process_task_declaration(task_declaration)
+        self._process_task_declaration(task_declaration)
 
-    def process_task_declaration(self, task_declaration):
+    def _process_task_declaration(self, task_declaration):
+        if task_declaration.state in (TaskDeclaration.State.COMPLETED, TaskDeclaration.State.FAILED):
+            return
+
         exists = VerificationAssignment.exists(
             additional_match={
                 'assets.data.verifier_id': self.asset_id,
@@ -50,7 +53,7 @@ class Verifier(Node):
         )
         logger.info('{} added {}'.format(self, verification_assignment))
 
-    def process_verification_assignment_transaction(self, asset_id, transaction):
+    def _process_verification_assignment_transaction(self, asset_id, transaction):
         if transaction['operation'] == 'CREATE':
             return
 
@@ -59,9 +62,9 @@ class Verifier(Node):
         if verification_assignment.verifier_id != self.asset_id:
             return
 
-        self.process_verification_assignment(verification_assignment)
+        self._process_verification_assignment(verification_assignment)
 
-    def process_verification_assignment(self, verification_assignment):
+    def _process_verification_assignment(self, verification_assignment):
         if verification_assignment.state == VerificationAssignment.State.DATA_IS_READY:
             logger.info('{} start verify {}'.format(self, verification_assignment))
 
@@ -76,20 +79,20 @@ class Verifier(Node):
                 self, verification_assignment, verification_assignment.result)
             )
 
-    def process_task_declarations(self):
-        for task_declaration in TaskDeclaration.list(created_by_user=False):
+    def _process_task_declarations(self):
+        for task_declaration in TaskDeclaration.enumerate(created_by_user=False):
             if task_declaration.state == TaskDeclaration.State.DEPLOYMENT and task_declaration.verifiers_needed > 0:
-                self.process_task_declaration(task_declaration)
+                self._process_task_declaration(task_declaration)
 
-    def process_verification_assignments(self):
-        for verification_assignment in VerificationAssignment.list():
-            self.process_verification_assignment(verification_assignment)
+    def _process_verification_assignments(self):
+        for verification_assignment in VerificationAssignment.enumerate():
+            self._process_verification_assignment(verification_assignment)
 
     def search_tasks(self):
         while True:
             try:
-                self.process_task_declarations()
-                self.process_verification_assignments()
+                self._process_task_declarations()
+                self._process_verification_assignments()
                 time.sleep(settings.VERIFIER_PROCESS_INTERVAL)
             except Exception as e:
                 logger.exception(e)

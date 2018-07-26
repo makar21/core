@@ -1,12 +1,13 @@
 import json
-from logging import getLogger
 import os
 import shutil
-import sys
 import tempfile
-from collections import deque
 import time
+from collections import deque
+from logging import getLogger
 from multiprocessing import Process
+
+import numpy as np
 
 from tatau_core import settings
 from tatau_core.metrics import Snapshot
@@ -16,7 +17,6 @@ from tatau_core.tatau.node import Node
 from tatau_core.tatau.node.worker.task_progress import TaskProgress
 from tatau_core.tatau.node.worker.worker_interprocess import WorkerInterprocess
 from tatau_core.utils.ipfs import IPFS
-import numpy as np
 
 logger = getLogger()
 
@@ -25,13 +25,13 @@ class Worker(Node):
     node_type = Node.NodeType.WORKER
     asset_class = WorkerNode
 
-    def get_tx_methods(self):
+    def _get_tx_methods(self):
         return {
-            TaskDeclaration.get_asset_name(): self.process_task_declaration_transaction,
-            TaskAssignment.get_asset_name(): self.process_task_assignment_transaction,
+            TaskDeclaration.get_asset_name(): self._process_task_declaration_transaction,
+            TaskAssignment.get_asset_name(): self._process_task_assignment_transaction,
         }
 
-    def process_task_declaration_transaction(self, asset_id, transaction):
+    def _process_task_declaration_transaction(self, asset_id, transaction):
         if transaction['operation'] == 'TRANSFER':
             return
 
@@ -40,9 +40,12 @@ class Worker(Node):
         if task_declaration.workers_needed == 0:
             return
 
-        self.process_task_declaration(task_declaration)
+        self._process_task_declaration(task_declaration)
 
-    def process_task_declaration(self, task_declaration):
+    def _process_task_declaration(self, task_declaration):
+        if task_declaration.state in (TaskDeclaration.State.COMPLETED, TaskDeclaration.State.FAILED):
+            return
+
         logger.info('Process {}'.format(task_declaration))
         exists = TaskAssignment.exists(
             additional_match={
@@ -65,7 +68,7 @@ class Worker(Node):
 
         logger.info('Added {}'.format(task_assignment))
 
-    def process_task_assignment_transaction(self, asset_id, transaction):
+    def _process_task_assignment_transaction(self, asset_id, transaction):
         if transaction['operation'] == 'CREATE':
             return
 
@@ -75,35 +78,47 @@ class Worker(Node):
         if task_assignment.worker_id != self.asset_id:
             return
 
-        self.process_task_assignment(task_assignment)
+        self._process_task_assignment(task_assignment)
 
-    def process_task_assignment(self, task_assignment):
-        logger.info('{} proces {} state:{}'.format(self, task_assignment, task_assignment.state))
-        # skip assignment that the worker has started working on
+    def _process_task_assignment(self, task_assignment):
+        logger.debug('{} process {} state:{}'.format(self, task_assignment, task_assignment.state))
+
+        if task_assignment.state == TaskAssignment.State.IN_PROGRESS:
+            if task_assignment.task_declaration.state == TaskDeclaration.State.EPOCH_IN_PROGRESS:
+                task_assignment.state = TaskAssignment.State.DATA_IS_READY
+
+        if task_assignment.state == TaskAssignment.State.RETRY:
+            task_assignment.state = TaskAssignment.State.INITIAL
+            task_assignment.save(recipients=task_assignment.producer.address)
+            return
+
         if task_assignment.state == TaskAssignment.State.DATA_IS_READY:
             task_assignment.state = TaskAssignment.State.IN_PROGRESS
             task_assignment.save()
 
             interprocess = WorkerInterprocess()
 
-            process_class = Process
-            if settings.DEBUG:
-                import threading
-                process_class = threading.Thread
-
-            process_class(
-                target=self.collect_metrics,
+            Process(
+                target=self._collect_metrics,
                 args=(interprocess,)
             ).start()
 
-            process_class(
-                target=self.work,
+            work_process = Process(
+                target=self._work,
                 args=(task_assignment.asset_id, interprocess),
-            ).start()
+            )
+            work_process.start()
+            work_process.join()
+
+            # # retry if failed work
+            # task_assignment = TaskAssignment.get(task_assignment.asset_id)
+            # if task_assignment.state == TaskAssignment.State.IN_PROGRESS:
+            #     task_assignment.state = TaskAssignment.State.DATA_IS_READY
+            #     task_assignment.save()
 
     # TODO: refactor to iterable
     @classmethod
-    def load_dataset(cls, train_x_paths, train_y_paths, test_x_path, test_y_path):
+    def _load_dataset(cls, train_x_paths, train_y_paths, test_x_path, test_y_path):
         x_train = None
         for train_x_path in train_x_paths:
             f = np.load(train_x_path)
@@ -125,7 +140,7 @@ class Worker(Node):
 
         return x_train, y_train, x_test, y_test
 
-    def work(self, asset_id, interprocess):
+    def _work(self, asset_id, interprocess):
         logger.info('Start work process')
         task_assignment = TaskAssignment.get(asset_id)
 
@@ -164,7 +179,7 @@ class Worker(Node):
             task_assignment.error = None
 
             try:
-                x_train, y_train, x_test, y_test = self.load_dataset(
+                x_train, y_train, x_test, y_test = self._load_dataset(
                     train_x_paths, train_y_paths, test_x_path, test_y_path)
 
                 weights_file = np.load(initial_weights_path)
@@ -214,7 +229,7 @@ class Worker(Node):
         finally:
             shutil.rmtree(target_dir)
 
-    def collect_metrics(self, interprocess):
+    def _collect_metrics(self, interprocess):
         interprocess.wait_for_start_collect_metrics()
         logger.info('Start collect metrics')
 
@@ -224,20 +239,20 @@ class Worker(Node):
 
         logger.info('Stop collect metrics')
 
-    def process_task_declarations(self):
-        for task_declaration in TaskDeclaration.list(created_by_user=False):
+    def _process_task_declarations(self):
+        for task_declaration in TaskDeclaration.enumerate(created_by_user=False):
             if task_declaration.state == TaskDeclaration.State.DEPLOYMENT and task_declaration.workers_needed > 0:
-                self.process_task_declaration(task_declaration)
+                self._process_task_declaration(task_declaration)
 
-    def process_task_assignments(self):
-        for task_assignment in TaskAssignment.list():
-            self.process_task_assignment(task_assignment)
+    def _process_task_assignments(self):
+        for task_assignment in TaskAssignment.enumerate():
+            self._process_task_assignment(task_assignment)
             
     def search_tasks(self):
         while True:
             try:
-                self.process_task_declarations()
-                self.process_task_assignments()
+                self._process_task_declarations()
+                self._process_task_assignments()
                 time.sleep(settings.WORKER_PROCESS_INTERVAL)
             except Exception as ex:
                 logger.exception(ex)
