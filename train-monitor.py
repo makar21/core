@@ -5,6 +5,8 @@ from logging import getLogger, basicConfig, StreamHandler, INFO
 from tatau_core.tatau.models import TaskDeclaration, TaskAssignment, VerificationAssignment
 from tatau_core.tatau.node import Producer
 
+from termcolor import colored
+
 basicConfig(
     format='%(message)s',
     level=INFO,
@@ -14,6 +16,38 @@ basicConfig(
 )
 
 logger = getLogger(__name__)
+
+
+def red(text, on_color=None, attrs=None):
+    return colored('{}'.format(text), 'red', on_color=on_color, attrs=attrs)
+
+
+def grey(text, on_color=None, attrs=None):
+    return colored('{}'.format(text), 'grey', on_color=on_color, attrs=attrs)
+
+
+def green(text, on_color=None, attrs=None):
+    return colored('{}'.format(text), 'green', on_color=on_color, attrs=attrs)
+
+
+def yellow(text, on_color=None, attrs=None):
+    return colored('{}'.format(text), 'yellow', on_color=on_color, attrs=attrs)
+
+
+def magenta(text, on_color=None, attrs=None):
+    return colored('{}'.format(text), 'magenta', on_color=on_color, attrs=attrs)
+
+
+def blue(text, on_color=None, attrs=None):
+    return colored('{}'.format(text), 'blue', on_color=on_color, attrs=attrs)
+
+
+def cyan(text, on_color=None, attrs=None):
+    return colored('{}'.format(text), 'cyan', on_color=on_color, attrs=attrs)
+
+
+def white(text, on_color=None, attrs=None):
+    return colored('{}'.format(text), 'white', on_color=on_color, attrs=attrs)
 
 
 def get_progress_data(task_declaration):
@@ -111,14 +145,16 @@ def print_task_declaration(task_declaration):
     logger.info('-------------------------------------------------------------------------------------------')
 
     logger.info('Task: {}\nState: {}\tProgress: {}\tTFLOPS: {}'.format(
-        data['asset_id'], data['state'], data['total_progress'], data['spent_tflops'])
+        data['asset_id'], magenta(data['state']), blue(data['total_progress']), cyan(data['spent_tflops']))
     )
     logger.info('Dataset: {}'.format(data['dataset']))
     logger.info('Model: {}'.format(data['train_model']))
-    logger.info('Workers: {}, Verifiers: {}'.format(data['accepted_workers'], data['accepted_verifiers']))
-    logger.info('Epochs: {}/{}'.format(data['current_epoch'], data['epochs']))
+    logger.info('Workers: {}, Verifiers: {}'.format(
+        yellow(data['accepted_workers']), yellow(data['accepted_verifiers'])))
+
+    logger.info('Epochs: {}'.format(yellow('{}/{}'.format(data['current_epoch'], data['epochs']))))
     for epoch, value in data['history'].items():
-        logger.info('Epoch #{}\tloss: {}\taccuracy: {}'.format(epoch, value['loss'], value['accuracy']))
+        logger.info('Epoch #{}\tloss: {}\taccuracy: {}'.format(epoch, green(value['loss']), green(value['accuracy'])))
 
     logger.info('-------------------------------------------------------------------------------------------')
 
@@ -127,20 +163,20 @@ def print_task_declaration(task_declaration):
         for wd in worker_data:
             logger.info('\t\tEpoch: #{}'.format(wd['current_epoch']))
             logger.info('\t\t\tState: {}\tProgress: {}\tTFLOPS: {}'.format(
-                wd['state'], wd['progress'], wd['spent_tflops']))
+                magenta(wd['state']), blue(wd['progress']), cyan(wd['spent_tflops'])))
             if wd['loss'] and wd['accuracy']:
-                logger.info('\t\t\tloss: {}\taccuracy: {}'.format(wd['loss'], wd['accuracy']))
-
+                logger.info('\t\t\tloss: {}\taccuracy: {}'.format(green(wd['loss']), green(wd['accuracy'])))
+            logger.info('\n')
     logger.info('-------------------------------------------------------------------------------------------')
 
     for verifier_id, verifier_data in data['verifiers'].items():
         logger.info('\tVerifier: {}'.format(verifier_id))
         logger.info('\t\tState: {}\tProgress: {}\tTFLOPS: {}'.format(
-            verifier_data['state'], verifier_data['progress'], verifier_data['spent_tflops']))
+            magenta(verifier_data['state']), blue(verifier_data['progress']), cyan(verifier_data['spent_tflops'])))
 
     logger.info('-------------------------------------------------------------------------------------------')
     if task_declaration.state == TaskDeclaration.State.COMPLETED:
-        logger.info('Result: {}'.format(task_declaration.weights))
+        logger.info('Result: {}'.format(yellow(task_declaration.weights)))
 
 
 def main():
@@ -151,7 +187,7 @@ def main():
 
     args = parser.parse_args()
 
-    producer = Producer(rsa_pk_fs_name=args.key)
+    Producer(rsa_pk_fs_name=args.key)
 
     task_declaration = TaskDeclaration.get(args.task)
     while task_declaration.state != TaskDeclaration.State.FAILED:
