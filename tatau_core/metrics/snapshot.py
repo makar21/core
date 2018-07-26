@@ -5,6 +5,8 @@ from datetime import datetime
 
 import psutil
 
+from tatau_core import settings
+
 logger = getLogger()
 
 
@@ -93,7 +95,6 @@ class Snapshot(object):
         return json.dumps(self.to_dict())
 
     def calc_tflops(self):
-        # TODO: define this values
-        gpu_tflops = 100000
-        cpu_tflops = 10000
+        gpu_tflops = settings.GPU_TFLOPS
+        cpu_tflops = settings.CPU_TFLOPS
         return int(self.average_gpu_load * gpu_tflops + self.average_cpu_load * cpu_tflops)

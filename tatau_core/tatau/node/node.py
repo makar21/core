@@ -26,13 +26,13 @@ class Node(TransactionListener):
         NodeInfo.configure(self.db, self.encryption)
 
         if rsa_pk_fs_name:
-            self.handle_fs_key(rsa_pk_fs_name)
+            self._handle_fs_key(rsa_pk_fs_name)
         else:
             self.encryption.import_key(rsa_pk)
             seed = hashlib.sha256(rsa_pk).digest()
             self.db.generate_keypair(seed=seed)
 
-        self.asset = self.create_info_asset()
+        self.asset = self._create_info_asset()
 
     def __str__(self):
         return self.asset.__str__()
@@ -41,7 +41,7 @@ class Node(TransactionListener):
     def asset_id(self):
         return self.asset.asset_id
 
-    def handle_fs_key(self, name):
+    def _handle_fs_key(self, name):
         path = os.path.join(ROOT_DIR, 'keys/{}.pem'.format(name))
         if os.path.isfile(path):
             with open(path, 'rb') as f:
@@ -56,8 +56,8 @@ class Node(TransactionListener):
         seed = hashlib.sha256(rsa_pk).digest()
         self.db.generate_keypair(seed=seed)
 
-    def create_info_asset(self):
-        node_assets = list(self.asset_class.list())
+    def _create_info_asset(self):
+        node_assets = self.asset_class.list()
         assert len(node_assets) <= 1
 
         if len(node_assets) == 1:
@@ -65,7 +65,7 @@ class Node(TransactionListener):
         else:
             return self.asset_class.create(enc_key=self.encryption.get_public_key().decode())
 
-    def process_tx(self, data):
+    def _process_tx(self, data):
         """
         Accepts WS stream data dict and checks if the transaction
         needs to be processed.
@@ -75,7 +75,7 @@ class Node(TransactionListener):
         """
         transaction = self.bdb.transactions.retrieve(data['transaction_id'])
 
-        if self.ignore_operation(transaction['operation']):
+        if self._ignore_operation(transaction['operation']):
             return
 
         asset_id = data['asset_id']
@@ -84,26 +84,14 @@ class Node(TransactionListener):
         name = asset_create_tx['asset']['data'].get('asset_name')
         logger.debug('{} process tx of "{}": {}'.format(self, name, asset_id))
 
-        tx_methods = self.get_tx_methods()
+        tx_methods = self._get_tx_methods()
         if name in tx_methods:
             tx_methods[name](asset_id, transaction)
         else:
             logger.debug('{} skip tx of "{}": {}'.format(self, name, asset_id))
 
-    def get_tx_methods(self):
+    def _get_tx_methods(self):
         raise NotImplemented
 
-    def ignore_operation(self, operation):
+    def _ignore_operation(self, operation):
         return False
-
-    def encrypt_text(self, text):
-        return self.encryption.encrypt(
-            text.encode(),
-            self.encryption.get_public_key()
-        ).decode()
-
-    def decrypt_text(self, encrypted_text):
-        try:
-            return self.encryption.decrypt(encrypted_text.encode()).decode()
-        except ValueError:
-            return encrypted_text

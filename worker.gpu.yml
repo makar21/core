@@ -6,7 +6,7 @@ services:
     build:
       context: .
       dockerfile: ./docker/images/core/gpu/Dockerfile
-    command: sh -c "python worker.py"
+    command: sh -c "python worker-no-socket.py"
     runtime: nvidia
     env_file:
       - ./docker/docker.env
