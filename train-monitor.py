@@ -1,5 +1,4 @@
 import argparse
-import json
 import time
 from logging import getLogger, basicConfig, StreamHandler, INFO
 
@@ -20,6 +19,8 @@ logger = getLogger(__name__)
 def get_progress_data(task_declaration):
     data = {
         'asset_id': task_declaration.asset_id,
+        'dataset': task_declaration.dataset.name,
+        'train_model': task_declaration.train_model.name,
         'state': task_declaration.state,
         'accepted_workers': '{}/{}'.format(
             task_declaration.workers_requested - task_declaration.workers_needed, task_declaration.workers_requested),
@@ -30,7 +31,7 @@ def get_progress_data(task_declaration):
         'current_epoch': task_declaration.current_epoch,
         'epochs': task_declaration.epochs,
         'history': {},
-        'spent_tflopts': task_declaration.tflops,
+        'spent_tflops': task_declaration.tflops,
         'workers': {},
         'verifiers': {}
     }
@@ -65,7 +66,7 @@ def get_progress_data(task_declaration):
                     'state': ta.state,
                     'current_epoch': ta.current_epoch,
                     'progress': ta.progress,
-                    'spent_tflopts': ta.tflops,
+                    'spent_tflops': ta.tflops,
                     'loss': ta.loss,
                     'accuracy': ta.accuracy
                 })
@@ -76,7 +77,7 @@ def get_progress_data(task_declaration):
                 'state': task_assignment.state,
                 'current_epoch': task_assignment.current_epoch,
                 'progress': task_assignment.progress,
-                'spent_tflopts': task_assignment.tflops,
+                'spent_tflops': task_assignment.tflops,
                 'loss': task_assignment.loss,
                 'accuracy': task_assignment.accuracy
             })
@@ -95,16 +96,51 @@ def get_progress_data(task_declaration):
             'asset_id': verification_assignment.asset_id,
             'state': verification_assignment.state,
             'progress': verification_assignment.progress,
-            'spent_tflopts': verification_assignment.tflops,
-            'resul': verification_assignment.result
+            'spent_tflops': verification_assignment.tflops,
+            'result': verification_assignment.result
         }
 
     return data
 
 
 def print_task_declaration(task_declaration):
-    print_data = get_progress_data(task_declaration)
-    print(json.dumps(print_data, indent=4, sort_keys=True))
+    data = get_progress_data(task_declaration)
+
+    logger.info('\n\n\n\n\n')
+
+    logger.info('-------------------------------------------------------------------------------------------')
+
+    logger.info('Task: {}\nState: {}\tProgress: {}\tTFLOPS: {}'.format(
+        data['asset_id'], data['state'], data['total_progress'], data['spent_tflops'])
+    )
+    logger.info('Dataset: {}'.format(data['dataset']))
+    logger.info('Model: {}'.format(data['train_model']))
+    logger.info('Workers: {}, Verifiers: {}'.format(data['accepted_workers'], data['accepted_verifiers']))
+    logger.info('Epochs: {}/{}'.format(data['current_epoch'], data['epochs']))
+    for epoch, value in data['history'].items():
+        logger.info('Epoch #{}\tloss: {}\taccuracy: {}'.format(epoch, value['loss'], value['accuracy']))
+
+    logger.info('-------------------------------------------------------------------------------------------')
+
+    for worker_id, worker_data in data['workers'].items():
+        logger.info('\tWorker: {}'.format(worker_id))
+        for wd in worker_data:
+            logger.info('\t\tEpoch: #{}'.format(wd['current_epoch']))
+            logger.info('\t\t\tState: {}\tProgress: {}\tTFLOPS: {}'.format(
+                wd['state'], wd['progress'], wd['spent_tflops']))
+            if wd['loss'] and wd['accuracy']:
+                logger.info('\t\t\tloss: {}\taccuracy: {}'.format(wd['loss'], wd['accuracy']))
+
+    logger.info('-------------------------------------------------------------------------------------------')
+
+    for verifier_id, verifier_data in data['verifiers'].items():
+        logger.info('\tVerifier: {}'.format(verifier_id))
+        logger.info('\t\tState: {}\tProgress: {}\tTFLOPS: {}'.format(
+            verifier_data['state'], verifier_data['progress'], verifier_data['spent_tflops']))
+
+    logger.info('-------------------------------------------------------------------------------------------')
+    if task_declaration.state == TaskDeclaration.State.COMPLETED:
+        logger.info('Result: {}'.format(task_declaration.weights))
 
 
 def main():
@@ -129,5 +165,5 @@ def main():
 
 
 if __name__ == '__main__':
-
     main()
+
