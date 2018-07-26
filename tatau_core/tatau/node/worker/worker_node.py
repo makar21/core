@@ -43,6 +43,9 @@ class Worker(Node):
         self._process_task_declaration(task_declaration)
 
     def _process_task_declaration(self, task_declaration):
+        if task_declaration.state in (TaskDeclaration.State.COMPLETED, TaskDeclaration.State.FAILED):
+            return
+
         logger.info('Process {}'.format(task_declaration))
         exists = TaskAssignment.exists(
             additional_match={

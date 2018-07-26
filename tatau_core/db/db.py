@@ -135,7 +135,7 @@ class DB:
             asset=transfer_asset,
             inputs=transfer_input,
             recipients=(
-                    recipients or self.kp.public_key
+                recipients or self.kp.public_key
             ),
             metadata=metadata,
         )

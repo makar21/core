@@ -121,6 +121,9 @@ class Producer(Node):
         self._process_task_declaration(task_declaration)
 
     def _process_task_declaration(self, task_declaration):
+        if task_declaration.state == TaskDeclaration.State.FAILED:
+            return
+
         if not task_declaration.ready_for_start():
             return
 
@@ -138,6 +141,12 @@ class Producer(Node):
                 )
 
                 for task_assignment in task_assignments:
+                    if task_assignment.error is not None:
+                        logger.info('{} is failed'.format(task_declaration))
+                        task_declaration.state = TaskDeclaration.State.FAILED
+                        task_declaration.save()
+                        return
+
                     task_declaration.results.append({
                         'worker_id': task_assignment.worker_id,
                         'result': task_assignment.result,
@@ -384,7 +393,7 @@ class Producer(Node):
         while True:
             try:
                 task_declaration = TaskDeclaration.get(asset_id)
-                if task_declaration.state == TaskDeclaration.State.COMPLETED:
+                if task_declaration.state in (TaskDeclaration.State.COMPLETED, TaskDeclaration.State.FAILED):
                     break
 
                 self._process_performers(task_declaration)
@@ -398,7 +407,7 @@ class Producer(Node):
                 # remove infinity loop
                 counter += 1
                 if counter == 1000:
-                    task_declaration.state = TaskDeclaration.State.COMPLETED
+                    task_declaration.state = TaskDeclaration.State.FAILED
                     task_declaration.save()
                     break
 
@@ -409,7 +418,7 @@ class Producer(Node):
         while True:
             try:
                 for task_declaration in TaskDeclaration.enumerate():
-                    if task_declaration.state == TaskDeclaration.State.COMPLETED:
+                    if task_declaration.state in (TaskDeclaration.State.COMPLETED, TaskDeclaration.State.FAILED):
                         continue
 
                     self._process_performers(task_declaration)

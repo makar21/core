@@ -30,6 +30,9 @@ class Verifier(Node):
         self._process_task_declaration(task_declaration)
 
     def _process_task_declaration(self, task_declaration):
+        if task_declaration.state in (TaskDeclaration.State.COMPLETED, TaskDeclaration.State.FAILED):
+            return
+
         exists = VerificationAssignment.exists(
             additional_match={
                 'assets.data.verifier_id': self.asset_id,
