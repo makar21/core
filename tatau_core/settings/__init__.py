@@ -33,8 +33,8 @@ WORKER_PROCESS_INTERVAL = int(os.getenv('WORKER_PROCESS_INTERVAL', 5))
 VERIFIER_PROCESS_INTERVAL = int(os.getenv('VERIFIER_PROCESS_INTERVAL', 5))
 
 
-GPU_TFLOPS = int(os.getenv('GPU_TFLOPS', 10000))
-CPU_TFLOPS = int(os.getenv('CPU_TFLOPS', 10000))
+GPU_TFLOPS = float(os.getenv('GPU_TFLOPS', 2.9))
+CPU_TFLOPS = float(os.getenv('CPU_TFLOPS', 1.1))
 
 
 RING_NAME = os.getenv('RING', '')
