@@ -1,10 +1,89 @@
-# Quick start
+# Setup worker
 
 ```shell
 cp .env.example .env
+
 cp docker/docker.env.example docker/docker.env
+
+RING="your ring key" && echo -e "\nRING=$RING" >> .env
+
 bin/core-up <cpu|gpu>
+
+# Fix tendermint volume permissions
+sudo chmod -R 755 docker/volumes
+
 ```
+
+# Deploy train job
+
+#### Prepare stack
+
+```shell
+
+cp .env.example .env
+
+cp docker/docker.env.example docker/docker.env
+
+RING="your ring key" && echo -e "\nRING=$RING" >> .env
+
+docker-compose -f common.yml -f producer.yml up -d
+
+# Fix tendermint volume permissions
+sudo chmod -R 755 docker/volumes
+
+```
+
+#### Wait for blockchain synchronization
+```shell
+docker logs tatau_core_tendermint_this_1 -f --tail 0
+```
+
+#### Deploy train job via local producer
+
+```shell
+# Set number of workers
+export WORKERS=10
+
+# Deploy cifar10 job
+docker exec -it tatau_core_producer_1 sh -c "\
+cd examples/keras/cifar10/ && \
+wget https://s3.amazonaws.com/tatau-public/datasets/cifar10/x_test.npy && \
+wget https://s3.amazonaws.com/tatau-public/datasets/cifar10/y_test.npy && \
+wget https://s3.amazonaws.com/tatau-public/datasets/cifar10/x_train.npy && \
+wget https://s3.amazonaws.com/tatau-public/datasets/cifar10/y_train.npy && \
+cd /app && \
+python add-task.py \
+    --local=0 \
+    --workers=$WORKERS \
+    --epochs=1 \
+    --batch=32 \
+    --dataset=examples/keras/cifar10 \
+    --path=examples/keras/cifar10/resnet.py"
+```
+
+In output you will see **Train job created**
+```
+2018-07-26 14:28:21,701 P28 INFO |__main__| Upload weights to IPFS
+2018-07-26 14:28:21,912 P28 INFO |root| Creating dataset
+2018-07-26 14:28:22,047 P28 INFO |root| Split dataset to 60 batches
+2018-07-26 14:28:22,105 P28 INFO |root| Upload dataset to IPFS
+2018-07-26 14:28:22,508 P28 INFO |root| Dataset was uploaded
+2018-07-26 14:28:23,548 P28 INFO |__main__| Dataset created: <Dataset: 69d878d5bef2248255c87b805e4dea605e12368843a2fb89dbbeeafad77f28b2>
+2018-07-26 14:28:23,549 P28 INFO |__main__| Create model
+2018-07-26 14:28:24,347 P28 DEBUG |__main__| Model created: <TrainModel: b158c1ef62dc280c79ea43bd27862d64744fa26737781d582afa02887731d0da>
+2018-07-26 14:28:24,347 P28 INFO |__main__| Create train job
+2018-07-26 14:28:25,379 P28 DEBUG |__main__| Train job created: <TaskDeclaration: d3a2b3e05bbf581078cb16bfd460b15479e11d1ca5203c31105cba11ef3c01d6>
+```
+
+Copy Task Declaration ID, in current case it: `d3a2b3e05bbf581078cb16bfd460b15479e11d1ca5203c31105cba11ef3c01d6`
+
+#### Start Training Monitor
+```shell
+docker exec -it tatau_core_producer_1 python train-monitor.py -t d3a2b3e05bbf581078cb16bfd460b15479e11d1ca5203c31105cba11ef3c01d6
+```
+
+
+
 
 # Examples
 
@@ -25,43 +104,6 @@ cp .env.example .env
 docker-compose up
 
 ```
-
-# Start train and monitor
-
-Start docker containers
-
-```shell
-bin/core-up cpu
-
-```
-
-Add task
-
-```shell
-docker exec -it tatau_core_producer_1 python  add-task.py -l 0
-```
-
-In output you will see:
-```shell
-2018-07-26 14:28:21,701 P28 INFO |__main__| Upload weights to IPFS
-2018-07-26 14:28:21,912 P28 INFO |root| Creating dataset
-2018-07-26 14:28:22,047 P28 INFO |root| Split dataset to 60 batches
-2018-07-26 14:28:22,105 P28 INFO |root| Upload dataset to IPFS
-2018-07-26 14:28:22,508 P28 INFO |root| Dataset was uploaded
-2018-07-26 14:28:23,548 P28 INFO |__main__| Dataset created: <Dataset: 69d878d5bef2248255c87b805e4dea605e12368843a2fb89dbbeeafad77f28b2>
-2018-07-26 14:28:23,549 P28 INFO |__main__| Create model
-2018-07-26 14:28:24,347 P28 DEBUG |__main__| Model created: <TrainModel: b158c1ef62dc280c79ea43bd27862d64744fa26737781d582afa02887731d0da>
-2018-07-26 14:28:24,347 P28 INFO |__main__| Create train job
-2018-07-26 14:28:25,379 P28 DEBUG |__main__| Train job created: <TaskDeclaration: d3a2b3e05bbf581078cb16bfd460b15479e11d1ca5203c31105cba11ef3c01d6>
-```
-
-Copy Task Declaration ID, in current case it: `d3a2b3e05bbf581078cb16bfd460b15479e11d1ca5203c31105cba11ef3c01d6`
-
-And run:
-```shell
-docker exec -it tatau_core_producer_1 python  train-monitor.py -t d3a2b3e05bbf581078cb16bfd460b15479e11d1ca5203c31105cba11ef3c01d6
-```
-
 
 # Encryption
 

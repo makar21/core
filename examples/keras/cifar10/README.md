@@ -1,4 +1,4 @@
-# Download dataset
+# Local test
 
 ```shell
 bin/download-cifar10
