@@ -1,6 +1,6 @@
 import numpy
 from .tatau import TatauModel, TrainProgress
-from keras.callbacks import Callback
+from keras.callbacks import Callback, History
 import keras
 
 
@@ -54,7 +54,12 @@ class KerasModel(TatauModel):
         history = self.native_model.fit(
             x=x, y=y, batch_size=batch_size, epochs=nb_epochs, verbose=1, callbacks=callbacks)
 
-        return history
+        train_history = dict()
+
+        for metric in history.history.keys():
+            train_history[metric] = [float(val) for val in history.history[metric]]
+
+        return train_history
 
     def eval(self, x: numpy.array, y: numpy.array):
         x, y = self.data_preprocessing(x, y)
