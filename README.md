@@ -1,9 +1,44 @@
-# Quick start
+# Setup worker
 
 ```shell
 cp .env.example .env
+
 cp docker/docker.env.example docker/docker.env
-bin/core-up <cpu|gpu>
+
+RING="your ring key" && echo -e "\nRING=$RING" >> .env
+
+bin/core-up <cpu|gpu> #
+```
+
+# Deploy train job
+```shell
+
+cp .env.example .env
+
+cp docker/docker.env.example docker/docker.env
+
+RING="your ring key" && echo -e "\nRING=$RING" >> .env
+
+docker-compose -f common.yml -f producer.yml up -d
+
+# Fix tendermint volume permissions
+sudo chmod -R 755 docker/volumes
+
+export WORKERS=10
+docker exec -it tatau_producer_1 sh -c "\
+cd examples/keras/cifar10/ && \
+wget https://s3.amazonaws.com/tatau-public/datasets/cifar10/x_test.npy && \
+wget https://s3.amazonaws.com/tatau-public/datasets/cifar10/y_test.npy && \
+wget https://s3.amazonaws.com/tatau-public/datasets/cifar10/x_train.npy && \
+wget https://s3.amazonaws.com/tatau-public/datasets/cifar10/y_train.npy && \
+cd /app && \
+python add-task.py \
+    --local=0 \
+    --workers=$WORKERS \
+    --epochs=1 \
+    --batch=32 \
+    --dataset=examples/keras/cifar10 \
+    --path=examples/keras/cifar10/resnet.py"
 ```
 
 # Examples
