@@ -97,4 +97,4 @@ class Snapshot(object):
     def calc_tflops(self):
         gpu_tflops = settings.GPU_TFLOPS
         cpu_tflops = settings.CPU_TFLOPS
-        return int(self.average_gpu_load * gpu_tflops + self.average_cpu_load * cpu_tflops)
+        return float(self.average_gpu_load * gpu_tflops + self.average_cpu_load * cpu_tflops)
