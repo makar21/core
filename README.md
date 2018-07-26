@@ -9,6 +9,7 @@ bin/core-up <cpu|gpu>
 # Examples
 
 [Keras Cifar10 ResNet V2](examples/keras/cifar10/README.md)
+
 [Keras MNIST](examples/keras/mnist/README.md)
 
 # Local setup
