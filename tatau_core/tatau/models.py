@@ -111,7 +111,7 @@ class TaskDeclaration(models.Model):
     state = fields.CharField(initial=State.DEPLOYMENT)
     current_epoch = fields.IntegerField(initial=0)
     progress = fields.IntegerField(initial=0)
-    tflops = fields.IntegerField(initial=0)
+    tflops = fields.FloatField(initial=0.0)
     results = fields.EncryptedJsonField(initial=[])
 
     @cached_property
@@ -273,7 +273,7 @@ class TaskAssignment(models.Model):
     current_epoch = fields.IntegerField(initial=0)
 
     progress = fields.IntegerField(initial=0)
-    tflops = fields.IntegerField(initial=0)
+    tflops = fields.FloatField(initial=0.0)
 
     result = fields.EncryptedCharField(required=False)
     loss = fields.FloatField(required=False)
@@ -312,7 +312,7 @@ class VerificationAssignment(models.Model):
     train_results = fields.EncryptedJsonField(required=False)
 
     progress = fields.IntegerField(initial=0)
-    tflops = fields.IntegerField(initial=0)
+    tflops = fields.FloatField(initial=0.0)
     result = fields.EncryptedJsonField(required=False)
     error = fields.EncryptedCharField(required=False)
 
