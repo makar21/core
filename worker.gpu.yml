@@ -10,6 +10,8 @@ services:
     runtime: nvidia
     env_file:
       - ./docker/docker.env
+    environment:
+      RING: $RING
     volumes:
       - ./keys/${RING}:/app/keys
     restart: always
