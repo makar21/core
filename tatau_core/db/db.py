@@ -1,15 +1,10 @@
 import json
 
-import nacl.signing
-import requests
-
-from cryptoconditions.crypto import Base58Encoder
-
 import bigchaindb_driver.exceptions
-
+import nacl.signing
 from bigchaindb_driver import BigchainDB
 from bigchaindb_driver.crypto import CryptoKeypair, generate_keypair
-
+from cryptoconditions.crypto import Base58Encoder
 from pymongo import MongoClient
 
 from tatau_core import settings
@@ -29,6 +24,7 @@ class DB:
     def __init__(self):
         self.mongo_client = None
         self.mongo_db = None
+        self.kp = None
 
     def connect_to_mongodb(self):
         if self.mongo_db is None or self.mongo_client is None:
@@ -98,8 +94,6 @@ class DB:
                 created = False
         except bigchaindb_driver.exceptions.TransportError as e:
             self.bdb.transactions.send_sync(fulfilled_create_tx)
-        except requests.exceptions.ConnectionError as e:
-            self.bdb.transactions.send_sync(fulfilled_create_tx)
 
         txid = fulfilled_create_tx['id']
         return (txid, created)
@@ -141,7 +135,7 @@ class DB:
             asset=transfer_asset,
             inputs=transfer_input,
             recipients=(
-                recipients or self.kp.public_key
+                    recipients or self.kp.public_key
             ),
             metadata=metadata,
         )

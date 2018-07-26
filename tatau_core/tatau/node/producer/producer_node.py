@@ -65,6 +65,7 @@ class Producer(Node):
             return
 
         if task_assignment.state == TaskAssignment.State.IN_PROGRESS:
+            # check timeout
             pass
 
         if task_assignment.state == TaskAssignment.State.FINISHED:
@@ -100,6 +101,7 @@ class Producer(Node):
             return
 
         if verification_assignment.state == VerificationAssignment.State.IN_PROGRESS:
+            # check timeout
             pass
 
         if verification_assignment.state == VerificationAssignment.State.FINISHED:
@@ -265,7 +267,7 @@ class Producer(Node):
                 fake_worker_indexes.append(task_assignment.train_data['worker_index'])
 
         if len(fake_worker_indexes):
-            # epoch is not finished if task assignments with accepted states are present
+            # epoch is not finished if task assignments with "accepted" and "fake results" states are present
             reassign_performed = False
             for task_assignment in task_assignments:
                 if task_assignment.state == TaskAssignment.State.ACCEPTED:

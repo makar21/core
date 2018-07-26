@@ -78,8 +78,8 @@ class Worker(Node):
         self._process_task_assignment(task_assignment)
 
     def _process_task_assignment(self, task_assignment):
-        logger.info('{} process {} state:{}'.format(self, task_assignment, task_assignment.state))
-        # skip assignment that the worker has started working on
+        logger.debug('{} process {} state:{}'.format(self, task_assignment, task_assignment.state))
+
         if task_assignment.state == TaskAssignment.State.RETRY:
             task_assignment.state = TaskAssignment.State.INITIAL
             task_assignment.save(recipients=task_assignment.producer.address)
@@ -103,7 +103,7 @@ class Worker(Node):
             work_process.start()
 
             # work_process.join()
-            #
+
             # # retry if failed work
             # task_assignment = TaskAssignment.get(task_assignment.asset_id)
             # if task_assignment.state == TaskAssignment.State.IN_PROGRESS:
