@@ -5,7 +5,7 @@ class WorkerInterprocess:
     def __init__(self):
         self._event_start_collect_metrics = Event()
         self._event_stop = Event()
-        self._tflops = Value('i', 0)
+        self._tflops = Value('d', 0.0)
         self._tflops_lock = RLock()
 
     def get_tflops(self):
