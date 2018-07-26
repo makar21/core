@@ -339,6 +339,7 @@ class Producer(Node):
 
         for verification_assignment in verification_assignments:
             verification_assignment.train_results = task_declaration.results
+            verification_assignment.result = None
             verification_assignment.state = VerificationAssignment.State.DATA_IS_READY
             verification_assignment.set_encryption_key(verification_assignment.verifier.enc_key)
             verification_assignment.save(recipients=verification_assignment.verifier.address)
