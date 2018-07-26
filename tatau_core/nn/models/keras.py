@@ -1,7 +1,7 @@
 import numpy
 from .tatau import TatauModel, TrainProgress
-from keras.models import Sequential
 from keras.callbacks import Callback
+import keras
 
 
 class ProgressCallback(Callback):
@@ -20,12 +20,15 @@ class ProgressCallback(Callback):
 
 class KerasModel(TatauModel):
 
+    def get_keras_callbacks(self):
+        return []
+
     @classmethod
     def native_model_factory(cls):
         """
-        Construct Keras Sequential
+        Construct Keras Model
         :return: model
-        :rtype: Sequential
+        :rtype: keras.models.Model
         """
         raise NotImplementedError()
 
@@ -43,6 +46,8 @@ class KerasModel(TatauModel):
         callbacks = [
             ProgressCallback(nb_epochs=nb_epochs, train_progress=train_progress)
         ]
+
+        callbacks.extend(self.get_keras_callbacks())
 
         x, y = self.data_preprocessing(x, y)
 
