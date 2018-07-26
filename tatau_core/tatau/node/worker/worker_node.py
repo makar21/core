@@ -83,6 +83,10 @@ class Worker(Node):
     def _process_task_assignment(self, task_assignment):
         logger.debug('{} process {} state:{}'.format(self, task_assignment, task_assignment.state))
 
+        if task_assignment.state == TaskAssignment.State.IN_PROGRESS:
+            if task_assignment.task_declaration.state == TaskDeclaration.State.EPOCH_IN_PROGRESS:
+                task_assignment.state = TaskAssignment.State.DATA_IS_READY
+
         if task_assignment.state == TaskAssignment.State.RETRY:
             task_assignment.state = TaskAssignment.State.INITIAL
             task_assignment.save(recipients=task_assignment.producer.address)
@@ -104,8 +108,7 @@ class Worker(Node):
                 args=(task_assignment.asset_id, interprocess),
             )
             work_process.start()
-
-            # work_process.join()
+            work_process.join()
 
             # # retry if failed work
             # task_assignment = TaskAssignment.get(task_assignment.asset_id)
