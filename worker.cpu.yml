@@ -9,6 +9,8 @@ services:
     command: sh -c "python worker-no-socket.py"
     env_file:
       - ./docker/docker.env
+    environment:
+      RING: $RING
     volumes:
       - ./keys/${RING}:/app/keys
     restart: always
@@ -17,3 +19,4 @@ services:
       - bigchaindb_this:bigchaindb
       - mongodb_this:mongodb
       - tendermint_this:tendermint
+
