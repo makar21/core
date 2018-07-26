@@ -7,7 +7,11 @@ cp docker/docker.env.example docker/docker.env
 
 RING="your ring key" && echo -e "\nRING=$RING" >> .env
 
-bin/core-up <cpu|gpu> #
+bin/core-up <cpu|gpu>
+
+# Fix tendermint volume permissions
+sudo chmod -R 755 docker/volumes
+
 ```
 
 # Deploy train job
@@ -73,7 +77,7 @@ In output you will see **Train job created**
 
 Copy Task Declaration ID, in current case it: `d3a2b3e05bbf581078cb16bfd460b15479e11d1ca5203c31105cba11ef3c01d6`
 
-#### Run Train Monitor
+#### Start Training Monitor
 ```shell
 docker exec -it tatau_core_producer_1 python train-monitor.py -t d3a2b3e05bbf581078cb16bfd460b15479e11d1ca5203c31105cba11ef3c01d6
 ```
