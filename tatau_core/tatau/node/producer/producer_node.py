@@ -121,7 +121,7 @@ class Producer(Node):
         self._process_task_declaration(task_declaration)
 
     def _process_task_declaration(self, task_declaration):
-        if task_declaration.state == TaskDeclaration.State.FAILED:
+        if task_declaration.state in (TaskDeclaration.State.FAILED, TaskDeclaration.State.COMPLETED):
             return
 
         if not task_declaration.ready_for_start():
