@@ -115,3 +115,4 @@ testnet/config
 testnet/tatau
 tmdata/local
 docker/docker.env
+examples/keras/cifar10/*.npy

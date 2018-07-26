@@ -1,0 +1,8 @@
+#!/bin/bash
+project_dir=$PWD
+cd examples/keras/cifar10/
+curl https://s3.amazonaws.com/tatau-public/datasets/cifar10/x_test.npy -O
+curl https://s3.amazonaws.com/tatau-public/datasets/cifar10/y_test.npy -O
+curl https://s3.amazonaws.com/tatau-public/datasets/cifar10/x_train.npy -O
+curl https://s3.amazonaws.com/tatau-public/datasets/cifar10/y_train.npy -O
+cd $project_dir
