@@ -1,6 +1,6 @@
 import numpy
 from .tatau import TatauModel, TrainProgress
-from keras.callbacks import Callback, History
+from keras.callbacks import Callback
 import keras
 
 
