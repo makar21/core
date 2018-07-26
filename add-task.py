@@ -27,7 +27,8 @@ def train_local(x_train_path, y_train_path, x_test_path, y_test_path, model_path
 
     model.train(x=x_train, y=y_train, batch_size=batch_size, nb_epochs=epochs, train_progress=LocalProgress())
     loss, acc = model.eval(x=x_test, y=y_test)
-    print('loss:{}, acc:{}'.format(loss, acc))
+
+    print('loss({}):{}, acc({}):{}'.format(loss.__class__.__name__, loss, acc.__class__.__name__, acc))
 
 
 def train_remote(x_train_path, y_train_path, x_test_path, y_test_path, args):
