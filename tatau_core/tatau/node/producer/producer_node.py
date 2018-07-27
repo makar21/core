@@ -176,6 +176,7 @@ class Producer(Node):
 
                 self._summarize_epoch_results(task_declaration)
                 if task_declaration.all_done():
+                    task_declaration.progress = 100.0
                     task_declaration.state = TaskDeclaration.State.COMPLETED
                     task_declaration.save()
                     logger.info('{} is finished'.format(task_declaration))
