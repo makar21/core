@@ -55,6 +55,7 @@ class Producer(Node):
             if task_declaration.is_task_assignment_allowed(task_assignment):
                 task_assignment.state = TaskAssignment.State.ACCEPTED
                 task_assignment.save()
+                logger.info('Accept {} for {}'.format(task_assignment, task_declaration))
 
                 task_declaration.workers_needed -= 1
                 if save:
@@ -62,6 +63,7 @@ class Producer(Node):
             else:
                 task_assignment.state = TaskAssignment.State.REJECTED
                 task_assignment.save()
+                logger.info('Reject {} for {} (No more workers needed)'.format(task_assignment, task_declaration))
             return
 
         if task_assignment.state == TaskAssignment.State.IN_PROGRESS:
@@ -91,6 +93,7 @@ class Producer(Node):
             if task_declaration.is_verification_assignment_allowed(verification_assignment):
                 verification_assignment.state = VerificationAssignment.State.ACCEPTED
                 verification_assignment.save()
+                logger.info('Accept {} for {}'.format(verification_assignment, task_declaration))
 
                 task_declaration.verifiers_needed -= 1
                 if save:
@@ -98,6 +101,8 @@ class Producer(Node):
             else:
                 verification_assignment.state = VerificationAssignment.State.REJECTED
                 verification_assignment.save()
+                logger.info('Reject {} for {} (No more verifiers needed)'.format(
+                    verification_assignment, task_declaration))
             return
 
         if verification_assignment.state == VerificationAssignment.State.IN_PROGRESS:
@@ -175,6 +180,9 @@ class Producer(Node):
                     return
 
                 self._summarize_epoch_results(task_declaration)
+                logger.info('Summarization for {} is finished, loss: {}, accuracy: {}'.format(
+                    task_declaration, task_declaration.loss, task_declaration.accuracy))
+
                 if task_declaration.all_done():
                     task_declaration.progress = 100.0
                     task_declaration.state = TaskDeclaration.State.COMPLETED
@@ -182,6 +190,9 @@ class Producer(Node):
                     logger.info('{} is finished'.format(task_declaration))
                 else:
                     self._assign_train_data(task_declaration)
+            else:
+                logger.info('{} verification for epoch {} is not ready'.format(
+                    task_declaration, task_declaration.current_epoch))
             return
 
     def _process_verification_results(self, task_declaration):
@@ -200,6 +211,7 @@ class Producer(Node):
                         fake_workers[result['worker_id']] = 1
 
         if fake_workers:
+            logger.info('Found fake workers')
             for worker_id in fake_workers.keys():
                 task_assignments = TaskAssignment.list(
                     additional_match={
@@ -213,6 +225,8 @@ class Producer(Node):
                 task_assignment = task_assignments[0]
                 task_assignment.state = TaskAssignment.State.FAKE_RESULTS
                 task_assignment.save()
+
+                logger.info('{} did fake results for {}'.format(task_assignment.worker, task_declaration))
 
                 task_declaration.workers_needed += 1
 

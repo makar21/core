@@ -110,12 +110,6 @@ class Worker(Node):
             work_process.start()
             work_process.join()
 
-            # # retry if failed work
-            # task_assignment = TaskAssignment.get(task_assignment.asset_id)
-            # if task_assignment.state == TaskAssignment.State.IN_PROGRESS:
-            #     task_assignment.state = TaskAssignment.State.DATA_IS_READY
-            #     task_assignment.save()
-
     # TODO: refactor to iterable
     @classmethod
     def _load_dataset(cls, train_x_paths, train_y_paths, test_x_path, test_y_path):
@@ -149,6 +143,8 @@ class Worker(Node):
         logger.info('Train data: {}'.format(task_assignment.train_data))
 
         model_code = ipfs.read(task_assignment.train_data['model_code'])
+        logger.info('model code successfully downloaded')
+
         batch_size = task_assignment.train_data['batch_size']
 
         target_dir = tempfile.mkdtemp()
@@ -156,14 +152,21 @@ class Worker(Node):
         train_x_paths = deque()
         for x_train in task_assignment.train_data['x_train_ipfs']:
             train_x_paths.append(ipfs.download(x_train, target_dir))
+        logger.info('x_train is downloaded')
 
         train_y_paths = deque()
         for y_train in task_assignment.train_data['y_train_ipfs']:
             train_y_paths.append(ipfs.download(y_train, target_dir))
+        logger.info('y_train is downloaded')
 
         test_x_path = ipfs.download(task_assignment.train_data['x_test_ipfs'], target_dir)
+        logger.info('x_test is downloaded')
+
         test_y_path = ipfs.download(task_assignment.train_data['y_test_ipfs'], target_dir)
+        logger.info('y_test is downloaded')
+
         initial_weights_path = ipfs.download(task_assignment.train_data['initial_weights'], target_dir)
+        logger.info('initial weights are downloaded')
 
         try:
             model_code_path = os.path.join(target_dir, '{}.py'.format(asset_id))
@@ -181,16 +184,20 @@ class Worker(Node):
             try:
                 x_train, y_train, x_test, y_test = self._load_dataset(
                     train_x_paths, train_y_paths, test_x_path, test_y_path)
+                logger.info('Dataset is loaded')
 
                 weights_file = np.load(initial_weights_path)
-
                 initial_weights = [weights_file[r] for r in weights_file.files]
+                logger.info('Initial weights are loaded')
 
                 model = TatauModel.load_model(path=model_code_path)
+                logger.info('Model is loaded')
+
                 model.set_weights(weights=initial_weights)
                 task_assignment.train_history = model.train(
                     x=x_train, y=y_train, batch_size=batch_size, nb_epochs=1, train_progress=progress)
 
+                logger.info('Start training')
                 loss, accuracy = model.eval(x=x_test, y=y_test)
                 task_assignment.loss = loss
                 task_assignment.accuracy = accuracy
@@ -201,6 +208,7 @@ class Worker(Node):
 
                 ipfs_file = ipfs.add_file(weights_file_path)
                 task_assignment.result = ipfs_file.multihash
+                logger.info('Result weights are uploaded')
             except Exception as e:
                 error_dict = {'exception': type(e).__name__}
                 msg = str(e)
