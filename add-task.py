@@ -65,10 +65,12 @@ def train_remote(x_train_path, y_train_path, x_test_path, y_test_path, args):
 
     os.unlink(initial_weights_path)
 
+    dataset_name = os.path.basename(args.dataset)
+
     dataset = Dataset.upload_and_create(
         db=producer.db,
         encryption=producer.encryption,
-        name=args.name,
+        name=dataset_name,
         x_train_path=x_train_path,
         y_train_path=y_train_path,
         x_test_path=x_test_path,
@@ -113,7 +115,6 @@ def main():
     parser.add_argument('-e', '--epochs', default=3, type=int, metavar='EPOCHS', help='epochs')
     parser.add_argument('-l', '--local', default=1, type=int, metavar='LOCAL', help='train model local')
     args = parser.parse_args()
-    dataset_name = os.path.basename(args.dataset)
 
     x_train_path = os.path.join(args.dataset, 'x_train.npy')
     y_train_path = os.path.join(args.dataset, 'y_train.npy')

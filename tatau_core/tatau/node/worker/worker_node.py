@@ -191,9 +191,8 @@ class Worker(Node):
                 task_assignment.train_history = model.train(
                     x=x_train, y=y_train, batch_size=batch_size, nb_epochs=1, train_progress=progress)
 
-                loss, accuracy = model.eval(x=x_test, y=y_test)
-                task_assignment.loss = loss
-                task_assignment.accuracy = accuracy
+                task_assignment.loss = task_assignment.train_history['loss'][-1]
+                task_assignment.accuracy = task_assignment.train_history['acc'][-1]
 
                 weights = model.get_weights()
                 weights_file_path = os.path.join(target_dir, 'train_weights.npz')
@@ -211,6 +210,7 @@ class Worker(Node):
                 logger.exception(e)
 
             interprocess.stop_collect_metrics()
+            # TODO: wrap in method task_assignment.train_finished(tflops)
             task_assignment.tflops = interprocess.get_tflops()
             task_assignment.progress = 100
             task_assignment.state = TaskAssignment.State.FINISHED
