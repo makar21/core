@@ -110,12 +110,6 @@ class Worker(Node):
             work_process.start()
             work_process.join()
 
-            # # retry if failed work
-            # task_assignment = TaskAssignment.get(task_assignment.asset_id)
-            # if task_assignment.state == TaskAssignment.State.IN_PROGRESS:
-            #     task_assignment.state = TaskAssignment.State.DATA_IS_READY
-            #     task_assignment.save()
-
     # TODO: refactor to iterable
     @classmethod
     def _load_dataset(cls, train_x_paths, train_y_paths, test_x_path, test_y_path):
@@ -188,6 +182,8 @@ class Worker(Node):
 
                 model = TatauModel.load_model(path=model_code_path)
                 model.set_weights(weights=initial_weights)
+                logger.info('Start training')
+
                 task_assignment.train_history = model.train(
                     x=x_train, y=y_train, batch_size=batch_size, nb_epochs=1, train_progress=progress)
 
@@ -210,7 +206,6 @@ class Worker(Node):
                 logger.exception(e)
 
             interprocess.stop_collect_metrics()
-            # TODO: wrap in method task_assignment.train_finished(tflops)
             task_assignment.tflops = interprocess.get_tflops()
             task_assignment.progress = 100
             task_assignment.state = TaskAssignment.State.FINISHED
