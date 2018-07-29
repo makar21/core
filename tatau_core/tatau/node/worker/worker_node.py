@@ -184,9 +184,11 @@ class Worker(Node):
             try:
                 x_train, y_train, x_test, y_test = self._load_dataset(
                     train_x_paths, train_y_paths, test_x_path, test_y_path)
+
                 logger.info('Dataset is loaded')
 
                 weights_file = np.load(initial_weights_path)
+
                 initial_weights = [weights_file[r] for r in weights_file.files]
                 logger.info('Initial weights are loaded')
 
@@ -194,21 +196,22 @@ class Worker(Node):
                 logger.info('Model is loaded')
 
                 model.set_weights(weights=initial_weights)
+                logger.info('Start training')
+
                 task_assignment.train_history = model.train(
                     x=x_train, y=y_train, batch_size=batch_size, nb_epochs=1, train_progress=progress)
 
-                logger.info('Start training')
-                loss, accuracy = model.eval(x=x_test, y=y_test)
-                task_assignment.loss = loss
-                task_assignment.accuracy = accuracy
+                task_assignment.loss = task_assignment.train_history['loss'][-1]
+                task_assignment.accuracy = task_assignment.train_history['acc'][-1]
 
                 weights = model.get_weights()
                 weights_file_path = os.path.join(target_dir, 'train_weights.npz')
                 np.savez(weights_file_path, *weights)
 
                 ipfs_file = ipfs.add_file(weights_file_path)
-                task_assignment.result = ipfs_file.multihash
                 logger.info('Result weights are uploaded')
+
+                task_assignment.result = ipfs_file.multihash
             except Exception as e:
                 error_dict = {'exception': type(e).__name__}
                 msg = str(e)

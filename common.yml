@@ -18,13 +18,15 @@ services:
 #      - tendermint_node2
 #      - tendermint_node3
 
+
   mongodb_this:
-    image: mongo:3.6
+    image: mongo:3.7
     ports:
-      - "127.0.0.1:27017:27017"
+      - "27017:27017/tcp"
     volumes:
       - ./docker/volumes/$NET_NAME/mono/this:/data/db
     restart: always
+
 
   bigchaindb_this:
     image: bigchaindb/bigchaindb:2.0.0-beta3
@@ -44,9 +46,9 @@ services:
       BIGCHAINDB_TENDERMINT_HOST: tendermint
       BIGCHAINDB_TENDERMINT_PORT: 26657
     ports:
-      - "127.0.0.1:9984:9984"
-      - "127.0.0.1:9985:9985"
-      - "127.0.0.1:26658:26658"
+      - "9984:9984"
+      - "9985:9985"
+      # - "127.0.0.1:26658:26658"
     volumes:
       - ./docker/volumes/$NET_NAME/bigchaindb/this/data:/data
       - ./docker/volumes/$NET_NAME/bigchaindb/this/certs:/certs
@@ -59,13 +61,13 @@ services:
     restart: always
 
   ipfs:
-    image: ipfs/go-ipfs:v0.4.16
+    image: ipfs/go-ipfs:v0.4.17
     volumes:
-      - ./docker/volumes/$NET_NAME/ipfs/staging:/export
-      - ./docker/volumes/$NET_NAME/ipfs/data:/data/ipfs
+      - ./docker/volumes/ipfs/staging:/export
+      - ./docker/volumes/ipfs/data:/data/ipfs
     ports:
       - "4001:4001"
-      - "127.0.0.1:8080:8080"
-      - "127.0.0.1:5001:5001"
+      - "8080:8080"
+      - "5001:5001"
     restart: always
 
