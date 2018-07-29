@@ -17,9 +17,6 @@ services:
 #      - tendermint_node1
 #      - tendermint_node2
 #      - tendermint_node3
-    networks:
-      localnet:
-        ipv4_address: 172.16.238.5
 
 
   mongodb_this:
@@ -29,9 +26,6 @@ services:
     volumes:
       - ./docker/volumes/$NET_NAME/mono/this:/data/db
     restart: always
-    networks:
-      localnet:
-        ipv4_address: 172.16.238.2
 
 
   bigchaindb_this:
