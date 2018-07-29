@@ -17,14 +17,22 @@ services:
 #      - tendermint_node1
 #      - tendermint_node2
 #      - tendermint_node3
+    networks:
+      localnet:
+        ipv4_address: 172.16.238.5
+
 
   mongodb_this:
-    image: mongo:3.6
+    image: mongo:3.7
     ports:
-      - "127.0.0.1:27017:27017"
+      - "27017:27017/tcp"
     volumes:
       - ./docker/volumes/$NET_NAME/mono/this:/data/db
     restart: always
+    networks:
+      localnet:
+        ipv4_address: 172.16.238.2
+
 
   bigchaindb_this:
     image: bigchaindb/bigchaindb:2.0.0-beta3
