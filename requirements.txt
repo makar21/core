@@ -30,3 +30,6 @@ yarl
 keras
 tensorflow
 python-dotenv
+
+#For debug
+ipython==6.4.0
