@@ -59,13 +59,20 @@ services:
     restart: always
 
   ipfs:
-    image: ipfs/go-ipfs:v0.4.16
+    image: ipfs/go-ipfs:v0.4.17
     volumes:
-      - ./docker/volumes/$NET_NAME/ipfs/staging:/export
-      - ./docker/volumes/$NET_NAME/ipfs/data:/data/ipfs
+      - ipfs_staging:/export
+      - ipfs_data:/data/ipfs
     ports:
       - "4001:4001"
       - "127.0.0.1:8080:8080"
       - "127.0.0.1:5001:5001"
     restart: always
+
+
+volumes:
+  ipfs_staging:
+    driver: local
+  ipfs_data:
+    driver: local
 
