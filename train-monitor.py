@@ -140,11 +140,11 @@ def get_progress_data(task_declaration):
 
         if verification_assignment.state != VerificationAssignment.State.FINISHED:
             data['verifiers'][verifier_id].append({
-                'asset_id': verification_assignment.worker_id,
+                'asset_id': verification_assignment.verifier_id,
                 'state': verification_assignment.state,
                 'progress': verification_assignment.progress,
                 'spent_tflops': verification_assignment.tflops,
-                'result': verification_assignment.result
+                'result': None
             })
 
     return data
