@@ -1,20 +1,16 @@
-# Setup worker
+# Setup Worker
 
 ```shell
 cp .env.example .env
-
-cp docker/docker.env.example docker/docker.env
 
 RING="your ring key" && echo -e "\nRING=$RING" >> .env
 
 bin/core-up <cpu|gpu>
 
-# Fix tendermint volume permissions
-sudo chmod -R 755 docker/volumes
 
 ```
 
-# Deploy train job
+# Deploy Train Job
 
 #### Prepare stack
 
@@ -22,28 +18,20 @@ sudo chmod -R 755 docker/volumes
 
 cp .env.example .env
 
-cp docker/docker.env.example docker/docker.env
-
 RING="your ring key" && echo -e "\nRING=$RING" >> .env
 
 docker-compose -f common.yml -f producer.yml up -d
 
-# Fix tendermint volume permissions
-sudo chmod -R 755 docker/volumes
-
 ```
 
-#### Wait for blockchain synchronization
+#### Wait for Blockchain Synchronization
 ```shell
 docker logs tatau_core_tendermint_this_1 -f --tail 0
 ```
 
-#### Deploy train job via local producer
+#### Deploy Train Job via Local Producer
 
 ```shell
-# Set number of workers
-export WORKERS=10
-
 # Deploy cifar10 job
 docker exec -it tatau_core_producer_1 sh -c "\
 cd examples/keras/cifar10/ && \
@@ -54,7 +42,7 @@ wget https://s3.amazonaws.com/tatau-public/datasets/cifar10/y_train.npy && \
 cd /app && \
 python add-task.py \
     --local=0 \
-    --workers=$WORKERS \
+    --workers=1 \
     --epochs=1 \
     --batch=32 \
     --dataset=examples/keras/cifar10 \
