@@ -25,6 +25,9 @@ class ModelBase(type):
 
 class Model(metaclass=ModelBase):
     def __init__(self, db=None, encryption=None, asset_id=None, _address=None, _decrypt_values=False, **kwargs):
+        # param "_decrypt_values" was added for using in methods get, history, because when data loads from db,
+        # then data should be decrypted, but when new instance is creating, then data which passed to constructor
+        # is not encrypted
         self.db = db or NodeInfo.get_db()
         self.encryption = encryption or NodeInfo.get_encryption()
         self.asset_id = asset_id
@@ -192,8 +195,10 @@ class Model(metaclass=ModelBase):
                     raise exceptions.Asset.WrongType()
 
             metadata = transaction['metadata']
+            address = transaction['outputs'][0]['public_keys'][0]
+
             kwars = data
             kwars.update(metadata)
-            yield cls(db=db, encryption=encryption, asset_id=asset_id, **kwars)
+            yield cls(db=db, encryption=encryption, asset_id=asset_id, _decrypt_values=True, _address=address, **kwars)
 
 
