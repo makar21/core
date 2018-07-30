@@ -22,7 +22,7 @@ services:
   mongodb_this:
     image: mongo:3.7
     ports:
-      - "127.0.0.1:27017:27017/tcp"
+      - "127.0.0.1:$TATAU_MONGO_DB_PORT:27017/tcp"
     volumes:
       - ./docker/volumes/$NET_NAME/mono/this:/data/db
     restart: always
@@ -57,7 +57,7 @@ services:
       interval: 3s
       timeout: 5s
       retries: 3
-    entrypoint: sh -c "bigchaindb -l INFO -y configure && bigchaindb -l DEBUG start"
+    entrypoint: sh -c "bigchaindb -l INFO -y configure && bigchaindb -l INFO start"
     restart: always
 
   ipfs:
@@ -68,7 +68,5 @@ services:
     ports:
       - "4001:4001"
       - "127.0.0.1:8080:8080"
-      - "127.0.0.1:5001:5001"
+      - "127.0.0.1:$TATAU_IPFS_PORT:5001"
     restart: always
-
-
