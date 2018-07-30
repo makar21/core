@@ -109,6 +109,9 @@ class Producer(Node):
             # check timeout
             pass
 
+        if verification_assignment.state == VerificationAssignment.State.PARTIAL_DATA_IS_DOWNLOADED:
+            self._process_task_declaration(task_declaration)
+
         if verification_assignment.state == VerificationAssignment.State.FINISHED:
             self._process_task_declaration(task_declaration)
 
@@ -139,6 +142,11 @@ class Producer(Node):
 
         if task_declaration.state == TaskDeclaration.State.EPOCH_IN_PROGRESS:
             if task_declaration.epoch_is_ready():
+                if len(task_declaration.get_verification_assignments(
+                        states=(VerificationAssignment.State.PARTIAL_DATA_IS_READY,))):
+                    # wait verifiers
+                    return
+
                 logger.info('{} train epoch {} is ready'.format(task_declaration, task_declaration.current_epoch))
                 # collect results from epoch
                 task_assignments = task_declaration.get_task_assignments(
@@ -351,7 +359,11 @@ class Producer(Node):
 
     def _assign_verification_data(self, task_declaration):
         verification_assignments = task_declaration.get_verification_assignments(
-            states=(VerificationAssignment.State.ACCEPTED, VerificationAssignment.State.FINISHED)
+            states=(
+                VerificationAssignment.State.ACCEPTED,
+                VerificationAssignment.State.PARTIAL_DATA_IS_DOWNLOADED,
+                VerificationAssignment.State.FINISHED
+            )
         )
 
         for verification_assignment in verification_assignments:
@@ -375,15 +387,21 @@ class Producer(Node):
                 'error': task_assignment.error
             })
 
-        verification_assignments = task_declaration.get_verification_assignments(
-            states=(VerificationAssignment.State.ACCEPTED, VerificationAssignment.State.FINISHED)
-        )
+        if len(current_train_results):
+            verification_assignments = task_declaration.get_verification_assignments(
+                states=(
+                    VerificationAssignment.State.ACCEPTED,
+                    VerificationAssignment.State.PARTIAL_DATA_IS_DOWNLOADED,
+                    VerificationAssignment.State.FINISHED
+                )
+            )
 
-        for verification_assignment in verification_assignments:
-            verification_assignment.train_results = current_train_results
-            verification_assignment.state = VerificationAssignment.State.PARTIAL_DATA_IS_READY
-            verification_assignment.set_encryption_key(verification_assignment.verifier.enc_key)
-            verification_assignment.save()
+            for verification_assignment in verification_assignments:
+                verification_assignment.train_results = current_train_results
+                verification_assignment.result = None
+                verification_assignment.state = VerificationAssignment.State.PARTIAL_DATA_IS_READY
+                verification_assignment.set_encryption_key(verification_assignment.verifier.enc_key)
+                verification_assignment.save(recipients=verification_assignment.verifier.address)
 
     def _summarize_epoch_results(self, task_declaration):
         weights_ipfs, loss, acc = summarize_weights(

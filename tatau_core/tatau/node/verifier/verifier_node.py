@@ -69,14 +69,21 @@ class Verifier(Node):
 
     def _process_verification_assignment(self, verification_assignment):
         if verification_assignment.state == VerificationAssignment.State.PARTIAL_DATA_IS_READY:
+            logger.info('{} start process partial data: {}'.format(self, verification_assignment))
+
             ipfs = IPFS()
             target_dir = tempfile.mkdtemp()
             try:
                 for worker_result in verification_assignment.train_results:
                     if worker_result['result'] is not None:
+                        logger.info('Download {}'.format(worker_result['result']))
                         ipfs.download(worker_result['result'], target_dir)
+                        logger.info('End download {}'.format(worker_result['result']))
             finally:
                 shutil.rmtree(target_dir)
+            verification_assignment.state = VerificationAssignment.State.PARTIAL_DATA_IS_DOWNLOADED
+            verification_assignment.set_encryption_key(verification_assignment.producer.enc_key)
+            verification_assignment.save(recipients=verification_assignment.producer.address)
             return
 
         if verification_assignment.state == VerificationAssignment.State.DATA_IS_READY:

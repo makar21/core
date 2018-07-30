@@ -301,6 +301,7 @@ class VerificationAssignment(models.Model):
         REJECTED = 'rejected'
         ACCEPTED = 'accepted'
         PARTIAL_DATA_IS_READY = 'partial data is ready'
+        PARTIAL_DATA_IS_DOWNLOADED = 'partial data is downloaded'
         DATA_IS_READY = 'data is ready'
         IN_PROGRESS = 'in progress'
         FINISHED = 'finished'
