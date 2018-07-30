@@ -70,7 +70,7 @@ class Verifier(Node):
 
             verification_assignment.result = verify_train_results(verification_assignment.train_results)
             verification_assignment.progress = 100
-            verification_assignment.tflops = 0.1
+            verification_assignment.tflops = 0.0
             verification_assignment.state = VerificationAssignment.State.FINISHED
             verification_assignment.set_encryption_key(verification_assignment.producer.enc_key)
             verification_assignment.save(recipients=verification_assignment.producer.address)
