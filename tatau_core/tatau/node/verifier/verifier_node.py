@@ -1,3 +1,5 @@
+import shutil
+import tempfile
 import time
 from logging import getLogger
 
@@ -5,6 +7,7 @@ from tatau_core import settings
 from tatau_core.tatau.models import VerifierNode, TaskDeclaration, VerificationAssignment
 from tatau_core.tatau.node.node import Node
 from tatau_core.tatau.node.verifier.verify_weights import verify_train_results
+from tatau_core.utils.ipfs import IPFS
 
 logger = getLogger()
 
@@ -65,6 +68,17 @@ class Verifier(Node):
         self._process_verification_assignment(verification_assignment)
 
     def _process_verification_assignment(self, verification_assignment):
+        if verification_assignment.state == VerificationAssignment.State.PARTIAL_DATA_IS_READY:
+            ipfs = IPFS()
+            target_dir = tempfile.mkdtemp()
+            try:
+                for worker_result in verification_assignment.train_results:
+                    if worker_result['result'] is not None:
+                        ipfs.download(worker_result['result'], target_dir)
+            finally:
+                shutil.rmtree(target_dir)
+            return
+
         if verification_assignment.state == VerificationAssignment.State.DATA_IS_READY:
             logger.info('{} start verify {}'.format(self, verification_assignment))
 

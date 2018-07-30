@@ -160,6 +160,8 @@ class Producer(Node):
                     task_declaration.tflops += task_assignment.tflops
 
                 self._assign_verification_data(task_declaration)
+            else:
+                self._assign_partial_verification_data(task_declaration)
             return
 
         if task_declaration.state == TaskDeclaration.State.VERIFY_IN_PROGRESS:
@@ -361,6 +363,27 @@ class Producer(Node):
 
         task_declaration.state = TaskDeclaration.State.VERIFY_IN_PROGRESS
         task_declaration.save()
+
+    def _assign_partial_verification_data(self, task_declaration):
+        task_assignments = task_declaration.get_task_assignments(states=(TaskAssignment.State.FINISHED,))
+
+        current_train_results = []
+        for task_assignment in task_assignments:
+            current_train_results.append({
+                'worker_id': task_assignment.worker_id,
+                'result': task_assignment.result,
+                'error': task_assignment.error
+            })
+
+        verification_assignments = task_declaration.get_verification_assignments(
+            states=(VerificationAssignment.State.ACCEPTED, VerificationAssignment.State.FINISHED)
+        )
+
+        for verification_assignment in verification_assignments:
+            verification_assignment.train_results = current_train_results
+            verification_assignment.state = VerificationAssignment.State.PARTIAL_DATA_IS_READY
+            verification_assignment.set_encryption_key(verification_assignment.verifier.enc_key)
+            verification_assignment.save()
 
     def _summarize_epoch_results(self, task_declaration):
         weights_ipfs, loss, acc = summarize_weights(
