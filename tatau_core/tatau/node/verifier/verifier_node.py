@@ -1,5 +1,3 @@
-import shutil
-import tempfile
 import time
 from logging import getLogger
 
@@ -7,7 +5,6 @@ from tatau_core import settings
 from tatau_core.tatau.models import VerifierNode, TaskDeclaration, VerificationAssignment
 from tatau_core.tatau.node.node import Node
 from tatau_core.tatau.node.verifier.verify_weights import verify_train_results
-from tatau_core.utils.ipfs import IPFS
 
 logger = getLogger()
 
@@ -71,16 +68,10 @@ class Verifier(Node):
         if verification_assignment.state == VerificationAssignment.State.PARTIAL_DATA_IS_READY:
             logger.info('{} start process partial data: {}'.format(self, verification_assignment))
 
-            ipfs = IPFS()
-            target_dir = tempfile.mkdtemp()
-            try:
-                for worker_result in verification_assignment.train_results:
-                    if worker_result['result'] is not None:
-                        logger.info('Download {}'.format(worker_result['result']))
-                        ipfs.download(worker_result['result'], target_dir)
-                        logger.info('End download {}'.format(worker_result['result']))
-            finally:
-                shutil.rmtree(target_dir)
+            for worker_result in verification_assignment.train_results:
+                if worker_result['result'] is not None:
+                    self._download_file_from_ipfs_async(worker_result['result'])
+
             verification_assignment.state = VerificationAssignment.State.PARTIAL_DATA_IS_DOWNLOADED
             verification_assignment.set_encryption_key(verification_assignment.producer.enc_key)
             verification_assignment.save(recipients=verification_assignment.producer.address)
@@ -97,8 +88,7 @@ class Verifier(Node):
             verification_assignment.save(recipients=verification_assignment.producer.address)
 
             logger.info('{} finish verify {} results: {}'.format(
-                self, verification_assignment, verification_assignment.result)
-            )
+                self, verification_assignment, verification_assignment.result))
 
     def _process_task_declarations(self):
         for task_declaration in TaskDeclaration.enumerate(created_by_user=False):

@@ -220,20 +220,6 @@ class TaskDeclaration(models.Model):
             verification_assignment, self, count))
         return False
 
-    def epoch_is_ready(self):
-        task_assignments = self.get_task_assignments(
-            states=(
-                TaskAssignment.State.DATA_IS_READY,
-                TaskAssignment.State.IN_PROGRESS,
-                TaskAssignment.State.FINISHED
-            )
-        )
-
-        for ta in task_assignments:
-            if ta.state != TaskAssignment.State.FINISHED:
-                return False
-        return True
-
     def verification_is_ready(self):
         verification_assignments = self.get_verification_assignments(
             states=(
