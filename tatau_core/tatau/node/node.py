@@ -1,10 +1,14 @@
 import hashlib
 import os
+import shutil
+import tempfile
 from logging import getLogger
+from multiprocessing import Process
 
 from tatau_core.db import DB, TransactionListener, NodeInfo
 from tatau_core.settings import ROOT_DIR
 from tatau_core.utils.encryption import Encryption
+from tatau_core.utils.ipfs import IPFS
 
 logger = getLogger()
 
@@ -95,3 +99,19 @@ class Node(TransactionListener):
 
     def _ignore_operation(self, operation):
         return False
+
+    def _download_file_from_ipfs_async(self, multihash):
+        Process(
+            target=self._download_file_from_ipfs,
+            args=(multihash,)
+        ).start()
+
+    def _download_file_from_ipfs(self, multihash):
+        ipfs = IPFS()
+        target_dir = tempfile.mkdtemp()
+        try:
+            logger.info('Download {}'.format(multihash))
+            ipfs.download(multihash, target_dir)
+            logger.info('End download {}'.format(multihash))
+        finally:
+            shutil.rmtree(target_dir)

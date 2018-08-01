@@ -65,6 +65,18 @@ class Verifier(Node):
         self._process_verification_assignment(verification_assignment)
 
     def _process_verification_assignment(self, verification_assignment):
+        if verification_assignment.state == VerificationAssignment.State.PARTIAL_DATA_IS_READY:
+            logger.info('{} start process partial data: {}'.format(self, verification_assignment))
+
+            for worker_result in verification_assignment.train_results:
+                if worker_result['result'] is not None:
+                    self._download_file_from_ipfs_async(worker_result['result'])
+
+            verification_assignment.state = VerificationAssignment.State.PARTIAL_DATA_IS_DOWNLOADED
+            verification_assignment.set_encryption_key(verification_assignment.producer.enc_key)
+            verification_assignment.save(recipients=verification_assignment.producer.address)
+            return
+
         if verification_assignment.state == VerificationAssignment.State.DATA_IS_READY:
             logger.info('{} start verify {}'.format(self, verification_assignment))
 
@@ -76,8 +88,7 @@ class Verifier(Node):
             verification_assignment.save(recipients=verification_assignment.producer.address)
 
             logger.info('{} finish verify {} results: {}'.format(
-                self, verification_assignment, verification_assignment.result)
-            )
+                self, verification_assignment, verification_assignment.result))
 
     def _process_task_declarations(self):
         for task_declaration in TaskDeclaration.enumerate(created_by_user=False):
