@@ -6,9 +6,10 @@ services:
     build:
       context: .
       dockerfile: ./docker/images/core/cpu/Dockerfile
-    command: sh -c "python verifier-no-socket.py"
+    command: sh -c "pip install -r verifier/requirements.txt && python verifier-no-socket.py"
     volumes:
       - ./keys/${RING}:/app/keys
+      - ./verifier:/app/verifier:ro
     restart: always
     links:
       - ipfs

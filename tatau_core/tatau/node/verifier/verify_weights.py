@@ -3,6 +3,7 @@ import tempfile
 from logging import getLogger
 
 from tatau_core.utils.ipfs import IPFS
+from verifier.verify_results import verify
 
 logger = getLogger()
 
@@ -27,23 +28,3 @@ def verify_train_results(train_results):
         return verify(downloaded_results)
     finally:
         shutil.rmtree(target_dir)
-
-
-def verify(results):
-    try:
-        from attacked_workers_detector import NumpyAttackedWorkersDetector
-        data = {}
-        for x in results:
-            data[x['worker_id']] = x['file_path']
-        awd = NumpyAttackedWorkersDetector(data)
-        fake_workers = awd.check()
-        return [{
-            'worker_id': x['worker_id'],
-            'is_fake': True if x['worker_id'] in fake_workers else False
-        } for x in results]
-    except ImportError:
-        logger.info('NumpyAttackedWorkersDetector is not installed')
-        return [{
-            'worker_id': x['worker_id'],
-            'is_fake': False
-        } for x in results]
