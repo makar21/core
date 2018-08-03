@@ -11,7 +11,7 @@ import numpy as np
 
 from tatau_core import settings
 from tatau_core.metrics import Snapshot
-from tatau_core.nn.models.tatau import TatauModel
+from tatau_core.nn.models.tatau import TatauModel, TrainProgress
 from tatau_core.tatau.models import WorkerNode, TaskDeclaration, TaskAssignment, EstimationAssignment
 from tatau_core.tatau.node import Node
 from tatau_core.tatau.node.worker.task_progress import TaskProgress
@@ -207,7 +207,6 @@ class Worker(Node):
             with open(model_code_path, 'wb') as f:
                 f.write(model_code)
 
-            progress = TaskProgress(self, asset_id, interprocess)
             interprocess.start_collect_metrics()
 
             # reset data from previous epoch
@@ -230,6 +229,7 @@ class Worker(Node):
                 model.set_weights(weights=initial_weights)
                 logger.info('Start training')
 
+                progress = TrainProgress()
                 model.train(x=x_train, y=y_train, batch_size=batch_size, nb_epochs=1, train_progress=progress)
             except Exception as e:
                 error_dict = {'exception': type(e).__name__}
