@@ -162,7 +162,7 @@ class Worker(Node):
             estimation_assignment.state = TaskAssignment.State.IN_PROGRESS
             estimation_assignment.save()
 
-            interprocess = WorkerInterprocess(interval=1/10)
+            interprocess = WorkerInterprocess()
 
             Process(
                 target=self._collect_metrics,
@@ -176,7 +176,7 @@ class Worker(Node):
             work_process.start()
             work_process.join()
 
-    def _estimate(self, asset_id, interprocess):
+    def _estimate(self, asset_id, collect_metrics):
         logger.info('Start estimate process')
         estimation_assignment = EstimationAssignment.get(asset_id)
         ipfs = IPFS()
@@ -225,7 +225,7 @@ class Worker(Node):
                 model.set_weights(weights=initial_weights)
                 logger.info('Start training')
                 progress = TrainProgress()
-                with interprocess:
+                with collect_metrics:
                     model.train(x=x_train, y=y_train, batch_size=batch_size, nb_epochs=1, train_progress=progress)
             except Exception as e:
                 error_dict = {'exception': type(e).__name__}
@@ -236,7 +236,7 @@ class Worker(Node):
                 estimation_assignment.error = json.dumps(error_dict)
                 logger.exception(e)
 
-            estimation_assignment.tflops = interprocess.get_tflops()
+            estimation_assignment.tflops = collect_metrics.get_tflops()
             estimation_assignment.state = EstimationAssignment.State.FINISHED
             estimation_assignment.set_encryption_key(estimation_assignment.producer.enc_key)
             estimation_assignment.save(recipients=estimation_assignment.producer.address)
@@ -270,7 +270,7 @@ class Worker(Node):
 
         return x_train, y_train, x_test, y_test
 
-    def _work(self, asset_id, interprocess):
+    def _work(self, asset_id, collect_metrics):
         logger.info('Start work process')
         task_assignment = TaskAssignment.get(asset_id)
 
@@ -310,7 +310,7 @@ class Worker(Node):
             with open(model_code_path, 'wb') as f:
                 f.write(model_code)
 
-            progress = TaskProgress(self, asset_id, interprocess)
+            progress = TaskProgress(self, asset_id, collect_metrics)
 
             # reset data from previous epoch
             task_assignment.result = None
@@ -333,7 +333,7 @@ class Worker(Node):
                 model.set_weights(weights=initial_weights)
                 logger.info('Start training')
 
-                with interprocess:
+                with collect_metrics:
                     task_assignment.train_history = model.train(
                         x=x_train, y=y_train, batch_size=batch_size, nb_epochs=1, train_progress=progress)
 
@@ -357,7 +357,7 @@ class Worker(Node):
                 task_assignment.error = json.dumps(error_dict)
                 logger.exception(e)
 
-            task_assignment.tflops = interprocess.get_tflops()
+            task_assignment.tflops = collect_metrics.get_tflops()
             task_assignment.progress = 100
             task_assignment.state = TaskAssignment.State.FINISHED
             task_assignment.set_encryption_key(task_assignment.producer.enc_key)
