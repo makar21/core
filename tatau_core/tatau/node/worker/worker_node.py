@@ -44,11 +44,9 @@ class Worker(Node):
         self._process_task_declaration(task_declaration)
 
     def _process_task_declaration(self, task_declaration):
-        logger.info('Process {}'.format(task_declaration))
-
         if task_declaration.state == TaskDeclaration.State.ESTIMATE_IS_REQUIRED \
                 and task_declaration.estimators_needed > 0:
-
+            logger.info('Process {}'.format(task_declaration))
             exists = EstimationAssignment.exists(
                 additional_match={
                     'assets.data.worker_id': self.asset_id,
@@ -72,7 +70,7 @@ class Worker(Node):
 
         if task_declaration.state == TaskDeclaration.State.DEPLOYMENT \
                 and task_declaration.workers_needed > 0:
-
+            logger.info('Process {}'.format(task_declaration))
             exists = TaskAssignment.exists(
                 additional_match={
                     'assets.data.worker_id': self.asset_id,
@@ -164,7 +162,7 @@ class Worker(Node):
             estimation_assignment.state = TaskAssignment.State.IN_PROGRESS
             estimation_assignment.save()
 
-            interprocess = WorkerInterprocess()
+            interprocess = WorkerInterprocess(interval=1/10)
 
             Process(
                 target=self._collect_metrics,
@@ -207,8 +205,6 @@ class Worker(Node):
             with open(model_code_path, 'wb') as f:
                 f.write(model_code)
 
-            interprocess.start_collect_metrics()
-
             # reset data from previous epoch
             estimation_assignment.error = None
 
@@ -228,9 +224,9 @@ class Worker(Node):
 
                 model.set_weights(weights=initial_weights)
                 logger.info('Start training')
-
                 progress = TrainProgress()
-                model.train(x=x_train, y=y_train, batch_size=batch_size, nb_epochs=1, train_progress=progress)
+                with interprocess:
+                    model.train(x=x_train, y=y_train, batch_size=batch_size, nb_epochs=1, train_progress=progress)
             except Exception as e:
                 error_dict = {'exception': type(e).__name__}
                 msg = str(e)
@@ -240,7 +236,6 @@ class Worker(Node):
                 estimation_assignment.error = json.dumps(error_dict)
                 logger.exception(e)
 
-            interprocess.stop_collect_metrics()
             estimation_assignment.tflops = interprocess.get_tflops()
             estimation_assignment.state = EstimationAssignment.State.FINISHED
             estimation_assignment.set_encryption_key(estimation_assignment.producer.enc_key)
@@ -316,7 +311,6 @@ class Worker(Node):
                 f.write(model_code)
 
             progress = TaskProgress(self, asset_id, interprocess)
-            interprocess.start_collect_metrics()
 
             # reset data from previous epoch
             task_assignment.result = None
@@ -339,8 +333,9 @@ class Worker(Node):
                 model.set_weights(weights=initial_weights)
                 logger.info('Start training')
 
-                task_assignment.train_history = model.train(
-                    x=x_train, y=y_train, batch_size=batch_size, nb_epochs=1, train_progress=progress)
+                with interprocess:
+                    task_assignment.train_history = model.train(
+                        x=x_train, y=y_train, batch_size=batch_size, nb_epochs=1, train_progress=progress)
 
                 task_assignment.loss = task_assignment.train_history['loss'][-1]
                 task_assignment.accuracy = task_assignment.train_history['acc'][-1]
@@ -362,7 +357,6 @@ class Worker(Node):
                 task_assignment.error = json.dumps(error_dict)
                 logger.exception(e)
 
-            interprocess.stop_collect_metrics()
             task_assignment.tflops = interprocess.get_tflops()
             task_assignment.progress = 100
             task_assignment.state = TaskAssignment.State.FINISHED
@@ -379,9 +373,9 @@ class Worker(Node):
         interprocess.wait_for_start_collect_metrics()
         logger.info('Start collect metrics')
 
-        while not interprocess.should_stop_collect_metrics(1):
+        while not interprocess.should_stop_collect_metrics(interprocess.interval):
             snapshot = Snapshot()
-            interprocess.add_tflops(snapshot.calc_tflops())
+            interprocess.add_tflops(snapshot.calc_tflops() * interprocess.interval)
 
         logger.info('Stop collect metrics')
 
