@@ -33,3 +33,4 @@ python-dotenv
 
 #For debug
 ipython==6.4.0
+web3==4.5.0

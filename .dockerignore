@@ -11,3 +11,6 @@ venv
 /docker-compose.yml
 /tmdata
 /keys
+# Wallet Data
+parity/wallet
+parity/sandbox/keys
