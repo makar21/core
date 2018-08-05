@@ -66,6 +66,7 @@ def get_progress_data(task_declaration):
         'epochs': task_declaration.epochs,
         'history': {},
         'spent_tflops': task_declaration.tflops,
+        'estimated_tflops': task_declaration.estimated_tflops,
         'workers': {},
         'verifiers': {}
     }
@@ -157,9 +158,10 @@ def print_task_declaration(task_declaration):
 
     logger.info('-------------------------------------------------------------------------------------------')
 
-    logger.info('Task: {}\nState: {}\tProgress: {}\tTFLOPS: {}'.format(
-        data['asset_id'], magenta(data['state']), blue(data['total_progress']), cyan(data['spent_tflops']))
-    )
+    logger.info('Task: {}\nState: {}\tProgress: {}\tTFLOPS: {}\tESTIMATED TFLOPS: {}'.format(
+        data['asset_id'], magenta(data['state']), blue(data['total_progress']), cyan(data['spent_tflops']),
+        cyan(data['estimated_tflops'])))
+
     logger.info('Dataset: {}'.format(data['dataset']))
     logger.info('Model: {}'.format(data['train_model']))
     logger.info('Workers: {}, Verifiers: {}'.format(

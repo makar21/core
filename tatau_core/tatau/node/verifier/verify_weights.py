@@ -3,6 +3,7 @@ import tempfile
 from logging import getLogger
 
 from tatau_core.utils.ipfs import IPFS
+from verifier.verify_results import verify
 
 logger = getLogger()
 
@@ -27,10 +28,3 @@ def verify_train_results(train_results):
         return verify(downloaded_results)
     finally:
         shutil.rmtree(target_dir)
-
-
-def verify(results):
-    return [{
-        'worker_id': x['worker_id'],
-        'is_fake': False
-    } for x in results]

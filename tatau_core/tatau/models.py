@@ -86,6 +86,9 @@ class VerifierNode(models.Model):
 
 class TaskDeclaration(models.Model):
     class State:
+        ESTIMATE_IS_REQUIRED = 'estimate is required'
+        ESTIMATE_IN_PROGRESS = 'estimate in progress'
+        ESTIMATED = 'estimated'
         DEPLOYMENT = 'deployment'
         EPOCH_IN_PROGRESS = 'training'
         VERIFY_IN_PROGRESS = 'verifying'
@@ -93,6 +96,7 @@ class TaskDeclaration(models.Model):
         FAILED = 'failed'
 
     producer_id = fields.CharField(immutable=True)
+    # TODO: make copy of dataset and train model data instead reference on assets
     dataset_id = fields.CharField(immutable=True)
     train_model_id = fields.CharField(immutable=True)
     weights = fields.EncryptedCharField(required=False)
@@ -104,14 +108,17 @@ class TaskDeclaration(models.Model):
 
     workers_requested = fields.IntegerField(immutable=True)
     verifiers_requested = fields.IntegerField(immutable=True)
+    estimators_requested = fields.IntegerField(immutable=True)
 
     workers_needed = fields.IntegerField()
     verifiers_needed = fields.IntegerField()
+    estimators_needed = fields.IntegerField()
 
-    state = fields.CharField(initial=State.DEPLOYMENT)
+    state = fields.CharField(initial=State.ESTIMATE_IS_REQUIRED)
     current_epoch = fields.IntegerField(initial=0)
     progress = fields.FloatField(initial=0.0)
     tflops = fields.FloatField(initial=0.0)
+    estimated_tflops = fields.FloatField(initial=0.0)
     results = fields.EncryptedJsonField(initial=[])
 
     @cached_property
@@ -130,6 +137,11 @@ class TaskDeclaration(models.Model):
     def create(cls, **kwargs):
         kwargs['workers_requested'] = kwargs['workers_needed']
         kwargs['verifiers_requested'] = kwargs['verifiers_needed']
+
+        if 'estimators_needed' not in kwargs:
+            kwargs['estimators_needed'] = 1
+
+        kwargs['estimators_requested'] = kwargs['estimators_needed']
         return super(TaskDeclaration, cls).create(**kwargs)
 
     def ready_for_start(self):
@@ -150,6 +162,20 @@ class TaskDeclaration(models.Model):
         for task_assignment in task_assignments:
             if states is None or task_assignment.state in states:
                 ret.append(task_assignment)
+        return ret
+
+    def get_estimation_assignments(self, states=None):
+        estimation_assignments = EstimationAssignment.enumerate(
+            additional_match={
+                'assets.data.task_declaration_id': self.asset_id
+            },
+            created_by_user=False
+        )
+
+        ret = []
+        for estimation_assignment in estimation_assignments:
+            if states is None or estimation_assignment.state in states:
+                ret.append(estimation_assignment)
         return ret
 
     @property
@@ -220,6 +246,29 @@ class TaskDeclaration(models.Model):
             verification_assignment, self, count))
         return False
 
+    def is_estimation_assignment_allowed(self, estimation_assignment):
+        if self.estimators_needed == 0:
+            return False
+
+        if estimation_assignment.state != EstimationAssignment.State.INITIAL:
+            return False
+
+        count = EstimationAssignment.count(
+            additional_match={
+                'assets.data.worker_id': estimation_assignment.worker_id,
+                'assets.data.task_declaration_id': self.asset_id
+            },
+            created_by_user=False
+        )
+
+        if count == 1:
+            logger.info('{} allowed for {}'.format(estimation_assignment, self))
+            return True
+
+        logger.info('{} not allowed for {}, verifier created {} assignment for this task'.format(
+            estimation_assignment, self, count))
+        return False
+
     def verification_is_ready(self):
         verification_assignments = self.get_verification_assignments(
             states=(
@@ -236,6 +285,39 @@ class TaskDeclaration(models.Model):
 
     def all_done(self):
         return self.epochs == self.current_epoch and self.verification_is_ready()
+
+
+class EstimationAssignment(models.Model):
+    class State:
+        INITIAL = 'initial'
+        RETRY = 'retry'
+        REJECTED = 'rejected'
+        ACCEPTED = 'accepted'
+        DATA_IS_READY = 'data is ready'
+        IN_PROGRESS = 'in progress'
+        FINISHED = 'finished'
+
+    producer_id = fields.CharField(immutable=True)
+    worker_id = fields.CharField(immutable=True)
+    task_declaration_id = fields.CharField(immutable=True)
+
+    state = fields.CharField(initial=State.INITIAL)
+
+    estimation_data = fields.EncryptedJsonField(required=False)
+    tflops = fields.FloatField(initial=0.0)
+    error = fields.EncryptedCharField(required=False)
+
+    @cached_property
+    def producer(self):
+        return ProducerNode.get(self.producer_id)
+
+    @cached_property
+    def worker(self):
+        return WorkerNode.get(self.worker_id)
+
+    @cached_property
+    def task_declaration(self):
+        return TaskDeclaration.get(self.task_declaration_id)
 
 
 class TaskAssignment(models.Model):
