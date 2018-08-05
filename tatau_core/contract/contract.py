@@ -7,10 +7,12 @@ import time
 
 
 class Contract:
-    def __init__(self, account):
-        self._ccontract = web3.eth.contract(address=settings.CONTRACT_ADDRESS, abi=abi)
+    def __init__(self):
+        self._ccontract = web3.eth.contract(
+            address=web3.toChecksumAddress(settings.CONTRACT_ADDRESS),
+            abi=abi
+        )
         self._icontract = ImplicitContract(classic_contract=self._ccontract)
-        # web3.eth.defaultAccount = account
 
     @classmethod
     def _wait_for_event(cls, event_filter, tx_hash, timeout=120):
