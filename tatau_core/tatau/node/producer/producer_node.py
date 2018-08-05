@@ -3,9 +3,11 @@ import time
 from logging import getLogger
 
 from tatau_core import settings
-from tatau_core.tatau.models import ProducerNode, TaskDeclaration, TaskAssignment, VerificationAssignment
+from tatau_core.tatau.models import ProducerNode, TaskDeclaration, TaskAssignment, VerificationAssignment, \
+    EstimationAssignment
 from tatau_core.tatau.node.node import Node
 from tatau_core.tatau.node.producer import poa_wrapper
+from tatau_core.tatau.node.producer.estimator import Estimator
 from tatau_core.tatau.node.producer.sumarize_weights import summarize_weights
 from tatau_core.utils.ipfs import Directory
 
@@ -32,6 +34,7 @@ class Producer(Node):
         return {
             TaskDeclaration.get_asset_name(): self._process_task_declaration_transaction,
             TaskAssignment.get_asset_name(): self._process_task_assignment_transaction,
+            EstimationAssignment.get_asset_name(): self._process_estimation_assignment_transaction,
             VerificationAssignment.get_asset_name(): self._process_verification_assignment_transaction
         }
 
@@ -109,7 +112,49 @@ class Producer(Node):
             # check timeout
             pass
 
+        if verification_assignment.state == VerificationAssignment.State.PARTIAL_DATA_IS_DOWNLOADED:
+            self._process_task_declaration(task_declaration)
+
         if verification_assignment.state == VerificationAssignment.State.FINISHED:
+            self._process_task_declaration(task_declaration)
+
+    def _process_estimation_assignment_transaction(self, asset_id, transaction):
+        estimation_assignment = EstimationAssignment.get(asset_id)
+        if estimation_assignment.producer_id != self.asset_id:
+            return
+
+        if self._ignore_task_declaration(estimation_assignment.task_declaration_id):
+            return
+
+        self._process_estimation_assignment(estimation_assignment, estimation_assignment.task_declaration)
+
+    def _process_estimation_assignment(self, estimation_assignment, task_declaration, save=True):
+        if estimation_assignment.state == EstimationAssignment.State.REJECTED:
+            return
+
+        logger.info('Process: {}, state: {}'.format(estimation_assignment, estimation_assignment.state))
+        if estimation_assignment.state == EstimationAssignment.State.INITIAL:
+            logger.info('{} requested {}'.format(estimation_assignment.worker, estimation_assignment))
+            if task_declaration.is_estimation_assignment_allowed(estimation_assignment):
+                estimation_assignment.state = EstimationAssignment.State.ACCEPTED
+                estimation_assignment.save()
+                logger.info('Accept {} for {}'.format(estimation_assignment, task_declaration))
+
+                task_declaration.estimators_needed -= 1
+                if save:
+                    task_declaration.save()
+            else:
+                estimation_assignment.state = EstimationAssignment.State.REJECTED
+                estimation_assignment.save()
+                logger.info('Reject {} for {} (No more estimators needed)'.format(
+                    estimation_assignment, task_declaration))
+            return
+
+        if estimation_assignment.state == EstimationAssignment.State.IN_PROGRESS:
+            # check timeout
+            pass
+
+        if estimation_assignment.state == EstimationAssignment.State.FINISHED:
             self._process_task_declaration(task_declaration)
 
     def _process_task_declaration_transaction(self, asset_id, transaction):
@@ -125,8 +170,60 @@ class Producer(Node):
 
         self._process_task_declaration(task_declaration)
 
+    def _epoch_is_ready(self, task_declaration):
+        task_assignments = task_declaration.get_task_assignments(
+            states=(
+                TaskAssignment.State.DATA_IS_READY,
+                TaskAssignment.State.IN_PROGRESS,
+                TaskAssignment.State.FINISHED
+            )
+        )
+
+        for task_assignment in task_assignments:
+            if task_assignment.state == TaskAssignment.State.FINISHED and task_assignment.result is not None:
+                self._download_file_from_ipfs_async(task_assignment.result)
+
+            if task_assignment.state != TaskAssignment.State.FINISHED:
+                return False
+
+        return True
+
+    def _estimation_is_ready(self, task_declaration):
+        estimation_assignments = task_declaration.get_estimation_assignments(
+            states=(
+                EstimationAssignment.State.DATA_IS_READY,
+                EstimationAssignment.State.IN_PROGRESS,
+                EstimationAssignment.State.FINISHED
+            )
+        )
+
+        for estimation_assignment in estimation_assignments:
+            if estimation_assignment.state != EstimationAssignment.State.FINISHED:
+                return False
+
+        return True
+
     def _process_task_declaration(self, task_declaration):
         if task_declaration.state in (TaskDeclaration.State.FAILED, TaskDeclaration.State.COMPLETED):
+            return
+
+        if task_declaration.state == TaskDeclaration.State.ESTIMATE_IS_REQUIRED:
+            self._assign_estimate_data(task_declaration)
+            return
+
+        if task_declaration.state == TaskDeclaration.State.ESTIMATE_IN_PROGRESS:
+            if self._estimation_is_ready(task_declaration):
+                task_declaration.state = TaskDeclaration.State.ESTIMATED
+                task_declaration.estimated_tflops, failed = Estimator.estimate(task_declaration)
+                if failed:
+                    task_declaration.state = TaskDeclaration.State.FAILED
+                task_declaration.save()
+            return
+
+        if task_declaration.state == TaskDeclaration.State.ESTIMATED:
+            if poa_wrapper.check_balance(task_declaration):
+                task_declaration.state = TaskDeclaration.State.DEPLOYMENT
+                task_declaration.save()
             return
 
         if not task_declaration.ready_for_start():
@@ -138,7 +235,13 @@ class Producer(Node):
             return
 
         if task_declaration.state == TaskDeclaration.State.EPOCH_IN_PROGRESS:
-            if task_declaration.epoch_is_ready():
+            if self._epoch_is_ready(task_declaration):
+                # are all verifiers are ready for verify
+                if len(task_declaration.get_verification_assignments(
+                        states=(VerificationAssignment.State.PARTIAL_DATA_IS_READY,))):
+                    # wait verifiers
+                    return
+
                 logger.info('{} train epoch {} is ready'.format(task_declaration, task_declaration.current_epoch))
                 # collect results from epoch
                 task_assignments = task_declaration.get_task_assignments(
@@ -160,6 +263,8 @@ class Producer(Node):
                     task_declaration.tflops += task_assignment.tflops
 
                 self._assign_verification_data(task_declaration)
+            else:
+                self._assign_partial_verification_data(task_declaration)
             return
 
         if task_declaration.state == TaskDeclaration.State.VERIFY_IN_PROGRESS:
@@ -187,7 +292,8 @@ class Producer(Node):
                     task_declaration.progress = 100.0
                     task_declaration.state = TaskDeclaration.State.COMPLETED
                     task_declaration.save()
-                    logger.info('{} is finished'.format(task_declaration))
+                    logger.info('{} is finished tflops: {} estimated: {}'.format(
+                        task_declaration, task_declaration.tflops, task_declaration.estimated_tflops))
                 else:
                     self._assign_train_data(task_declaration)
             else:
@@ -269,6 +375,26 @@ class Producer(Node):
             worker_index=worker_index
         )
 
+    def _assign_estimate_data(self, task_declaration):
+        estimation_assignments = task_declaration.get_estimation_assignments(
+            states=(
+                EstimationAssignment.State.ACCEPTED,
+            )
+        )
+
+        if len(estimation_assignments) == 0:
+            return
+
+        estimation_data = Estimator.get_data_for_estimate(task_declaration)
+        for estimation_assignment in estimation_assignments:
+            estimation_assignment.estimation_data = estimation_data
+            estimation_assignment.state = EstimationAssignment.State.DATA_IS_READY
+            estimation_assignment.set_encryption_key(estimation_assignment.worker.enc_key)
+            estimation_assignment.save(recipients=estimation_assignment.worker.address)
+
+        task_declaration.state = TaskDeclaration.State.ESTIMATE_IN_PROGRESS
+        task_declaration.save()
+
     def _assign_train_data(self, task_declaration):
         task_assignments = task_declaration.get_task_assignments(
             states=(
@@ -349,7 +475,11 @@ class Producer(Node):
 
     def _assign_verification_data(self, task_declaration):
         verification_assignments = task_declaration.get_verification_assignments(
-            states=(VerificationAssignment.State.ACCEPTED, VerificationAssignment.State.FINISHED)
+            states=(
+                VerificationAssignment.State.ACCEPTED,
+                VerificationAssignment.State.PARTIAL_DATA_IS_DOWNLOADED,
+                VerificationAssignment.State.FINISHED
+            )
         )
 
         for verification_assignment in verification_assignments:
@@ -361,6 +491,33 @@ class Producer(Node):
 
         task_declaration.state = TaskDeclaration.State.VERIFY_IN_PROGRESS
         task_declaration.save()
+
+    def _assign_partial_verification_data(self, task_declaration):
+        task_assignments = task_declaration.get_task_assignments(states=(TaskAssignment.State.FINISHED,))
+
+        current_train_results = []
+        for task_assignment in task_assignments:
+            current_train_results.append({
+                'worker_id': task_assignment.worker_id,
+                'result': task_assignment.result,
+                'error': task_assignment.error
+            })
+
+        if len(current_train_results):
+            verification_assignments = task_declaration.get_verification_assignments(
+                states=(
+                    VerificationAssignment.State.ACCEPTED,
+                    VerificationAssignment.State.PARTIAL_DATA_IS_DOWNLOADED,
+                    VerificationAssignment.State.FINISHED
+                )
+            )
+
+            for verification_assignment in verification_assignments:
+                verification_assignment.train_results = current_train_results
+                verification_assignment.result = None
+                verification_assignment.state = VerificationAssignment.State.PARTIAL_DATA_IS_READY
+                verification_assignment.set_encryption_key(verification_assignment.verifier.enc_key)
+                verification_assignment.save(recipients=verification_assignment.verifier.address)
 
     def _summarize_epoch_results(self, task_declaration):
         weights_ipfs, loss, acc = summarize_weights(
@@ -377,6 +534,7 @@ class Producer(Node):
     def _process_performers(self, task_declaration):
         worker_needed = task_declaration.workers_needed
         verifiers_needed = task_declaration.verifiers_needed
+        estimators_needed = task_declaration.estimators_needed
 
         task_assignments = task_declaration.get_task_assignments(
             states=(
@@ -400,8 +558,21 @@ class Producer(Node):
         for verification_assignment in verification_assignments:
             self._process_verification_assignment(verification_assignment, task_declaration, save=False)
 
+        estimation_assignments = task_declaration.get_estimation_assignments(
+            states=(
+                EstimationAssignment.State.INITIAL,
+                EstimationAssignment.State.IN_PROGRESS,
+                EstimationAssignment.State.FINISHED
+            )
+        )
+
+        for estimation_assignment in estimation_assignments:
+            self._process_estimation_assignment(estimation_assignment, task_declaration, save=False)
+
         # save if were changes
-        if task_declaration.workers_needed != worker_needed or task_declaration.verifiers_needed != verifiers_needed:
+        if task_declaration.workers_needed != worker_needed \
+                or task_declaration.verifiers_needed != verifiers_needed \
+                or task_declaration.estimators_needed != estimators_needed:
             task_declaration.save()
 
     def train_task(self, asset_id):

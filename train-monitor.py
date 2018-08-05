@@ -66,6 +66,7 @@ def get_progress_data(task_declaration):
         'epochs': task_declaration.epochs,
         'history': {},
         'spent_tflops': task_declaration.tflops,
+        'estimated_tflops': task_declaration.estimated_tflops,
         'workers': {},
         'verifiers': {}
     }
@@ -126,13 +127,26 @@ def get_progress_data(task_declaration):
 
     for verification_assignment in verification_assignments:
         verifier_id = verification_assignment.verifier_id
-        data['verifiers'][verifier_id] = {
-            'asset_id': verification_assignment.asset_id,
-            'state': verification_assignment.state,
-            'progress': verification_assignment.progress,
-            'spent_tflops': verification_assignment.tflops,
-            'result': verification_assignment.result
-        }
+        data['verifiers'][verifier_id] = []
+        history = VerificationAssignment.get_history(verification_assignment.asset_id)
+        for va in history:
+            if va.state == VerificationAssignment.State.FINISHED:
+                data['verifiers'][verifier_id].append({
+                    'asset_id': va.verifier_id,
+                    'state': va.state,
+                    'progress': va.progress,
+                    'spent_tflops': va.tflops,
+                    'result': va.result
+                })
+
+        if verification_assignment.state != VerificationAssignment.State.FINISHED:
+            data['verifiers'][verifier_id].append({
+                'asset_id': verification_assignment.verifier_id,
+                'state': verification_assignment.state,
+                'progress': verification_assignment.progress,
+                'spent_tflops': verification_assignment.tflops,
+                'result': None
+            })
 
     return data
 
@@ -144,9 +158,10 @@ def print_task_declaration(task_declaration):
 
     logger.info('-------------------------------------------------------------------------------------------')
 
-    logger.info('Task: {}\nState: {}\tProgress: {}\tTFLOPS: {}'.format(
-        data['asset_id'], magenta(data['state']), blue(data['total_progress']), cyan(data['spent_tflops']))
-    )
+    logger.info('Task: {}\nState: {}\tProgress: {}\tTFLOPS: {}\tESTIMATED TFLOPS: {}'.format(
+        data['asset_id'], magenta(data['state']), blue(data['total_progress']), cyan(data['spent_tflops']),
+        cyan(data['estimated_tflops'])))
+
     logger.info('Dataset: {}'.format(data['dataset']))
     logger.info('Model: {}'.format(data['train_model']))
     logger.info('Workers: {}, Verifiers: {}'.format(
@@ -171,8 +186,18 @@ def print_task_declaration(task_declaration):
 
     for verifier_id, verifier_data in data['verifiers'].items():
         logger.info('\tVerifier: {}'.format(verifier_id))
-        logger.info('\t\tState: {}\tProgress: {}\tTFLOPS: {}'.format(
-            magenta(verifier_data['state']), blue(verifier_data['progress']), cyan(verifier_data['spent_tflops'])))
+        epoch = 1
+        for vd in verifier_data:
+            logger.info('\t\tEpoch: #{}'.format(epoch))
+            logger.info('\t\t\tState: {}\tProgress: {}\tTFLOPS: {}'.format(
+                magenta(vd['state']), blue(vd['progress']), cyan(vd['spent_tflops'])))
+            if vd['result']:
+                result_text = ''
+                for result in vd['result']:
+                    result_text += '\n\t\t\t\tworker: {} - {}'.format(
+                        result['worker_id'], green('FAKE' if result['is_fake'] else 'OK'))
+                logger.info('\t\t\tResult: {}'.format(result_text))
+            epoch += 1
 
     logger.info('-------------------------------------------------------------------------------------------')
     if task_declaration.state == TaskDeclaration.State.COMPLETED:

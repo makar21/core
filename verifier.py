@@ -1,7 +1,7 @@
 import sys
 from logging import getLogger
 
-from tatau_core.tatau.node import Verifier
+from tatau_core.tatau.node.verifier import Verifier
 from tatau_core.utils.logging import configure_logging
 
 configure_logging('verifier')
