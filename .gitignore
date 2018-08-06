@@ -118,3 +118,10 @@ docker/docker.env
 examples/keras/cifar10/*.npy
 
 verifier/
+
+# Tendermint
+tmdata/tatau/this/config/config.toml
+tmdata/tatau/this/config/priv_validator.json
+
+# Wallet Data
+parity/wallet
