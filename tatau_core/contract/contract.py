@@ -4,6 +4,7 @@ from web3.utils.datastructures import AttributeDict
 from tatau_core import settings, web3
 from .abi import abi
 import time
+import hashlib
 
 
 class Contract:
@@ -32,37 +33,67 @@ class Contract:
             time.sleep(1)
             spent_time += 1
 
-    def issue_job(self, amount: int):
+    @classmethod
+    def _asset_id_2_job_id(cls, asset_id: str):
+        return hashlib.sha256(asset_id.encode()).digest()
+
+    def issue_job(self, task_declaration_id: str, value: int):
         """
         Issue Job
-        :param amount: deposit amount
-        :return: job index
+        :param task_declaration_id: task declaration asset id
+        :param value: deposit amount
+        :return: job id
         """
-        tx_hash = self._icontract.issueJob(transact={'value': amount})
+        _id = self._asset_id_2_job_id(task_declaration_id)
+        tx_hash = self._icontract.issueJob(_id, transact={'value': value})
 
         job_filter = self._ccontract.events.JobIssued.createFilter(
             fromBlock='latest',
             argument_filters={'issuer': web3.eth.defaultAccount}
         )
-        event = self._wait_for_event(job_filter, tx_hash)
-        return event.args.index
+        self._wait_for_event(job_filter, tx_hash)
+        return _id
 
-    def deposit(self, index: int, amount: int):
+    def deposit(self, task_declaration_id: str, value: int):
         """
         Deposit Job
-        :param index: job index
-        :param amount: amount
-        :return: receipt
+        :param task_declaration_id: task declaration id
+        :param value: amount to deposit
+        :return: None
         """
-        tx_hash = self._icontract.deposit(index, transact={'value': amount})
-        return web3.eth.waitForTransactionReceipt(tx_hash)
+        _id = self._asset_id_2_job_id(task_declaration_id)
+        tx_hash = self._icontract.deposit(_id, transact={'value': value})
+        web3.eth.waitForTransactionReceipt(tx_hash)
 
-    def get_job(self, index: int):
+    def is_job_exist(self, task_declaration_id: str):
+        """
+        Check that job with passed id already exists
+        :param task_declaration_id: task declaration id
+        :return: bool
+        """
+        _id = self._asset_id_2_job_id(task_declaration_id)
+        return self._icontract.isIdExist(_id)
+
+    def get_job_balance(self, task_declaration_id: str):
         """
         Get Job
-        :param index: job index
-        :return: job
+        :param task_declaration_id: task declaration id
+        :return: balance
         """
-        result = self._icontract.jobs(index)
-        return AttributeDict(dict(issuer=result[0], balance=result[1], finished=result[2], index=index))
+        _id = self._asset_id_2_job_id(task_declaration_id)
+        return self._icontract.getJobBalance(_id)
 
+    def distribute(self, task_declaration_id: str, workers: list, amounts: list):
+        """
+        Payout workers
+        :param task_declaration_id: task declaration id
+        :param workers: workers address list
+        :param amounts: amounts list for each worker
+        :return:
+        """
+        _id = self._asset_id_2_job_id(task_declaration_id)
+        self._icontract.distribute(_id, workers, amounts)
+
+    def finish_job(self, task_declaration_id: str):
+        _id = self._asset_id_2_job_id(task_declaration_id)
+        self._icontract.finishJob(_id)

@@ -28,6 +28,10 @@ abi = """[
       "name": "jobs",
       "outputs": [
         {
+          "name": "id",
+          "type": "bytes32"
+        },
+        {
           "name": "issuer",
           "type": "address"
         },
@@ -80,6 +84,11 @@ abi = """[
           "indexed": false,
           "name": "index",
           "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "name": "id",
+          "type": "bytes32"
         },
         {
           "indexed": false,
@@ -158,8 +167,32 @@ abi = """[
       "type": "function"
     },
     {
+      "constant": true,
+      "inputs": [
+        {
+          "name": "_id",
+          "type": "bytes32"
+        }
+      ],
+      "name": "isIdExist",
+      "outputs": [
+        {
+          "name": "",
+          "type": "bool"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
       "constant": false,
-      "inputs": [],
+      "inputs": [
+        {
+          "name": "_id",
+          "type": "bytes32"
+        }
+      ],
       "name": "issueJob",
       "outputs": [],
       "payable": true,
@@ -170,8 +203,8 @@ abi = """[
       "constant": false,
       "inputs": [
         {
-          "name": "_index",
-          "type": "uint256"
+          "name": "_id",
+          "type": "bytes32"
         }
       ],
       "name": "deposit",
@@ -184,8 +217,8 @@ abi = """[
       "constant": false,
       "inputs": [
         {
-          "name": "_index",
-          "type": "uint256"
+          "name": "_id",
+          "type": "bytes32"
         }
       ],
       "name": "finishJob",
@@ -198,8 +231,8 @@ abi = """[
       "constant": false,
       "inputs": [
         {
-          "name": "_index",
-          "type": "uint256"
+          "name": "_id",
+          "type": "bytes32"
         },
         {
           "name": "_workers",
@@ -214,6 +247,25 @@ abi = """[
       "outputs": [],
       "payable": false,
       "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "constant": true,
+      "inputs": [
+        {
+          "name": "_id",
+          "type": "bytes32"
+        }
+      ],
+      "name": "getJobBalance",
+      "outputs": [
+        {
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "view",
       "type": "function"
     }
   ]"""
