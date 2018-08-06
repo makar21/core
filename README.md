@@ -150,6 +150,9 @@ The producer creates a **Task declaration** asset in BigchainDB containing its A
 After a worker adds a result, the producer creates a **Verification declaration** asset in BigchainDB containing its API URL, waits for a verifier to make a call to its API, and then creates a **Verification assignment** asset in BigchainDB. The asset’s recipient is the verifier.
 
 # Escrow Usage Example
+
+Set actual CONTRACT_ADDRESS in .env file
+
 ```python
 from tatau_core import web3
 from tatau_core.contract import Contract
