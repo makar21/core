@@ -152,6 +152,7 @@ After a worker adds a result, the producer creates a **Verification declaration*
 # Escrow Usage Example
 ```python
 from tatau_core import web3
+from tatau_core.contract import Contract
 
 
 with open("parity/sandbox/keys/account.json") as keyfile:
@@ -167,8 +168,6 @@ account = web3.eth.account.privateKeyToAccount(private_key)
 personal = web3.Personal()
 
 personal.unlockAccount(account.address, keyfile_pass)
-
-# web3.eth.Account.privateKeyToAccount()
 
 web3.eth.defaultAccount = account.address
 
