@@ -112,14 +112,17 @@ class ProcessSnapshot:
         self._cpu_percent = self.process.cpu_percent() / self._cpu_count
         self._gpu_percent = 0.0
 
-        logger.info('METRICS: PID: {}, CPU: {}%'.format(self._pid, self._cpu_percent))
-        # try:
-        #     import gpustat
-        #     for gpu in gpustat.GPUStatCollection.new_query():
-        #         memory_load = gpu.memory_used * 100.0 / gpu.memory_total
-        #         print(gpu)
-        # except Exception as ex:
-        #     logger.error('Collect metrics error: {}'.format(ex))
+        if os.name != 'nt':
+            try:
+                import gpustat
+                gpu_load = []
+                for gpu in gpustat.GPUStatCollection.new_query():
+                    gpu_load.append(gpu.utilization)
+                if len(gpu_load):
+                    self._gpu_percent = sum(g for g in gpu_load) / float(len(gpu_load))
+            except Exception as ex:
+                logger.error('Collect gpu metrics error: {}'.format(ex))
+        logger.info('Metrics: cpu: {}% gpu: {}%'.format(self._cpu_percent, self._gpu_percent))
 
     def get_cpu_tflops(self):
         cpu_tflops = settings.CPU_TFLOPS
