@@ -1,6 +1,7 @@
 import numpy
 from tatau_core.nn import tatau
 from .progress import ProgressCallback
+import keras
 
 
 class Model(tatau.Model):
@@ -10,11 +11,9 @@ class Model(tatau.Model):
         return []
 
     @classmethod
-    def native_model_factory(cls):
+    def native_model_factory(cls) -> keras.models.Model:
         """
         Construct Keras Model
-        :return: model
-        :rtype: keras.models.Model
         """
         raise NotImplementedError()
 
@@ -28,7 +27,8 @@ class Model(tatau.Model):
     def data_preprocessing(cls, x: numpy.array, y: numpy.array):
         return x, y
 
-    def train(self, x: numpy.array, y: numpy.array, batch_size: int, nb_epochs: int, train_progress: tatau.TrainProgress):
+    def train(self, x: numpy.array, y: numpy.array, batch_size: int, nb_epochs: int,
+              train_progress: tatau.TrainProgress):
         callbacks = [
             ProgressCallback(nb_epochs=nb_epochs, train_progress=train_progress)
         ]
@@ -50,5 +50,3 @@ class Model(tatau.Model):
     def eval(self, x: numpy.array, y: numpy.array):
         x, y = self.data_preprocessing(x, y)
         return self.native_model.evaluate(x=x, y=y, verbose=1)
-
-

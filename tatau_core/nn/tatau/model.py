@@ -45,6 +45,10 @@ class Model(ABC):
 
     @classmethod
     def native_model_factory(cls):
+        """
+        Native Model Factory
+        :return: native model
+        """
         raise NotImplementedError()
 
     @abstractmethod

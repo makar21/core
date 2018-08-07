@@ -9,15 +9,17 @@ ResNet v2
 https://arxiv.org/pdf/1603.05027.pdf
 
 """
+from tatau_core.nn.keras import model
+
 from keras.callbacks import LearningRateScheduler, ReduceLROnPlateau
 from keras.optimizers import Adam
-from tatau_core.nn import keras
-from keras import layers
-from keras.models import Model as KerasNativeModel
 from keras.layers import Dense, Activation, AveragePooling2D, Flatten, BatchNormalization, Input, Conv2D
 from keras.regularizers import l2
 from keras.utils import to_categorical
+import keras
+
 import numpy
+
 
 
 # Model parameter
@@ -36,7 +38,7 @@ import numpy
 # ---------------------------------------------------------------------------
 
 
-class Model(keras.Model):
+class Model(model.Model):
     """
     Cifar10 ResNet from https://github.com/keras-team/keras/blob/master/examples/cifar10_resnet.py
 
@@ -51,11 +53,10 @@ class Model(keras.Model):
     version = 2
 
     @classmethod
-    def native_model_factory(cls):
-        model = resnet_v2(input_shape=cls.input_shape, depth=cls.depth)
-
-        model.compile(loss='categorical_crossentropy', optimizer=Adam(lr=lr_schedule(0)), metrics=['accuracy'])
-        return model
+    def native_model_factory(cls) -> keras.models.Model:
+        net = resnet_v2(input_shape=cls.input_shape, depth=cls.depth)
+        net.compile(loss='categorical_crossentropy', optimizer=Adam(lr=lr_schedule(0)), metrics=['accuracy'])
+        return net
 
     @classmethod
     def data_preprocessing(cls, x: numpy.array, y: numpy.array):
