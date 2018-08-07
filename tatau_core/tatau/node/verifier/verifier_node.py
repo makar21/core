@@ -10,7 +10,7 @@ logger = getLogger()
 
 
 class Verifier(Node):
-    node_type = Node.NodeType.VERIFIER
+
     asset_class = VerifierNode
 
     def _get_tx_methods(self):

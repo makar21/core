@@ -14,13 +14,8 @@ logger = getLogger()
 
 
 class Node(TransactionListener):
-    class NodeType:
-        PRODUCER = 'producer'
-        WORKER = 'worker'
-        VERIFIER = 'verifier'
 
     # should be rename by child classes
-    node_type = None
     asset_class = None
 
     def __init__(self, rsa_pk_fs_name=None, rsa_pk=None, *args, **kwargs):

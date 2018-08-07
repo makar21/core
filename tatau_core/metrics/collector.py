@@ -1,7 +1,12 @@
-from multiprocessing import RLock, Event, Value
+from logging import getLogger
+from multiprocessing import RLock, Event, Value, Process
+
+from tatau_core.metrics import ProcessSnapshot
+
+logger = getLogger()
 
 
-class WorkerInterprocess:
+class MetricsCollector:
     def __init__(self, interval=1):
         self._event_start_collect_metrics = Event()
         self._event_stop = Event()
@@ -41,3 +46,17 @@ class WorkerInterprocess:
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self._stop_collect_metrics()
+
+    def start_and_wait_signal(self):
+        process = Process(target=self._collect_metrics)
+        process.start()
+
+    def _collect_metrics(self):
+        self.wait_for_start_collect_metrics()
+        logger.info('Start collect metrics')
+        snapshot = ProcessSnapshot(self.get_pid())
+        while not self.should_stop_collect_metrics(self.interval):
+            snapshot.update()
+            self.add_tflops(snapshot.get_total_tflops() * self.interval)
+
+        logger.info('Stop collect metrics')

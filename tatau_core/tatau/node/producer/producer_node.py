@@ -16,7 +16,7 @@ logger = getLogger()
 
 # noinspection PyMethodMayBeStatic
 class Producer(Node):
-    node_type = Node.NodeType.PRODUCER
+
     asset_class = ProducerNode
 
     def __init__(self, rsa_pk_fs_name=None, rsa_pk=None, exit_on_task_completion=None, task_declaration_asset_id=None,

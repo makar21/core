@@ -80,7 +80,7 @@ class WorkerNode(models.Model):
 
 
 class VerifierNode(models.Model):
-    node_type = fields.CharField(immutable=True, initial=NodeType.WORKER)
+    node_type = fields.CharField(immutable=True, initial=NodeType.VERIFIER)
     enc_key = fields.CharField(immutable=True)
 
 
