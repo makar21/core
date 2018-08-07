@@ -21,37 +21,6 @@ abi = """[
       "constant": true,
       "inputs": [
         {
-          "name": "",
-          "type": "uint256"
-        }
-      ],
-      "name": "jobs",
-      "outputs": [
-        {
-          "name": "id",
-          "type": "bytes32"
-        },
-        {
-          "name": "issuer",
-          "type": "address"
-        },
-        {
-          "name": "balance",
-          "type": "uint256"
-        },
-        {
-          "name": "finished",
-          "type": "bool"
-        }
-      ],
-      "payable": false,
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "constant": true,
-      "inputs": [
-        {
           "name": "addr",
           "type": "address"
         },
@@ -72,6 +41,33 @@ abi = """[
       "type": "function"
     },
     {
+      "constant": true,
+      "inputs": [
+        {
+          "name": "",
+          "type": "bytes32"
+        }
+      ],
+      "name": "jobs",
+      "outputs": [
+        {
+          "name": "issuer",
+          "type": "address"
+        },
+        {
+          "name": "balance",
+          "type": "uint256"
+        },
+        {
+          "name": "finished",
+          "type": "bool"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
       "inputs": [],
       "payable": false,
       "stateMutability": "nonpayable",
@@ -80,11 +76,6 @@ abi = """[
     {
       "anonymous": false,
       "inputs": [
-        {
-          "indexed": false,
-          "name": "index",
-          "type": "uint256"
-        },
         {
           "indexed": false,
           "name": "id",
@@ -102,6 +93,67 @@ abi = """[
         }
       ],
       "name": "JobIssued",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": false,
+          "name": "id",
+          "type": "bytes32"
+        },
+        {
+          "indexed": false,
+          "name": "balance",
+          "type": "uint256"
+        }
+      ],
+      "name": "JobFinished",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": false,
+          "name": "id",
+          "type": "bytes32"
+        },
+        {
+          "indexed": false,
+          "name": "depositor",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "name": "amount",
+          "type": "uint256"
+        }
+      ],
+      "name": "Deposit",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": false,
+          "name": "id",
+          "type": "bytes32"
+        },
+        {
+          "indexed": false,
+          "name": "worker",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "name": "amount",
+          "type": "uint256"
+        }
+      ],
+      "name": "Distribute",
       "type": "event"
     },
     {
@@ -170,11 +222,11 @@ abi = """[
       "constant": true,
       "inputs": [
         {
-          "name": "_id",
+          "name": "id",
           "type": "bytes32"
         }
       ],
-      "name": "isIdExist",
+      "name": "doesJobExist",
       "outputs": [
         {
           "name": "",
@@ -189,7 +241,7 @@ abi = """[
       "constant": false,
       "inputs": [
         {
-          "name": "_id",
+          "name": "id",
           "type": "bytes32"
         }
       ],
@@ -203,7 +255,7 @@ abi = """[
       "constant": false,
       "inputs": [
         {
-          "name": "_id",
+          "name": "id",
           "type": "bytes32"
         }
       ],
@@ -217,7 +269,7 @@ abi = """[
       "constant": false,
       "inputs": [
         {
-          "name": "_id",
+          "name": "id",
           "type": "bytes32"
         }
       ],
@@ -231,7 +283,7 @@ abi = """[
       "constant": false,
       "inputs": [
         {
-          "name": "_id",
+          "name": "id",
           "type": "bytes32"
         },
         {
@@ -253,7 +305,7 @@ abi = """[
       "constant": true,
       "inputs": [
         {
-          "name": "_id",
+          "name": "id",
           "type": "bytes32"
         }
       ],

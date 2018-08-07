@@ -23,6 +23,13 @@ class Contract:
         :param tx_hash: transaction hash
         :param timeout: wait timeout
         :return: event
+
+        Example usage:
+            job_filter = self._ccontract.events.JobIssued.createFilter(
+                fromBlock='latest',
+                argument_filters={'issuer': web3.eth.defaultAccount}
+            )
+            self._wait_for_event(job_filter, tx_hash)
         """
         spent_time = 0
         while spent_time < timeout:
@@ -32,6 +39,23 @@ class Contract:
 
             time.sleep(1)
             spent_time += 1
+
+    @classmethod
+    def _wait_for_transaction_mined(cls, tx_hash: bytearray, timeout=120):
+        """
+        Wait for transaction has been mined
+        :param tx_hash: transaction hash
+        :param timeout: timeout seconds
+        :return: receipt
+        """
+        spent_time = 0
+        while spent_time < timeout:
+            receipt = web3.eth.waitForTransactionReceipt(tx_hash)
+            if len(receipt.logs) and receipt.logs[0].type == 'mined':
+                return receipt
+            time.sleep(1)
+            spent_time += 1
+        raise TimeoutError("Transaction timed out {}".format(receipt))
 
     @classmethod
     def _asset_id_2_job_id(cls, asset_id: str):
@@ -46,12 +70,7 @@ class Contract:
         """
         _id = self._asset_id_2_job_id(task_declaration_id)
         tx_hash = self._icontract.issueJob(_id, transact={'value': value})
-
-        job_filter = self._ccontract.events.JobIssued.createFilter(
-            fromBlock='latest',
-            argument_filters={'issuer': web3.eth.defaultAccount}
-        )
-        self._wait_for_event(job_filter, tx_hash)
+        self._wait_for_transaction_mined(tx_hash=tx_hash)
         return _id
 
     def deposit(self, task_declaration_id: str, value: int):
@@ -59,20 +78,11 @@ class Contract:
         Deposit Job
         :param task_declaration_id: task declaration id
         :param value: amount to deposit
-        :return: None
+        :return: receipt
         """
         _id = self._asset_id_2_job_id(task_declaration_id)
         tx_hash = self._icontract.deposit(_id, transact={'value': value})
-        web3.eth.waitForTransactionReceipt(tx_hash)
-
-    def is_job_exist(self, task_declaration_id: str):
-        """
-        Check that job with passed id already exists
-        :param task_declaration_id: task declaration id
-        :return: bool
-        """
-        _id = self._asset_id_2_job_id(task_declaration_id)
-        return self._icontract.isIdExist(_id)
+        return self._wait_for_transaction_mined(tx_hash=tx_hash)
 
     def get_job_balance(self, task_declaration_id: str):
         """
@@ -86,14 +96,23 @@ class Contract:
     def distribute(self, task_declaration_id: str, workers: list, amounts: list):
         """
         Payout workers
+        :role: validator
         :param task_declaration_id: task declaration id
         :param workers: workers address list
         :param amounts: amounts list for each worker
-        :return:
+        :return: receipt
         """
         _id = self._asset_id_2_job_id(task_declaration_id)
-        self._icontract.distribute(_id, workers, amounts)
+        tx_hash = self._icontract.distribute(_id, workers, amounts)
+        return self._wait_for_transaction_mined(tx_hash=tx_hash)
 
     def finish_job(self, task_declaration_id: str):
+        """
+        Finish Job
+        :role: validator
+        :param task_declaration_id: task declaration id
+        :return: receipt
+        """
         _id = self._asset_id_2_job_id(task_declaration_id)
-        self._icontract.finishJob(_id)
+        tx_hash = self._icontract.finishJob(_id)
+        return self._wait_for_transaction_mined(tx_hash=tx_hash)
