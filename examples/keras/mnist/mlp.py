@@ -1,11 +1,11 @@
-from tatau_core.nn.models.keras import KerasModel
+from tatau_core.nn import keras
 from keras.models import Sequential
 from keras.layers import Dense, Activation, Dropout
 import numpy
 from keras.utils import np_utils
 
 
-class Model(KerasModel):
+class Model(keras.Model):
     @classmethod
     def native_model_factory(cls):
         model = Sequential()

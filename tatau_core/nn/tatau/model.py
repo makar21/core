@@ -1,19 +1,18 @@
 import numpy
 from abc import abstractmethod, ABC
 from logging import getLogger
+from .progress import TrainProgress
+from .summarizer import Summarizer
 
 logger = getLogger(__name__)
 
 
-class TrainProgress:
-    def progress_callback(self, progress):
-        pass
-
-
-class TatauModel(ABC):
+class Model(ABC):
     """
     Tatau NN Model
     """
+
+    summarizer_class = Summarizer
 
     @classmethod
     def load_model(cls, path):
@@ -21,7 +20,7 @@ class TatauModel(ABC):
         Construct model from asset
         :param path: model path
         :return: model instance
-        :rtype: TatauModel
+        :rtype: Model
         """
         model = None
 
@@ -31,7 +30,7 @@ class TatauModel(ABC):
             module = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(module)
             assert hasattr(module, 'Model')
-            assert issubclass(module.Model, TatauModel)
+            assert issubclass(module.Model, Model)
             model = module.Model()
         except Exception as e:
             logger.exception(e)

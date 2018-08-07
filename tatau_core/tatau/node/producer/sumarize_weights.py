@@ -3,10 +3,9 @@ import shutil
 import tempfile
 from collections import deque
 import numpy as np
-from tatau_core.nn import summarizers
 from tatau_core.utils.ipfs import IPFS
 import os
-from tatau_core.nn.models.tatau import TatauModel
+from tatau_core.nn.tatau.model import Model
 
 logger = getLogger()
 
@@ -43,21 +42,23 @@ def summarize(weights_updates: deque, x_test_path: str, y_test_path: str, model_
 
     try:
         logger.info('Summarize {}'.format(weights_updates))
-        summarizer = summarizers.Median()
+
+        model = Model.load_model(model_code_path)
+
+        weights_summarizer = model.summarizer_class()
 
         for weights_path in weights_updates:
             weights_file = np.load(weights_path)
             weights = [weights_file[r] for r in weights_file.files]
-            summarizer.update(weights=weights)
+            weights_summarizer.update(weights=weights)
 
         result_weights_path = os.path.join(target_dir, 'result_weights')
-        result_weights = summarizer.commit()
+        result_weights = weights_summarizer.commit()
         np.savez(result_weights_path, *result_weights)
         result_weights_path += '.npz'
-
         x_test = np.load(x_test_path)
         y_test = np.load(y_test_path)
-        model = TatauModel.load_model(model_code_path)
+
         model.set_weights(result_weights)
         loss, acc = model.eval(x=x_test, y=y_test)
         file_hash = IPFS().add_file(result_weights_path).multihash

@@ -11,11 +11,12 @@ https://arxiv.org/pdf/1603.05027.pdf
 """
 from keras.callbacks import LearningRateScheduler, ReduceLROnPlateau
 from keras.optimizers import Adam
-from tatau_core.nn.models.keras import KerasModel
+from tatau_core.nn import keras
+from keras import layers
 from keras.models import Model as KerasNativeModel
 from keras.layers import Dense, Activation, AveragePooling2D, Flatten, BatchNormalization, Input, Conv2D
 from keras.regularizers import l2
-import keras
+from keras.utils import to_categorical
 import numpy
 
 
@@ -35,7 +36,7 @@ import numpy
 # ---------------------------------------------------------------------------
 
 
-class Model(KerasModel):
+class Model(keras.Model):
     """
     Cifar10 ResNet from https://github.com/keras-team/keras/blob/master/examples/cifar10_resnet.py
 
@@ -59,9 +60,10 @@ class Model(KerasModel):
     @classmethod
     def data_preprocessing(cls, x: numpy.array, y: numpy.array):
         x = x.astype('float32') / 255
-        y = keras.utils.to_categorical(y, cls.num_classes)
+        y = to_categorical(y, cls.num_classes)
         return x, y
 
+    # noinspection PyMethodMayBeStatic
     def get_keras_callbacks(self):
         lr_scheduler = LearningRateScheduler(lr_schedule)
 
@@ -206,14 +208,16 @@ def resnet_v2(input_shape, depth, num_classes=10):
             if res_block == 0:
                 # linear projection residual shortcut connection to match
                 # changed dims
+                # noinspection PyTypeChecker
                 x = resnet_layer(inputs=x,
                                  num_filters=num_filters_out,
                                  kernel_size=1,
                                  strides=strides,
                                  activation=None,
                                  batch_normalization=False)
-            x = keras.layers.add([x, y])
+            x = layers.add([x, y])
 
+        # noinspection PyUnboundLocalVariable
         num_filters_in = num_filters_out
 
     # Add classifier on top.

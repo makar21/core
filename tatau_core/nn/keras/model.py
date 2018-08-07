@@ -1,25 +1,11 @@
 import numpy
-from .tatau import TatauModel, TrainProgress
-from keras.callbacks import Callback
-import keras
+from tatau_core.nn import tatau
+from .progress import ProgressCallback
 
 
-class ProgressCallback(Callback):
-    def __init__(self, nb_epochs: int, train_progress: TrainProgress):
-        super().__init__()
-        self.nb_epochs = nb_epochs
-        self.train_progress = train_progress
+class Model(tatau.Model):
 
-    def on_epoch_end(self, epoch, logs=None):
-        progress = int(epoch * 100.0 / self.nb_epochs)
-        self.train_progress.progress_callback(progress)
-
-    def on_train_end(self, logs=None):
-        self.train_progress.progress_callback(100)
-
-
-class KerasModel(TatauModel):
-
+    # noinspection PyMethodMayBeStatic
     def get_keras_callbacks(self):
         return []
 
@@ -42,7 +28,7 @@ class KerasModel(TatauModel):
     def data_preprocessing(cls, x: numpy.array, y: numpy.array):
         return x, y
 
-    def train(self, x: numpy.array, y: numpy.array, batch_size: int, nb_epochs: int, train_progress: TrainProgress):
+    def train(self, x: numpy.array, y: numpy.array, batch_size: int, nb_epochs: int, train_progress: tatau.TrainProgress):
         callbacks = [
             ProgressCallback(nb_epochs=nb_epochs, train_progress=train_progress)
         ]
@@ -64,3 +50,5 @@ class KerasModel(TatauModel):
     def eval(self, x: numpy.array, y: numpy.array):
         x, y = self.data_preprocessing(x, y)
         return self.native_model.evaluate(x=x, y=y, verbose=1)
+
+

@@ -1,4 +1,4 @@
-from .summarizer import Summarizer
+from tatau_core.nn.tatau.summarizer import Summarizer
 import numpy as np
 
 

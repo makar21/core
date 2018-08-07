@@ -11,7 +11,7 @@ import numpy as np
 
 from tatau_core import settings
 from tatau_core.metrics import Snapshot
-from tatau_core.nn.models.tatau import TatauModel, TrainProgress
+from tatau_core.nn.tatau.model import Model, TrainProgress
 from tatau_core.tatau.models import WorkerNode, TaskDeclaration, TaskAssignment, EstimationAssignment
 from tatau_core.tatau.node import Node
 from tatau_core.tatau.node.worker.task_progress import TaskProgress
@@ -219,7 +219,7 @@ class Worker(Node):
 
                 logger.info('Initial weights are loaded')
 
-                model = TatauModel.load_model(path=model_code_path)
+                model = Model.load_model(path=model_code_path)
                 logger.info('Model is loaded')
 
                 model.set_weights(weights=initial_weights)
@@ -327,7 +327,7 @@ class Worker(Node):
                 initial_weights = [weights_file[r] for r in weights_file.files]
                 logger.info('Initial weights are loaded')
 
-                model = TatauModel.load_model(path=model_code_path)
+                model = Model.load_model(path=model_code_path)
                 logger.info('Model is loaded')
 
                 model.set_weights(weights=initial_weights)
