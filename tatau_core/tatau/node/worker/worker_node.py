@@ -10,7 +10,7 @@ from multiprocessing import Process
 import numpy as np
 
 from tatau_core import settings
-from tatau_core.metrics import Snapshot
+from tatau_core.metrics import ProcessSnapshot
 from tatau_core.nn.models.tatau import TatauModel, TrainProgress
 from tatau_core.tatau.models import WorkerNode, TaskDeclaration, TaskAssignment, EstimationAssignment
 from tatau_core.tatau.node import Node
@@ -150,16 +150,16 @@ class Worker(Node):
         logger.debug('{} process {} state:{}'.format(self, estimation_assignment, estimation_assignment.state))
 
         if estimation_assignment.state == EstimationAssignment.State.IN_PROGRESS:
-            if estimation_assignment.task_declaration.state == TaskDeclaration.State.EPOCH_IN_PROGRESS:
-                estimation_assignment.state = TaskAssignment.State.DATA_IS_READY
+            if estimation_assignment.task_declaration.state == TaskDeclaration.State.ESTIMATE_IN_PROGRESS:
+                estimation_assignment.state = EstimationAssignment.State.DATA_IS_READY
 
         if estimation_assignment.state == EstimationAssignment.State.RETRY:
             estimation_assignment.state = EstimationAssignment.State.INITIAL
             estimation_assignment.save(recipients=estimation_assignment.producer.address)
             return
 
-        if estimation_assignment.state == TaskAssignment.State.DATA_IS_READY:
-            estimation_assignment.state = TaskAssignment.State.IN_PROGRESS
+        if estimation_assignment.state == EstimationAssignment.State.DATA_IS_READY:
+            estimation_assignment.state = EstimationAssignment.State.IN_PROGRESS
             estimation_assignment.save()
 
             interprocess = WorkerInterprocess()
@@ -199,6 +199,8 @@ class Worker(Node):
 
         batch_size = estimation_assignment.estimation_data['batch_size']
 
+        collect_metrics.set_pid(os.getpid())
+        iterations = 100
         try:
             model_code_path = os.path.join(target_dir, '{}.py'.format(asset_id))
 
@@ -226,7 +228,8 @@ class Worker(Node):
                 logger.info('Start training')
                 progress = TrainProgress()
                 with collect_metrics:
-                    model.train(x=x_train, y=y_train, batch_size=batch_size, nb_epochs=1, train_progress=progress)
+                    for i in range(iterations):
+                        model.train(x=x_train, y=y_train, batch_size=batch_size, nb_epochs=1, train_progress=progress)
             except Exception as e:
                 error_dict = {'exception': type(e).__name__}
                 msg = str(e)
@@ -236,7 +239,7 @@ class Worker(Node):
                 estimation_assignment.error = json.dumps(error_dict)
                 logger.exception(e)
 
-            estimation_assignment.tflops = collect_metrics.get_tflops()
+            estimation_assignment.tflops = collect_metrics.get_tflops() / iterations
             estimation_assignment.state = EstimationAssignment.State.FINISHED
             estimation_assignment.set_encryption_key(estimation_assignment.producer.enc_key)
             estimation_assignment.save(recipients=estimation_assignment.producer.address)
@@ -304,6 +307,8 @@ class Worker(Node):
         initial_weights_path = ipfs.download(task_assignment.train_data['initial_weights'], target_dir)
         logger.info('initial weights are downloaded')
 
+        collect_metrics.set_pid(os.getpid())
+
         try:
             model_code_path = os.path.join(target_dir, '{}.py'.format(asset_id))
 
@@ -364,18 +369,17 @@ class Worker(Node):
             task_assignment.save(recipients=task_assignment.producer.address)
 
             logger.info('Finished {}, tflops: {}, result: {}, error: {}'.format(
-                task_assignment, task_assignment.tflops, task_assignment.result, task_assignment.error
-            ))
+                task_assignment, task_assignment.tflops, task_assignment.result, task_assignment.error))
         finally:
             shutil.rmtree(target_dir)
 
     def _collect_metrics(self, interprocess):
         interprocess.wait_for_start_collect_metrics()
         logger.info('Start collect metrics')
-
+        snapshot = ProcessSnapshot(interprocess.get_pid())
         while not interprocess.should_stop_collect_metrics(interprocess.interval):
-            snapshot = Snapshot()
-            interprocess.add_tflops(snapshot.calc_tflops() * interprocess.interval)
+            snapshot.update()
+            interprocess.add_tflops(snapshot.get_total_tflops() * interprocess.interval)
 
         logger.info('Stop collect metrics')
 
