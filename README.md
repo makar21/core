@@ -156,6 +156,7 @@ Set actual CONTRACT_ADDRESS in .env file
 ```python
 from tatau_core import web3
 from tatau_core.contract import Contract
+from web3.personal import Personal
 
 
 with open("parity/sandbox/keys/account.json") as keyfile:
@@ -168,7 +169,7 @@ private_key = web3.eth.account.decrypt(encrypted_key, keyfile_pass)
 
 account = web3.eth.account.privateKeyToAccount(private_key)
 
-personal = web3.Personal()
+personal = Personal(web3=web3)
 
 personal.unlockAccount(account.address, keyfile_pass)
 
