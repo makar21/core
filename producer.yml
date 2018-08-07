@@ -11,12 +11,7 @@ services:
       RING: $RING
       TATAU_DEBUG: $TATAU_DEBUG
       TATAU_RAVEN_DSN: $TATAU_RAVEN_DSN
-      TATAU_DBD_HOST: bigchaindb
-      TATAU_MONGO_DB_HOST: mongodb
-      TATAU_MONGO_DB_PORT: 27017
-      TATAU_IPFS_HOST: ipfs
-      TATAU_IPFS_PORT: 5001
-
+      CONTRACT_ADDRESS: $CONTRACT_ADDRESS
     volumes:
       - ./keys/${RING}:/app/keys
     restart: always
@@ -25,3 +20,4 @@ services:
       - bigchaindb_this:bigchaindb
       - mongodb_this:mongodb
       - tendermint_this:tendermint
+      - parity

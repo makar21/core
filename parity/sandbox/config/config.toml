@@ -1,0 +1,38 @@
+[parity]
+chain = "/parity/config/spec.json"
+base_path = "/parity/data"
+
+[network]
+# This needs to be unique from any other nodes running on your machine
+port = 30310
+discovery = true
+reserved_peers = "/parity/config/reserved_peers.txt"
+# TODO: for test only
+reserved_only = true
+
+[rpc]
+# This needs to be unique from any other nodes running on your machine
+port = 8545
+interface = "all"
+
+# TODO: for test only
+apis = ["web3", "eth", "parity", "parity_set", "net", "traces", "rpc", "personal"]
+
+[websockets]
+disable = false
+# This needs to be unique from any other nodes running on your machine
+port = 8546
+interface = "all"
+origins = ["all"]
+apis = ["web3", "eth", "pubsub", "net", "parity", "parity_pubsub", "traces", "rpc", "shh", "shh_pubsub", "personal"]
+
+[misc]
+# log_file = "./parity.log"
+
+
+[ui]
+force = true
+disable = false
+port = 8180
+interface = "all"
+path = "/parity/data/signer"

@@ -10,6 +10,10 @@ bin/core-up <cpu|gpu>
 
 ```
 
+
+
+
+
 # Deploy Train Job
 
 #### Prepare stack
@@ -144,3 +148,45 @@ python producer.py
 The producer creates a **Task declaration** asset in BigchainDB containing its API URL, waits for a worker to make a call to its API, and then creates a **Task assignment** asset in BigchainDB. The asset’s recipient is the worker.
 
 After a worker adds a result, the producer creates a **Verification declaration** asset in BigchainDB containing its API URL, waits for a verifier to make a call to its API, and then creates a **Verification assignment** asset in BigchainDB. The asset’s recipient is the verifier.
+
+# Escrow Usage Example
+
+Set actual CONTRACT_ADDRESS in .env file
+
+```python
+from tatau_core import web3
+from tatau_core.contract import Contract
+
+
+with open("parity/sandbox/keys/account.json") as keyfile:
+    encrypted_key = keyfile.read()
+
+with open("parity/wallet/account.pass") as passfile:
+    keyfile_pass = passfile.read()
+
+private_key = web3.eth.account.decrypt(encrypted_key, keyfile_pass)
+
+account = web3.eth.account.privateKeyToAccount(private_key)
+
+personal = web3.Personal()
+
+personal.unlockAccount(account.address, keyfile_pass)
+
+web3.eth.defaultAccount = account.address
+
+contract = Contract()
+
+# a = web3.toWei(100)
+# b = web3.fromWei(100)
+
+task_declaration_id = "some_asset_id-004" # "{}".format(time.time())
+
+job_id = contract.issue_job(task_declaration_id=task_declaration_id, value=1)
+e = contract.is_job_exist(task_declaration_id)
+contract.deposit(task_declaration_id, 1)
+balance = contract.get_job_balance(task_declaration_id)
+
+# under validator role
+contract.distribute(task_declaration_id, workers=["Some Worker Address"], amounts=[1])
+contract.finish_job(task_declaration_id)
+```
