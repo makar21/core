@@ -379,6 +379,7 @@ class VerificationAssignment(models.Model):
     task_declaration_id = fields.CharField(immutable=True)
 
     state = fields.CharField(initial=State.INITIAL)
+    model_code_ipfs = fields.EncryptedCharField(required=False)
     train_results = fields.EncryptedJsonField(required=False)
 
     progress = fields.FloatField(initial=0.0)
