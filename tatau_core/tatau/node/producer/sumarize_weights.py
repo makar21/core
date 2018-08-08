@@ -45,23 +45,23 @@ def summarize(weights_updates: deque, x_test_path: str, y_test_path: str, model_
 
         model = Model.load_model(model_code_path)
 
-        weights_summarizer = model.summarizer_class()
+        summarizer = model.summarizer_class()
+        serializer = model.weights_serializer_class()
 
         for weights_path in weights_updates:
-            weights_file = np.load(weights_path)
-            weights = [weights_file[r] for r in weights_file.files]
-            weights_summarizer.update(weights=weights)
+            weights = serializer.load(weights_path)
+            summarizer.update(weights=weights)
 
-        result_weights_path = os.path.join(target_dir, 'result_weights')
-        result_weights = weights_summarizer.commit()
-        np.savez(result_weights_path, *result_weights)
-        result_weights_path += '.npz'
+        weights_path = os.path.join(target_dir, 'result_weights')
+        weights = summarizer.commit()
+        serializer.save(weights=weights, path=weights_path)
+
         x_test = np.load(x_test_path)
         y_test = np.load(y_test_path)
 
-        model.set_weights(result_weights)
+        model.set_weights(weights)
         loss, acc = model.eval(x=x_test, y=y_test)
-        file_hash = IPFS().add_file(result_weights_path).multihash
+        file_hash = IPFS().add_file(weights_path).multihash
 
     finally:
         shutil.rmtree(target_dir)

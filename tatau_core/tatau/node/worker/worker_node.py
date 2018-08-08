@@ -319,18 +319,19 @@ class Worker(Node):
             try:
                 x_train, y_train, x_test, y_test = self._load_dataset(
                     train_x_paths, train_y_paths, test_x_path, test_y_path)
-
                 logger.info('Dataset is loaded')
-
-                weights_file = np.load(initial_weights_path)
-
-                initial_weights = [weights_file[r] for r in weights_file.files]
-                logger.info('Initial weights are loaded')
 
                 model = Model.load_model(path=model_code_path)
                 logger.info('Model is loaded')
 
+                weights_serializer = model.weights_serializer_class()
+
+                initial_weights = weights_serializer.load(initial_weights_path)
+
+                logger.info('Initial weights are loaded')
+
                 model.set_weights(weights=initial_weights)
+
                 logger.info('Start training')
 
                 with collect_metrics:
@@ -341,10 +342,10 @@ class Worker(Node):
                 task_assignment.accuracy = task_assignment.train_history['acc'][-1]
 
                 weights = model.get_weights()
-                weights_file_path = os.path.join(target_dir, 'train_weights.npz')
-                np.savez(weights_file_path, *weights)
+                weights_path = os.path.join(target_dir, 'train_weights')
+                weights_serializer.save(weights=weights, path=weights_path)
 
-                ipfs_file = ipfs.add_file(weights_file_path)
+                ipfs_file = ipfs.add_file(weights_path)
                 logger.info('Result weights are uploaded')
 
                 task_assignment.result = ipfs_file.multihash

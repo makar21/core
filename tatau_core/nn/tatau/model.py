@@ -3,6 +3,7 @@ from abc import abstractmethod, ABC
 from logging import getLogger
 from .progress import TrainProgress
 from .summarizer import Summarizer
+from .serializer import WeightsSerializer
 
 logger = getLogger(__name__)
 
@@ -13,6 +14,7 @@ class Model(ABC):
     """
 
     summarizer_class = Summarizer
+    weights_serializer_class = WeightsSerializer
 
     @classmethod
     def load_model(cls, path):
