@@ -5,7 +5,7 @@ import tempfile
 from logging import getLogger
 from multiprocessing import Process
 
-from tatau_core.db import DB, TransactionListener, NodeInfo
+from tatau_core.db import DB, TransactionListener, NodeDBInfo
 from tatau_core.settings import ROOT_DIR
 from tatau_core.utils.encryption import Encryption
 from tatau_core.utils.ipfs import IPFS
@@ -18,11 +18,11 @@ class Node(TransactionListener):
     # should be rename by child classes
     asset_class = None
 
-    def __init__(self, rsa_pk_fs_name=None, rsa_pk=None, *args, **kwargs):
+    def __init__(self, account_address, rsa_pk_fs_name=None, rsa_pk=None, *args, **kwargs):
         self.db = DB()
         self.bdb = self.db.bdb
         self.encryption = Encryption()
-        NodeInfo.configure(self.db, self.encryption)
+        NodeDBInfo.configure(self.db, self.encryption)
 
         if rsa_pk_fs_name:
             self._handle_fs_key(rsa_pk_fs_name)
@@ -31,7 +31,7 @@ class Node(TransactionListener):
             seed = hashlib.sha256(rsa_pk).digest()
             self.db.generate_keypair(seed=seed)
 
-        self.asset = self._create_info_asset()
+        self.asset = self._create_info_asset(account_address=account_address)
 
     def __str__(self):
         return self.asset.__str__()
@@ -55,14 +55,17 @@ class Node(TransactionListener):
         seed = hashlib.sha256(rsa_pk).digest()
         self.db.generate_keypair(seed=seed)
 
-    def _create_info_asset(self):
+    def _create_info_asset(self, account_address):
         node_assets = self.asset_class.list()
         assert len(node_assets) <= 1
 
         if len(node_assets) == 1:
             return node_assets[0]
         else:
-            return self.asset_class.create(enc_key=self.encryption.get_public_key().decode())
+            return self.asset_class.create(
+                enc_key=self.encryption.get_public_key().decode(),
+                account_address=account_address
+            )
 
     def _process_tx(self, data):
         """

@@ -1,6 +1,7 @@
 import sys
 from logging import getLogger
 
+from tatau_core.contract import NodeContractInfo
 from tatau_core.tatau.node.worker import Worker
 from tatau_core.utils.logging import configure_logging
 
@@ -15,7 +16,13 @@ if __name__ == '__main__':
     except IndexError:
         index = ''
 
-    worker = Worker(rsa_pk_fs_name='worker-no-socket{}'.format(index))
+    NodeContractInfo.init_poa(key_name='worker')
+
+    worker = Worker(
+        poa_address=NodeContractInfo.get_account_address(),
+        rsa_pk_fs_name='worker-no-socket{}'.format(index)
+    )
+
     logger.info('Start {}'.format(worker.asset))
     worker.search_tasks()
 

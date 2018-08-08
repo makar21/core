@@ -72,16 +72,19 @@ class NodeType:
 class ProducerNode(models.Model):
     node_type = fields.CharField(immutable=True, initial=NodeType.PRODUCER)
     enc_key = fields.CharField(immutable=True)
+    account_address = fields.CharField(immutable=True)
 
 
 class WorkerNode(models.Model):
     node_type = fields.CharField(immutable=True, initial=NodeType.WORKER)
     enc_key = fields.CharField(immutable=True)
+    account_address = fields.CharField(immutable=True)
 
 
 class VerifierNode(models.Model):
     node_type = fields.CharField(immutable=True, initial=NodeType.VERIFIER)
     enc_key = fields.CharField(immutable=True)
+    account_address = fields.CharField(immutable=True)
 
 
 class TaskDeclaration(models.Model):

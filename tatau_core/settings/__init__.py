@@ -43,3 +43,5 @@ PARITY_WEBSOCKET_PORT = int(os.getenv('PARITY_WEBSOCKET_PORT', 8546))
 PARITY_HOST = os.getenv('PARITY_HOST', 'parity')
 
 CONTRACT_ADDRESS = os.getenv('CONTRACT_ADDRESS')
+
+TFLOPS_COST = float(os.getenv('TFLOPS_COST'))

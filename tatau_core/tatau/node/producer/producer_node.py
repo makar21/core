@@ -19,9 +19,9 @@ class Producer(Node):
 
     asset_class = ProducerNode
 
-    def __init__(self, rsa_pk_fs_name=None, rsa_pk=None, exit_on_task_completion=None, task_declaration_asset_id=None,
-                 *args, **kwargs):
-        super(Producer, self).__init__(rsa_pk_fs_name, rsa_pk, *args, **kwargs)
+    def __init__(self, account_address, rsa_pk_fs_name=None, rsa_pk=None, exit_on_task_completion=None,
+                 task_declaration_asset_id=None, *args, **kwargs):
+        super(Producer, self).__init__(account_address, rsa_pk_fs_name, rsa_pk, *args, **kwargs)
         self.exit_on_task_completion = exit_on_task_completion
         # if 2 instances of producers with websocket will be started, then without filtering will be shit
         self.task_declaration_asset_id = task_declaration_asset_id
@@ -221,7 +221,7 @@ class Producer(Node):
             return
 
         if task_declaration.state == TaskDeclaration.State.ESTIMATED:
-            if poa_wrapper.check_balance(task_declaration):
+            if poa_wrapper.issue_job(task_declaration):
                 task_declaration.state = TaskDeclaration.State.DEPLOYMENT
                 task_declaration.save()
             return
@@ -230,7 +230,7 @@ class Producer(Node):
             return
 
         if task_declaration.state == TaskDeclaration.State.DEPLOYMENT:
-            poa_wrapper.issue_job(task_declaration)
+            # poa_wrapper.issue_job(task_declaration)
             self._assign_train_data(task_declaration)
             return
 
