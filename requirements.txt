@@ -33,3 +33,7 @@ python-dotenv
 #For debug
 ipython==6.4.0
 web3==4.5.0
+
+# PyTorch
+torch==0.4.1
+torchvision==0.2.1

@@ -1,19 +1,20 @@
 import numpy
 from abc import abstractmethod, ABC
 from logging import getLogger
+from .progress import TrainProgress
+from tatau_core.utils.class_loader import load_class
+
 
 logger = getLogger(__name__)
 
 
-class TrainProgress:
-    def progress_callback(self, progress):
-        pass
-
-
-class TatauModel(ABC):
+class Model(ABC):
     """
     Tatau NN Model
     """
+
+    weights_summarizer_class = 'tatau_core.nn.tatau.summarizer.Summarizer'
+    weights_serializer_class = 'tatau_core.nn.tatau.serializer.WeightsSerializer'
 
     @classmethod
     def load_model(cls, path):
@@ -21,7 +22,7 @@ class TatauModel(ABC):
         Construct model from asset
         :param path: model path
         :return: model instance
-        :rtype: TatauModel
+        :rtype: Model
         """
         model = None
 
@@ -31,21 +32,27 @@ class TatauModel(ABC):
             module = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(module)
             assert hasattr(module, 'Model')
-            assert issubclass(module.Model, TatauModel)
+            assert issubclass(module.Model, Model)
             model = module.Model()
         except Exception as e:
             logger.exception(e)
         return model
 
     def __init__(self):
-        self._model = self.native_model_factory()
+        self._model = None
 
     @property
     def native_model(self):
+        if not self._model:
+            self._model = self.native_model_factory()
         return self._model
 
     @classmethod
     def native_model_factory(cls):
+        """
+        Native Model Factory
+        :return: native model
+        """
         raise NotImplementedError()
 
     @abstractmethod
@@ -88,3 +95,17 @@ class TatauModel(ABC):
         :return: tuple(loss, acc)
         """
         raise NotImplementedError()
+
+    @classmethod
+    def get_weights_serializer(cls):
+        return load_class(cls.weights_serializer_class)()
+
+    @classmethod
+    def get_weights_summarizer(cls):
+        return load_class(cls.weights_summarizer_class)()
+
+    def load_weights(self, path: str):
+        self.set_weights(weights=self.get_weights_serializer().load(path=path))
+
+    def save_weights(self, path: str):
+        self.get_weights_serializer().save(weights=self.get_weights(), path=path)

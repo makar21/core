@@ -9,5 +9,5 @@ python add-task.py \
     --epochs=1 \
     --batch=32 \
     --dataset=examples/keras/cifar10 \
-    --path=examples/keras/cifar10/resnet.py"
+    --path=examples/keras/cifar10/resnet.py
 ```
