@@ -37,4 +37,3 @@ class Model(model.Model):
             optimizer_kwargs=dict(lr=0.001, momentum=0.9),
             criterion=CrossEntropyLoss()
         )
-
