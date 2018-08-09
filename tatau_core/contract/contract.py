@@ -119,9 +119,18 @@ class Contract:
 
     def does_job_exist(self, task_declaration_id: str):
         """
-                Finish Job
-                :param task_declaration_id: task declaration id
-                :return: True if job was issued otherwise False
-                """
+        Finish Job
+        :param task_declaration_id: task declaration id
+        :return: True if job was issued otherwise False
+        """
         _id = self._asset_id_2_job_id(task_declaration_id)
         return self._icontract.doesJobExist(_id)
+
+    def add_validator(self, task_declaration_id: str, validator_address: str):
+        """
+        Add validator to JOB
+        :param task_declaration_id: task declaration id
+        :return: True if job was issued otherwise False
+        """
+        _id = self._asset_id_2_job_id(task_declaration_id)
+        return self._icontract.add(_id)

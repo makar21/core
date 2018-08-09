@@ -1,5 +1,7 @@
 from logging import getLogger
 import argparse
+
+from tatau_core.contract import NodeContractInfo
 from tatau_core.nn.models.tatau import TatauModel, TrainProgress
 from tatau_core.tatau.models import TrainModel, Dataset, TaskDeclaration
 from tatau_core.tatau.node.producer import Producer
@@ -48,7 +50,12 @@ def train_local(x_train_path, y_train_path, x_test_path, y_test_path, model_path
 
 def train_remote(x_train_path, y_train_path, x_test_path, y_test_path, args):
     logger.info("Start remote train")
-    producer = Producer(rsa_pk_fs_name=args.key)
+    NodeContractInfo.init_poa(key_name='producer')
+
+    producer = Producer(
+        account_address=NodeContractInfo.get_account_address(),
+        rsa_pk_fs_name=args.key
+    )
 
     logger.info("Generate initial model weights")
     model = TatauModel.load_model(path=args.path)

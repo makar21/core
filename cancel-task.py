@@ -17,7 +17,7 @@ logger = getLogger(__name__)
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Monitor Task')
+    parser = argparse.ArgumentParser(description='Cancel Task')
 
     parser.add_argument('-k', '--key', default='producer', metavar='KEY', help='producer RSA key name')
     parser.add_argument('-t', '--task', metavar='TASK_ASSET', help='asset id of task declaration')
@@ -28,7 +28,7 @@ def main():
     Producer(account_address=NodeContractInfo.get_account_address(), rsa_pk_fs_name=args.key)
 
     task_declaration = TaskDeclaration.get(args.task)
-    task_declaration.state = TaskDeclaration.State.COMPLETED
+    task_declaration.state = TaskDeclaration.State.FAILED
     task_declaration.save()
 
     logger.info('{} state: {}'.format(task_declaration, task_declaration.state))

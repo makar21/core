@@ -3,6 +3,9 @@ import os
 import shutil
 import tempfile
 import numpy as np
+
+from tatau_core import settings, web3
+from tatau_core.contract import poa_wrapper
 from tatau_core.db import models, fields
 from tatau_core.utils import cached_property
 from tatau_core.utils.ipfs import IPFS
@@ -153,6 +156,18 @@ class TaskDeclaration(models.Model):
             self, ready, self.workers_needed, self.verifiers_needed))
         return ready
 
+    def job_has_enough_balance(self):
+        balance = poa_wrapper.get_job_balance(self)
+        epoch_cost = self.estimated_tflops / self.epochs * settings.TFLOPS_COST
+        epoch_cost = web3.toWei(str(epoch_cost), 'ether')
+
+        if int(balance) > int(epoch_cost):
+            logger.info('{} balance: {}, epoch cost: {}'.format(self, balance, epoch_cost))
+            return True
+        else:
+            logger.info('{} balance: {}, epoch cost: {} Deposit is required!!!'.format(self, balance, epoch_cost))
+            return False
+
     def get_task_assignments(self, states=None):
         task_assignments = TaskAssignment.enumerate(
             additional_match={
@@ -180,6 +195,9 @@ class TaskDeclaration(models.Model):
             if states is None or estimation_assignment.state in states:
                 ret.append(estimation_assignment)
         return ret
+
+    def is_last_epoch(self):
+        return self.current_epoch == self.epochs
 
     @property
     def task_assignments(self):

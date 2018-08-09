@@ -3,10 +3,10 @@ import time
 from logging import getLogger
 
 from tatau_core import settings
+from tatau_core.contract import poa_wrapper
 from tatau_core.tatau.models import ProducerNode, TaskDeclaration, TaskAssignment, VerificationAssignment, \
     EstimationAssignment
 from tatau_core.tatau.node.node import Node
-from tatau_core.tatau.node.producer import poa_wrapper
 from tatau_core.tatau.node.producer.estimator import Estimator
 from tatau_core.tatau.node.producer.sumarize_weights import summarize_weights
 from tatau_core.utils.ipfs import Directory
@@ -221,6 +221,7 @@ class Producer(Node):
             return
 
         if task_declaration.state == TaskDeclaration.State.ESTIMATED:
+            # This code should be perforemed from WebUI
             if poa_wrapper.issue_job(task_declaration):
                 task_declaration.state = TaskDeclaration.State.DEPLOYMENT
                 task_declaration.save()
@@ -230,11 +231,13 @@ class Producer(Node):
             return
 
         if task_declaration.state == TaskDeclaration.State.DEPLOYMENT:
-            # poa_wrapper.issue_job(task_declaration)
             self._assign_train_data(task_declaration)
             return
 
         if task_declaration.state == TaskDeclaration.State.EPOCH_IN_PROGRESS:
+            # check balance
+            task_declaration.job_has_enough_balance()
+
             if self._epoch_is_ready(task_declaration):
                 # are all verifiers are ready for verify
                 if len(task_declaration.get_verification_assignments(

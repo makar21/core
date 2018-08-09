@@ -19,7 +19,7 @@ if __name__ == '__main__':
     NodeContractInfo.init_poa(key_name='verifier')
 
     verifier = Verifier(
-        poa_address=NodeContractInfo.get_account_address(),
+        account_address=NodeContractInfo.get_account_address(),
         rsa_pk_fs_name='verifier-no-socket{}'.format(index)
     )
 

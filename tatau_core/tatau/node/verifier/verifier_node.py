@@ -2,6 +2,7 @@ import time
 from logging import getLogger
 
 from tatau_core import settings
+from tatau_core.contract import poa_wrapper
 from tatau_core.tatau.models import VerifierNode, TaskDeclaration, VerificationAssignment
 from tatau_core.tatau.node.node import Node
 from tatau_core.tatau.node.verifier.verify_weights import verify_train_results
@@ -92,6 +93,11 @@ class Verifier(Node):
 
             logger.info('{} finish verify {} results: {}'.format(
                 self, verification_assignment, verification_assignment.result))
+
+            poa_wrapper.distribute(verification_assignment.task_declaration, verification_assignment.result)
+
+            if verification_assignment.task_declaration.is_last_epoch():
+                poa_wrapper.finish_job(verification_assignment.task_declaration)
 
     def _process_task_declarations(self):
         for task_declaration in TaskDeclaration.enumerate(created_by_user=False):
