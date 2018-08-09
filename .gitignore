@@ -120,8 +120,10 @@ examples/keras/cifar10/*.npy
 verifier/
 
 # Tendermint
-tmdata/tatau/this/config/config.toml
-tmdata/tatau/this/config/priv_validator.json
+tmdata/tatau/this/config
 
 # Wallet Data
 parity/wallet
+
+examples/torch/*/*.npy
+examples/torch/*/*.zip
