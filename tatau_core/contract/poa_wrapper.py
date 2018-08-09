@@ -46,18 +46,18 @@ def distribute(task_declaration, verification_result):
             if vr['worker_id'] == task_assignment.worker.asset_id and not vr['is_fake']:
                 workers.append(task_assignment.worker.account_address)
                 amount = web3.toWei(str(settings.TFLOPS_COST * task_assignment.tflops), 'ether')
-                total_amount += int(amount)
+                total_amount += amount
                 amounts.append(amount)
                 break
 
     NodeContractInfo.unlock_account()
-    job_balance = int(get_job_balance(task_declaration))
+    job_balance = get_job_balance(task_declaration)
     logger.info('Job balance: {} distribute: {}'.format(job_balance, total_amount))
 
     if total_amount > job_balance:
         logger.info('Job balance: {} lower than total amount: {}'.format(job_balance, total_amount))
         amount_for_worker = int(job_balance/len(amounts))
-        amounts = [str(amount_for_worker) for _ in workers]
+        amounts = [amount_for_worker for _ in workers]
 
     NodeContractInfo.get_contract().distribute(
         task_declaration_id=task_declaration.asset_id,
