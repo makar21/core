@@ -85,6 +85,8 @@ docker exec -it tatau_core_producer_1 python train-monitor.py -t d3a2b3e05bbf581
 
 [PyTorch MNIST](examples/torch/mnist/README.md)
 
+[PyTorch CIFAR10](examples/torch/cifar10/README.md)
+
 # Local setup
 
 For setting up the project, run the following commands.
