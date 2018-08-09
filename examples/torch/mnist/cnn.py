@@ -1,5 +1,5 @@
 from tatau_core.nn.torch import model
-from torch.nn import Module, Conv2d, Linear, Dropout2d, CrossEntropyLoss
+from torch.nn.modules import Module, Conv2d, Linear, Dropout2d, CrossEntropyLoss
 # noinspection PyPep8Naming
 import torch.nn.functional as F
 import torch.optim as optim
