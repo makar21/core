@@ -80,6 +80,8 @@ class Verifier(Node):
 
         if verification_assignment.state == VerificationAssignment.State.DATA_IS_READY:
             logger.info('{} start verify {}'.format(self, verification_assignment))
+            if not verification_assignment.task_declaration.job_has_enough_balance():
+                return
 
             verification_assignment.result = verify_train_results(
                 train_results=verification_assignment.train_results,
