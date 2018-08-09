@@ -1,34 +1,21 @@
 import numpy
-from .tatau import TatauModel, TrainProgress
-from keras.callbacks import Callback
+from tatau_core.nn import tatau
+from .progress import ProgressCallback
 import keras
 
 
-class ProgressCallback(Callback):
-    def __init__(self, nb_epochs: int, train_progress: TrainProgress):
-        super().__init__()
-        self.nb_epochs = nb_epochs
-        self.train_progress = train_progress
+class Model(tatau.Model):
+    weights_serializer_class = 'tatau_core.nn.keras.serializer.WeightsSerializer'
+    weights_summarizer_class = 'tatau_core.nn.keras.summarizer.Median'
 
-    def on_epoch_end(self, epoch, logs=None):
-        progress = int(epoch * 100.0 / self.nb_epochs)
-        self.train_progress.progress_callback(progress)
-
-    def on_train_end(self, logs=None):
-        self.train_progress.progress_callback(100)
-
-
-class KerasModel(TatauModel):
-
+    # noinspection PyMethodMayBeStatic
     def get_keras_callbacks(self):
         return []
 
     @classmethod
-    def native_model_factory(cls):
+    def native_model_factory(cls) -> keras.models.Model:
         """
         Construct Keras Model
-        :return: model
-        :rtype: keras.models.Model
         """
         raise NotImplementedError()
 
@@ -42,7 +29,8 @@ class KerasModel(TatauModel):
     def data_preprocessing(cls, x: numpy.array, y: numpy.array):
         return x, y
 
-    def train(self, x: numpy.array, y: numpy.array, batch_size: int, nb_epochs: int, train_progress: TrainProgress):
+    def train(self, x: numpy.array, y: numpy.array, batch_size: int, nb_epochs: int,
+              train_progress: tatau.TrainProgress):
         callbacks = [
             ProgressCallback(nb_epochs=nb_epochs, train_progress=train_progress)
         ]

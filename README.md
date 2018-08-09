@@ -83,6 +83,8 @@ docker exec -it tatau_core_producer_1 python train-monitor.py -t d3a2b3e05bbf581
 
 [Keras MNIST](examples/keras/mnist/README.md)
 
+[PyTorch MNIST](examples/torch/mnist/README.md)
+
 # Local setup
 
 For setting up the project, run the following commands.

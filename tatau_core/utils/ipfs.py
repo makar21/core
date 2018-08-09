@@ -1,4 +1,5 @@
 import os
+import tempfile
 from logging import getLogger
 
 import ipfsapi
@@ -83,6 +84,10 @@ class IPFS:
     def download(self, multihash, target_dir):
         self.api.get(multihash, filepath=target_dir)
         return os.path.join(target_dir, multihash)
+
+    def download_to(self, multihash, target_path):
+        downloaded_path = self.download(multihash, tempfile.gettempdir())
+        os.rename(downloaded_path, target_path)
 
     def read(self, multihash):
         return self.api.cat(multihash)

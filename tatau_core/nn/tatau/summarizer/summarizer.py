@@ -1,10 +1,11 @@
 from collections import deque
 import numpy as np
+from abc import abstractmethod, ABC
 
 
-class Summarizer(object):
+class Summarizer(ABC):
     """
-    Basic Weights Summarizer
+    Basic Summarizer
     """
     dtype = np.float32
 
@@ -14,8 +15,9 @@ class Summarizer(object):
     def update(self, weights):
         self._updates.append(weights)
 
+    @abstractmethod
     def summarize(self, updates):
-        raise NotImplementedError()
+        pass
 
     def commit(self):
         weights = self.summarize(self._updates)

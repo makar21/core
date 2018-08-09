@@ -1,6 +1,6 @@
 from logging import getLogger
 import argparse
-from tatau_core.nn.models.tatau import TatauModel, TrainProgress
+from tatau_core.nn.tatau.model import Model, TrainProgress
 from tatau_core.tatau.models import TrainModel, Dataset, TaskDeclaration
 from tatau_core.tatau.node.producer import Producer
 from tatau_core.utils.ipfs import IPFS
@@ -14,7 +14,7 @@ logger = getLogger(__name__)
 
 
 def train_local(x_train_path, y_train_path, x_test_path, y_test_path, model_path, batch_size, epochs):
-    model = TatauModel.load_model(path=model_path)
+    model = Model.load_model(path=model_path)
 
     x_train = np.load(x_train_path)
     y_train = np.load(y_train_path)
@@ -51,12 +51,11 @@ def train_remote(x_train_path, y_train_path, x_test_path, y_test_path, args):
     producer = Producer(rsa_pk_fs_name=args.key)
 
     logger.info("Generate initial model weights")
-    model = TatauModel.load_model(path=args.path)
+    model = Model.load_model(path=args.path)
 
-    initial_weights = model.get_weights()
-
-    initial_weights_path = "/tmp/tatau_initial_weights.npz"
-    np.savez(initial_weights_path, *initial_weights)
+    initial_weights_path = "/tmp/tatau_initial_weights"
+    model.save_weights(initial_weights_path)
+    # np.savez(initial_weights_path, *initial_weights)
     # weights_file = np.load(initial_weights_path)
     # model.set_weights([weights_file[r] for r in weights_file])
 
