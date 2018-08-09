@@ -158,7 +158,10 @@ class TaskDeclaration(models.Model):
 
     def job_has_enough_balance(self):
         balance = poa_wrapper.get_job_balance(self)
-        if self.current_epoch == 1:
+
+        if self.current_epoch == 0:
+            epoch_cost = self.estimated_tflops / self.epochs * settings.TFLOPS_COST
+        elif self.current_epoch == 1:
             epoch_cost = self.estimated_tflops / self.epochs * settings.TFLOPS_COST
         else:
             epoch_cost = self.tflops / (self.current_epoch - 1) * settings.TFLOPS_COST
@@ -168,7 +171,12 @@ class TaskDeclaration(models.Model):
             logger.info('{} balance: {}, epoch cost: {}'.format(self, balance, epoch_cost))
             return True
         else:
-            logger.info('{} balance: {}, epoch cost: {} Deposit is required!!!'.format(self, balance, epoch_cost))
+            if poa_wrapper.does_job_exist(self):
+                logger.info('{} balance: {}, epoch cost: {} Deposit is required!!!'.format(self, balance, epoch_cost))
+            else:
+                estimated_cost = self.estimated_tflops * settings.TFLOPS_COST
+                logger.info('{} Issue job is required!!! Estimated cost: {:.20f} ETH'.format(
+                    self, web3.fromWei(estimated_cost, 'ether')))
             return False
 
     def get_task_assignments(self, states=None):

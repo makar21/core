@@ -221,8 +221,8 @@ class Producer(Node):
             return
 
         if task_declaration.state == TaskDeclaration.State.ESTIMATED:
-            # This code should be perforemed from WebUI
-            if poa_wrapper.issue_job(task_declaration):
+            # wait while job will be issued
+            if task_declaration.job_has_enough_balance():
                 task_declaration.state = TaskDeclaration.State.DEPLOYMENT
                 task_declaration.save()
             return
@@ -235,10 +235,11 @@ class Producer(Node):
             return
 
         if task_declaration.state == TaskDeclaration.State.EPOCH_IN_PROGRESS:
-            # check balance
-            task_declaration.job_has_enough_balance()
-
             if self._epoch_is_ready(task_declaration):
+                # check balance
+                if not task_declaration.job_has_enough_balance():
+                    return
+
                 # are all verifiers are ready for verify
                 if len(task_declaration.get_verification_assignments(
                         states=(VerificationAssignment.State.PARTIAL_DATA_IS_READY,))):

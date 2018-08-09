@@ -7,12 +7,11 @@ from tatau_core.contract import NodeContractInfo
 logger = getLogger()
 
 
-def issue_job(task_declaration, save=True):
-    logger.info('Issue job {}'.format(task_declaration))
+def issue_job(task_declaration, job_cost):
+    logger.info('Issue job {} balance {}'.format(task_declaration, job_cost))
 
     NodeContractInfo.unlock_account()
     if not NodeContractInfo.get_contract().does_job_exist(task_declaration.asset_id):
-        job_cost = settings.TFLOPS_COST * task_declaration.estimated_tflops
         job_budget = web3.toWei(str(job_cost), 'ether')
 
         NodeContractInfo.get_contract().issue_job(
@@ -20,11 +19,10 @@ def issue_job(task_declaration, save=True):
             value=job_budget
         )
 
-        if save:
-            task_declaration.save()
 
-    # if return FALSE job will not get state DEPLOYMENT (return FALSE when will work with WebUI)
-    return True
+def does_job_exist(task_declaration):
+    NodeContractInfo.unlock_account()
+    return NodeContractInfo.get_contract().does_job_exist(task_declaration.asset_id)
 
 
 def finish_job(task_declaration):
@@ -69,7 +67,6 @@ def distribute(task_declaration, verification_result):
 
 
 def get_job_balance(task_declaration):
-    NodeContractInfo.unlock_account()
     return NodeContractInfo.get_contract().get_job_balance(task_declaration.asset_id)
 
 
