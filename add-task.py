@@ -53,10 +53,9 @@ def train_remote(x_train_path, y_train_path, x_test_path, y_test_path, args):
     logger.info("Generate initial model weights")
     model = Model.load_model(path=args.path)
 
-    initial_weights = model.get_weights()
-
-    initial_weights_path = "/tmp/tatau_initial_weights.npz"
-    np.savez(initial_weights_path, *initial_weights)
+    initial_weights_path = "/tmp/tatau_initial_weights"
+    model.save_weights(initial_weights_path)
+    # np.savez(initial_weights_path, *initial_weights)
     # weights_file = np.load(initial_weights_path)
     # model.set_weights([weights_file[r] for r in weights_file])
 

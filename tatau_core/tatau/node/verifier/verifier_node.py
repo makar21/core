@@ -1,10 +1,9 @@
 import time
 from logging import getLogger
-
 from tatau_core import settings
 from tatau_core.tatau.models import VerifierNode, TaskDeclaration, VerificationAssignment
 from tatau_core.tatau.node.node import Node
-from tatau_core.tatau.node.verifier.verify_weights import verify_train_results
+
 
 logger = getLogger()
 
@@ -80,10 +79,14 @@ class Verifier(Node):
         if verification_assignment.state == VerificationAssignment.State.DATA_IS_READY:
             logger.info('{} start verify {}'.format(self, verification_assignment))
 
-            verification_assignment.result = verify_train_results(
-                train_results=verification_assignment.train_results,
-                model_code_ipfs=verification_assignment.model_code_ipfs
-            )
+            from verifier.session import VerifySession
+
+            session = VerifySession()
+            try:
+                session.process_assignment(assignment=verification_assignment)
+            finally:
+                session.clean()
+
             verification_assignment.progress = 100
             verification_assignment.tflops = 0.0
             verification_assignment.state = VerificationAssignment.State.FINISHED

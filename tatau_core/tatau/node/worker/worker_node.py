@@ -5,18 +5,21 @@ import tempfile
 import time
 from collections import deque
 from logging import getLogger
-from multiprocessing import Process
+from torch.multiprocessing import Process
 
 import numpy as np
 
 from tatau_core import settings
 from tatau_core.metrics import Snapshot
-from tatau_core.nn.tatau.model import Model, TrainProgress
+from tatau_core.nn.tatau.model import Model
 from tatau_core.tatau.models import WorkerNode, TaskDeclaration, TaskAssignment, EstimationAssignment
 from tatau_core.tatau.node import Node
 from tatau_core.tatau.node.worker.task_progress import TaskProgress
 from tatau_core.tatau.node.worker.worker_interprocess import WorkerInterprocess
 from tatau_core.utils.ipfs import IPFS
+from tatau_core.nn.tatau.sessions.estimation import EstimationSession
+from tatau_core.nn.tatau.sessions.train import TrainSession
+
 
 logger = getLogger()
 
@@ -128,7 +131,7 @@ class Worker(Node):
             ).start()
 
             work_process = Process(
-                target=self._work,
+                target=self._train,
                 args=(task_assignment.asset_id, interprocess),
             )
             work_process.start()
@@ -176,57 +179,17 @@ class Worker(Node):
             work_process.start()
             work_process.join()
 
-    def _estimate(self, asset_id, collect_metrics):
+    def _estimate(self, asset_id, collect_metrics=None):
+
         logger.info('Start estimate process')
         estimation_assignment = EstimationAssignment.get(asset_id)
-        ipfs = IPFS()
 
-        logger.info('Estimate data: {}'.format(estimation_assignment.estimation_data))
-
-        model_code = ipfs.read(estimation_assignment.estimation_data['model_code'])
-        logger.info('model code successfully downloaded')
-
-        target_dir = tempfile.mkdtemp()
-
-        train_x_path = ipfs.download(estimation_assignment.estimation_data['x_train'], target_dir)
-        logger.info('x_train is downloaded')
-
-        train_y_path = ipfs.download(estimation_assignment.estimation_data['y_train'], target_dir)
-        logger.info('x_train is downloaded')
-
-        initial_weights_path = ipfs.download(estimation_assignment.estimation_data['initial_weights'], target_dir)
-        logger.info('initial weights are downloaded')
-
-        batch_size = estimation_assignment.estimation_data['batch_size']
+        session = EstimationSession()
 
         try:
-            model_code_path = os.path.join(target_dir, '{}.py'.format(asset_id))
-
-            with open(model_code_path, 'wb') as f:
-                f.write(model_code)
-
-            # reset data from previous epoch
-            estimation_assignment.error = None
-
             try:
-                x_train = np.load(train_x_path)
-                y_train = np.load(train_y_path)
-
-                logger.info('Dataset is loaded')
-
-                weights_file = np.load(initial_weights_path)
-                initial_weights = [weights_file[r] for r in weights_file.files]
-
-                logger.info('Initial weights are loaded')
-
-                model = Model.load_model(path=model_code_path)
-                logger.info('Model is loaded')
-
-                model.set_weights(weights=initial_weights)
-                logger.info('Start training')
-                progress = TrainProgress()
                 with collect_metrics:
-                    model.train(x=x_train, y=y_train, batch_size=batch_size, nb_epochs=1, train_progress=progress)
+                    session.process_assignment(assignment=estimation_assignment)
             except Exception as e:
                 error_dict = {'exception': type(e).__name__}
                 msg = str(e)
@@ -244,111 +207,25 @@ class Worker(Node):
             logger.info('Finished estimation {}, tflops: {}, error: {}'.format(
                 estimation_assignment, estimation_assignment.tflops, estimation_assignment.error))
         finally:
-            shutil.rmtree(target_dir)
+            session.clean()
 
-    # TODO: refactor to iterable
-    @classmethod
-    def _load_dataset(cls, train_x_paths, train_y_paths, test_x_path, test_y_path):
-        x_train = None
-        for train_x_path in train_x_paths:
-            f = np.load(train_x_path)
-            if x_train is not None:
-                x_train = np.concatenate((x_train, f))
-            else:
-                x_train = f
-
-        y_train = None
-        for train_y_path in train_y_paths:
-            f = np.load(train_y_path)
-            if y_train is not None:
-                y_train = np.concatenate((y_train, f))
-            else:
-                y_train = f
-
-        x_test = np.load(test_x_path)
-        y_test = np.load(test_y_path)
-
-        return x_train, y_train, x_test, y_test
-
-    def _work(self, asset_id, collect_metrics):
-        logger.info('Start work process')
+    def _train(self, asset_id, collect_metrics):
+        logger.info('Start work process'.format(asset_id))
         task_assignment = TaskAssignment.get(asset_id)
-
-        ipfs = IPFS()
-
-        logger.info('Train data: {}'.format(task_assignment.train_data))
-
-        model_code = ipfs.read(task_assignment.train_data['model_code'])
-        logger.info('model code successfully downloaded')
-
-        batch_size = task_assignment.train_data['batch_size']
-
-        target_dir = tempfile.mkdtemp()
-
-        train_x_paths = deque()
-        for x_train in task_assignment.train_data['x_train_ipfs']:
-            train_x_paths.append(ipfs.download(x_train, target_dir))
-        logger.info('x_train is downloaded')
-
-        train_y_paths = deque()
-        for y_train in task_assignment.train_data['y_train_ipfs']:
-            train_y_paths.append(ipfs.download(y_train, target_dir))
-        logger.info('y_train is downloaded')
-
-        test_x_path = ipfs.download(task_assignment.train_data['x_test_ipfs'], target_dir)
-        logger.info('x_test is downloaded')
-
-        test_y_path = ipfs.download(task_assignment.train_data['y_test_ipfs'], target_dir)
-        logger.info('y_test is downloaded')
-
-        initial_weights_path = ipfs.download(task_assignment.train_data['initial_weights'], target_dir)
-        logger.info('initial weights are downloaded')
+        logger.info("Train Task: {}".format(task_assignment))
+        session = TrainSession()
 
         try:
-            model_code_path = os.path.join(target_dir, '{}.py'.format(asset_id))
 
-            with open(model_code_path, 'wb') as f:
-                f.write(model_code)
-
-            progress = TaskProgress(self, asset_id, collect_metrics)
+            # progress = TaskProgress(self, asset_id, collect_metrics)
 
             # reset data from previous epoch
             task_assignment.result = None
             task_assignment.error = None
 
             try:
-                x_train, y_train, x_test, y_test = self._load_dataset(
-                    train_x_paths, train_y_paths, test_x_path, test_y_path)
-                logger.info('Dataset is loaded')
-
-                model = Model.load_model(path=model_code_path)
-                logger.info('Model is loaded')
-
-                weights_serializer = model.weights_serializer_class()
-
-                initial_weights = weights_serializer.load(initial_weights_path)
-
-                logger.info('Initial weights are loaded')
-
-                model.set_weights(weights=initial_weights)
-
-                logger.info('Start training')
-
                 with collect_metrics:
-                    task_assignment.train_history = model.train(
-                        x=x_train, y=y_train, batch_size=batch_size, nb_epochs=1, train_progress=progress)
-
-                task_assignment.loss = task_assignment.train_history['loss'][-1]
-                task_assignment.accuracy = task_assignment.train_history['acc'][-1]
-
-                weights = model.get_weights()
-                weights_path = os.path.join(target_dir, 'train_weights')
-                weights_serializer.save(weights=weights, path=weights_path)
-
-                ipfs_file = ipfs.add_file(weights_path)
-                logger.info('Result weights are uploaded')
-
-                task_assignment.result = ipfs_file.multihash
+                    session.process_assignment(assignment=task_assignment)
             except Exception as e:
                 error_dict = {'exception': type(e).__name__}
                 msg = str(e)
@@ -368,7 +245,7 @@ class Worker(Node):
                 task_assignment, task_assignment.tflops, task_assignment.result, task_assignment.error
             ))
         finally:
-            shutil.rmtree(target_dir)
+            session.clean()
 
     def _collect_metrics(self, interprocess):
         interprocess.wait_for_start_collect_metrics()

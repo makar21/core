@@ -8,7 +8,7 @@ from tatau_core.tatau.models import ProducerNode, TaskDeclaration, TaskAssignmen
 from tatau_core.tatau.node.node import Node
 from tatau_core.tatau.node.producer import poa_wrapper
 from tatau_core.tatau.node.producer.estimator import Estimator
-from tatau_core.tatau.node.producer.sumarize_weights import summarize_weights
+from tatau_core.nn.tatau.sessions.summarize import SummarizeSession
 from tatau_core.utils.ipfs import Directory
 
 logger = getLogger()
@@ -521,16 +521,12 @@ class Producer(Node):
                 verification_assignment.save(recipients=verification_assignment.verifier.address)
 
     def _summarize_epoch_results(self, task_declaration):
-        weights_ipfs, loss, acc = summarize_weights(
-            train_results=task_declaration.results,
-            x_test_ipfs=task_declaration.dataset.x_test_ipfs,
-            y_test_ipfs=task_declaration.dataset.y_test_ipfs,
-            model_code_ipfs=task_declaration.train_model.code_ipfs
-        )
 
-        task_declaration.weights = weights_ipfs
-        task_declaration.loss = loss
-        task_declaration.accuracy = acc
+        session = SummarizeSession()
+        try:
+            session.process_assignment(task_declaration=task_declaration)
+        finally:
+            session.clean()
 
     def _process_performers(self, task_declaration):
         worker_needed = task_declaration.workers_needed
