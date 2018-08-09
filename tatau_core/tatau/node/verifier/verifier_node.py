@@ -71,7 +71,7 @@ class Verifier(Node):
 
             for worker_result in verification_assignment.train_results:
                 if worker_result['result'] is not None:
-                    self._download_file_from_ipfs_async(worker_result['result'])
+                    self._ipfs_prefetch_async(worker_result['result'])
 
             verification_assignment.state = VerificationAssignment.State.PARTIAL_DATA_IS_DOWNLOADED
             verification_assignment.set_encryption_key(verification_assignment.producer.enc_key)

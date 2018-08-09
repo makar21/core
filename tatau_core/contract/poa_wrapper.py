@@ -2,7 +2,7 @@ from logging import getLogger
 
 from tatau_core import settings, web3
 from tatau_core.contract import NodeContractInfo
-from tatau_core.tatau.models import TaskAssignment
+
 
 logger = getLogger()
 
@@ -35,6 +35,7 @@ def finish_job(task_declaration):
 
 
 def distribute(task_declaration, verification_result):
+    from tatau_core.tatau.models import TaskAssignment
     logger.info('Distribute job {}'.format(task_declaration))
 
     workers = []
@@ -50,7 +51,14 @@ def distribute(task_declaration, verification_result):
                 break
 
     NodeContractInfo.unlock_account()
-    logger.info('Job balance: {} distribute: {}'.format(get_job_balance(task_declaration), total_amount))
+    job_balance = int(get_job_balance(task_declaration))
+    logger.info('Job balance: {} distribute: {}'.format(job_balance, total_amount))
+
+    if total_amount > job_balance:
+        logger.info('Job balance: {} lower than total amount: {}'.format(job_balance, total_amount))
+        amount_for_worker = int(job_balance/len(amounts))
+        amounts = [str(amount_for_worker) for _ in workers]
+
     NodeContractInfo.get_contract().distribute(
         task_declaration_id=task_declaration.asset_id,
         workers=workers,

@@ -98,13 +98,13 @@ class Node(TransactionListener):
     def _ignore_operation(self, operation):
         return False
 
-    def _download_file_from_ipfs_async(self, multihash):
+    def _ipfs_prefetch_async(self, multihash):
         Process(
-            target=self._download_file_from_ipfs,
+            target=self._ipfs_prefetch,
             args=(multihash,)
         ).start()
 
-    def _download_file_from_ipfs(self, multihash):
+    def _ipfs_prefetch(self, multihash):
         ipfs = IPFS()
         target_dir = tempfile.mkdtemp()
         try:
