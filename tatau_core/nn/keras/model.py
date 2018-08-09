@@ -2,11 +2,11 @@ import numpy
 from tatau_core.nn import tatau
 from .progress import ProgressCallback
 import keras
-from .serializer import WeightsSerializer
 
 
 class Model(tatau.Model):
-    weights_serializer_class = WeightsSerializer
+    weights_serializer_class = 'tatau_core.nn.keras.serializer.WeightsSerializer'
+    weights_summarizer_class = 'tatau_core.nn.keras.summarizer.Median'
 
     # noinspection PyMethodMayBeStatic
     def get_keras_callbacks(self):

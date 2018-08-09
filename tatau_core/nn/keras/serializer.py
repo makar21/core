@@ -12,6 +12,10 @@ class WeightsSerializer(serializer.WeightsSerializer):
 
     @classmethod
     def load(cls, path):
-        path_npz = "{}.npz".format(path)
-        weights_file = np.loads(path_npz)
+        weights_file = np.load(path)
         return [weights_file[r] for r in weights_file.files]
+
+    @classmethod
+    def to_numpy(cls, weights):
+        return weights
+

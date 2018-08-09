@@ -1,34 +1,53 @@
-import numpy
-from tatau_core.nn import tatau
+from tatau_core.nn.tatau import model
 from tatau_core.nn.tatau import TrainProgress
-import torch
 from torch.utils.data import DataLoader, TensorDataset
+import torch
 # noinspection PyUnresolvedReferences
 from torch import from_numpy
+import numpy
 
 
-class Model(tatau.Model):
+class Model(model.Model):
+    weights_serializer_class = 'tatau_core.nn.torch.serializer.WeightsSerializer'
+    weights_summarizer_class = 'tatau_core.nn.torch.summarizer.Median'
+
     def __init__(self, optimizer_class, optimizer_kwargs, criterion):
         super(Model, self).__init__()
         self._optimizer_class = optimizer_class
         self._optimizer_kwargs = optimizer_kwargs
         self._criterion = criterion
-        self._optimizer = optimizer_class(self.native_model.parameters(), **optimizer_kwargs)
+        self._optimizer_class = optimizer_class
+        self._optimizer_instance = None
+
+    @property
+    def optimizer(self):
+        if not self._optimizer_instance:
+            self._optimizer_instance = self._optimizer_class(self.native_model.parameters(), **self._optimizer_kwargs)
+        return self._optimizer_instance
 
     @classmethod
-    def native_model_factory(cls) -> torch.nn.Module:
+    def native_model_factory(cls):
         raise NotImplementedError()
 
     def get_weights(self):
-        pass
+        state = {
+            'weights': self.native_model.state_dict(),
+            'optimizer': self.optimizer.state_dict(),
+            # 'criterion': self._criterion.state_dict()
+        }
+        return state
 
-    def set_weights(self, weights: list):
-        pass
+    def set_weights(self, weights: dict):
+        self.native_model.load_state_dict(weights['weights'])
+        self.optimizer.load_state_dict(weights['optimizer'])
+        # self._criterion.load_state_dict(weights['criterion'])
 
     def train(self, x: numpy.array, y: numpy.array, batch_size: int, nb_epochs: int, train_progress: TrainProgress):
+
         self.native_model.train()
+
         dataset = TensorDataset(from_numpy(x), from_numpy(y))
-        loader = DataLoader(dataset, batch_size=batch_size, shuffle=False, num_workers=0)
+        loader = DataLoader(dataset, batch_size=batch_size, shuffle=False)
 
         train_history = {'loss': [], 'acc': []}
         for epoch in range(1, nb_epochs + 1):
@@ -38,14 +57,14 @@ class Model(tatau.Model):
             for batch_idx, (data, target) in enumerate(loader, 0):
                 # TODO move on device
                 # data, target = data.to(device), target.to(device)
-                self._optimizer.zero_grad()
+                self.optimizer.zero_grad()
                 output = self.native_model(data)
                 loss = self._criterion(output, target)
                 epoch_loss += loss.item()
                 _, predicted = torch.max(output.data, 1)
                 correct += predicted.eq(target).sum().item()
                 loss.backward()
-                self._optimizer.step()
+                self.optimizer.step()
                 # running_loss += loss.item()
 
                 # if batch_idx >0 and batch_idx % 200 == 0:
@@ -61,6 +80,8 @@ class Model(tatau.Model):
         return train_history
 
     def eval(self, x: numpy.array, y: numpy.array):
+        # noinspection PyUnresolvedReferences
+        from torch import from_numpy
         self.native_model.eval()
         test_loss = 0
         correct = 0

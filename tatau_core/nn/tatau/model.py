@@ -2,8 +2,8 @@ import numpy
 from abc import abstractmethod, ABC
 from logging import getLogger
 from .progress import TrainProgress
-from .summarizer import Summarizer
-from .serializer import WeightsSerializer
+from tatau_core.utils.class_loader import load_class
+
 
 logger = getLogger(__name__)
 
@@ -13,8 +13,8 @@ class Model(ABC):
     Tatau NN Model
     """
 
-    summarizer_class = Summarizer
-    weights_serializer_class = WeightsSerializer
+    weights_summarizer_class = 'tatau_core.nn.tatau.summarizer.Summarizer'
+    weights_serializer_class = 'tatau_core.nn.tatau.serializer.WeightsSerializer'
 
     @classmethod
     def load_model(cls, path):
@@ -39,10 +39,12 @@ class Model(ABC):
         return model
 
     def __init__(self):
-        self._model = self.native_model_factory()
+        self._model = None
 
     @property
     def native_model(self):
+        if not self._model:
+            self._model = self.native_model_factory()
         return self._model
 
     @classmethod
@@ -93,3 +95,17 @@ class Model(ABC):
         :return: tuple(loss, acc)
         """
         raise NotImplementedError()
+
+    @classmethod
+    def get_weights_serializer(cls):
+        return load_class(cls.weights_serializer_class)()
+
+    @classmethod
+    def get_weights_summarizer(cls):
+        return load_class(cls.weights_summarizer_class)()
+
+    def load_weights(self, path: str):
+        self.set_weights(weights=self.get_weights_serializer().load(path=path))
+
+    def save_weights(self, path: str):
+        self.get_weights_serializer().save(weights=self.get_weights(), path=path)
