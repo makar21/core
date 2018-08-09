@@ -1,19 +1,11 @@
 import json
-import os
-import shutil
-import tempfile
 import time
 from logging import getLogger
-from multiprocessing import Process
-
-import numpy as np
 
 from tatau_core import settings
-from tatau_core.metrics import MetricsCollector
-from tatau_core.nn.models.tatau import TatauModel, TrainProgress
+from tatau_core.nn.tatau.sessions.estimation import EstimationSession
 from tatau_core.tatau.models import TaskDeclaration, EstimationAssignment
 from tatau_core.tatau.node import Node
-from tatau_core.utils.ipfs import IPFS
 
 logger = getLogger()
 
@@ -92,71 +84,18 @@ class Estimator(Node):
             estimation_assignment.state = EstimationAssignment.State.IN_PROGRESS
             estimation_assignment.save()
 
-            metrics_collector = MetricsCollector()
-            metrics_collector.start_and_wait_signal()
-
-            work_process = Process(
-                target=self._estimate,
-                args=(estimation_assignment.asset_id, metrics_collector),
-            )
-            work_process.start()
-            work_process.join()
+            self._estimate(estimation_assignment.asset_id)
 
     # noinspection PyMethodMayBeStatic
-    def _estimate(self, asset_id, metrics_collector):
+    def _estimate(self, asset_id):
         logger.info('Start estimate process')
         estimation_assignment = EstimationAssignment.get(asset_id)
-        ipfs = IPFS()
 
-        logger.info('Estimate data: {}'.format(estimation_assignment.estimation_data))
+        session = EstimationSession()
 
-        model_code = ipfs.read(estimation_assignment.estimation_data['model_code'])
-        logger.info('model code successfully downloaded')
-
-        target_dir = tempfile.mkdtemp()
-
-        train_x_path = ipfs.download(estimation_assignment.estimation_data['x_train'], target_dir)
-        logger.info('x_train is downloaded')
-
-        train_y_path = ipfs.download(estimation_assignment.estimation_data['y_train'], target_dir)
-        logger.info('x_train is downloaded')
-
-        initial_weights_path = ipfs.download(estimation_assignment.estimation_data['initial_weights'], target_dir)
-        logger.info('initial weights are downloaded')
-
-        batch_size = estimation_assignment.estimation_data['batch_size']
-
-        metrics_collector.set_pid(os.getpid())
-        iterations = 100
         try:
-            model_code_path = os.path.join(target_dir, '{}.py'.format(asset_id))
-
-            with open(model_code_path, 'wb') as f:
-                f.write(model_code)
-
-            # reset data from previous epoch
-            estimation_assignment.error = None
-
             try:
-                x_train = np.load(train_x_path)
-                y_train = np.load(train_y_path)
-
-                logger.info('Dataset is loaded')
-
-                weights_file = np.load(initial_weights_path)
-                initial_weights = [weights_file[r] for r in weights_file.files]
-
-                logger.info('Initial weights are loaded')
-
-                model = TatauModel.load_model(path=model_code_path)
-                logger.info('Model is loaded')
-
-                model.set_weights(weights=initial_weights)
-                logger.info('Start training')
-                progress = TrainProgress()
-                with metrics_collector:
-                    for i in range(iterations):
-                        model.train(x=x_train, y=y_train, batch_size=batch_size, nb_epochs=1, train_progress=progress)
+                session.process_assignment(assignment=estimation_assignment)
             except Exception as e:
                 error_dict = {'exception': type(e).__name__}
                 msg = str(e)
@@ -166,7 +105,7 @@ class Estimator(Node):
                 estimation_assignment.error = json.dumps(error_dict)
                 logger.exception(e)
 
-            estimation_assignment.tflops = metrics_collector.get_tflops() / iterations
+            estimation_assignment.tflops = session.get_tflops()
             estimation_assignment.state = EstimationAssignment.State.FINISHED
             estimation_assignment.set_encryption_key(estimation_assignment.producer.enc_key)
             estimation_assignment.save(recipients=estimation_assignment.producer.address)
@@ -174,7 +113,7 @@ class Estimator(Node):
             logger.info('Finished estimation {}, tflops: {}, error: {}'.format(
                 estimation_assignment, estimation_assignment.tflops, estimation_assignment.error))
         finally:
-            shutil.rmtree(target_dir)
+            session.clean()
 
     def _process_task_declarations(self):
         for task_declaration in TaskDeclaration.enumerate(created_by_user=False):

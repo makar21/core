@@ -1,15 +1,15 @@
-from logging import getLogger
 import argparse
-from tatau_core.nn.tatau.model import Model, TrainProgress
+import os
+from logging import getLogger
+
+import numpy as np
 
 from tatau_core.contract import NodeContractInfo
-from tatau_core.nn.models.tatau import TatauModel, TrainProgress
+from tatau_core.nn.tatau.model import Model, TrainProgress
 from tatau_core.tatau.models import TrainModel, Dataset, TaskDeclaration
 from tatau_core.tatau.node.producer import Producer
 from tatau_core.utils.ipfs import IPFS
 from tatau_core.utils.logging import configure_logging
-import os
-import numpy as np
 
 configure_logging(__name__)
 

@@ -471,6 +471,10 @@ class Producer(Node):
         )
 
         task_assignment.current_epoch = task_declaration.current_epoch
+        task_assignment.tflops = 0.0
+        task_assignment.progress = 0.0
+        task_assignment.result = None
+        task_assignment.error = None
         task_assignment.state = TaskAssignment.State.DATA_IS_READY
         # encrypt inner data using worker's public key
         task_assignment.set_encryption_key(task_assignment.worker.enc_key)

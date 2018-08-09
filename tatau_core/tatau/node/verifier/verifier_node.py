@@ -65,6 +65,10 @@ class Verifier(Node):
         self._process_verification_assignment(verification_assignment)
 
     def _process_verification_assignment(self, verification_assignment):
+        if verification_assignment.task_declaration.state in [TaskDeclaration.State.FAILED,
+                                                              TaskDeclaration.State.COMPLETED]:
+            return
+
         if verification_assignment.state == VerificationAssignment.State.PARTIAL_DATA_IS_READY:
             logger.info('{} start process partial data: {}'.format(self, verification_assignment))
 
@@ -100,7 +104,6 @@ class Verifier(Node):
                 self, verification_assignment, verification_assignment.result))
 
             poa_wrapper.distribute(verification_assignment.task_declaration, verification_assignment.result)
-
             if verification_assignment.task_declaration.is_last_epoch():
                 poa_wrapper.finish_job(verification_assignment.task_declaration)
 

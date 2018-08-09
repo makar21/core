@@ -1,3 +1,4 @@
+import os
 from logging import getLogger
 from multiprocessing import RLock, Event, Value, Process
 
@@ -14,6 +15,7 @@ class MetricsCollector:
         self._pid = Value('i', 0)
         self._tflops_lock = RLock()
         self.interval = interval
+        self._process = None
 
     def get_tflops(self):
         with self._tflops_lock:
@@ -48,8 +50,16 @@ class MetricsCollector:
         self._stop_collect_metrics()
 
     def start_and_wait_signal(self):
-        process = Process(target=self._collect_metrics)
-        process.start()
+        # be sure this instance will not start collect metrics more than once
+        assert self._process is None
+        self._process = Process(target=self._collect_metrics)
+        self._process.start()
+
+    def clean(self):
+        self._start_collect_metrics()
+
+        if self._process:
+            self._process.join()
 
     def _collect_metrics(self):
         self.wait_for_start_collect_metrics()
