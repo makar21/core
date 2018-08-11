@@ -5,6 +5,8 @@ import torch
 # noinspection PyUnresolvedReferences
 from torch import from_numpy
 import numpy
+from torch.nn import DataParallel
+from torch import cuda
 
 
 class Model(model.Model):
@@ -13,17 +15,24 @@ class Model(model.Model):
 
     def __init__(self, optimizer_class, optimizer_kwargs, criterion):
         super(Model, self).__init__()
-        self._optimizer_class = optimizer_class
+        self._cuda = cuda.is_available()
         self._optimizer_kwargs = optimizer_kwargs
-        self._criterion = criterion
-        self._optimizer_class = optimizer_class
-        self._optimizer_instance = None
+
+        if self._cuda:
+            self._criterion = criterion.cuda()
+            self._model = DataParallel(self.native_model_factory()).cuda()
+        else:
+            self._criterion = criterion
+
+        self._optimizer = optimizer_class(self._model.parameters(), **optimizer_kwargs)
+
+    @property
+    def is_cuda_available(self):
+        return self._cuda
 
     @property
     def optimizer(self):
-        if not self._optimizer_instance:
-            self._optimizer_instance = self._optimizer_class(self.native_model.parameters(), **self._optimizer_kwargs)
-        return self._optimizer_instance
+        return self._optimizer
 
     @classmethod
     def native_model_factory(cls):
@@ -54,11 +63,14 @@ class Model(model.Model):
             epoch_loss = 0.0
             # running_loss = 0.0
             correct = 0
-            for batch_idx, (data, target) in enumerate(loader, 0):
-                # TODO move on device
-                # data, target = data.to(device), target.to(device)
+            for batch_idx, (input_, target) in enumerate(loader, 0):
+                # TODO: set cuda device for input (1, multiple gpu)
+
+                if self.is_cuda_available:
+                    target = target.cuda(non_blocking=True)
+
                 self.optimizer.zero_grad()
-                output = self.native_model(data)
+                output = self.native_model(input_)
                 loss = self._criterion(output, target)
                 epoch_loss += loss.item()
                 _, predicted = torch.max(output.data, 1)
@@ -90,14 +102,16 @@ class Model(model.Model):
 
         with torch.no_grad():
             for data in loader:
-                # TODO: check device compatibility
-                images, labels = data
-                outputs = self.native_model(images)
-                loss = self._criterion(outputs, labels)
+                # TODO: set cuda device for input (1, multiple gpu)
+                input_, target = data
+                if self.is_cuda_available():
+                    target = target.cuda(non_blocking=True)
+                outputs = self.native_model(input_)
+                loss = self._criterion(outputs, target)
                 test_loss += loss.item()
                 # noinspection PyUnresolvedReferences
                 _, predicted = torch.max(outputs.data, 1)
-                correct += predicted.eq(labels).sum().item()
+                correct += predicted.eq(target).sum().item()
                 # correct += (predicted == target).sum().item()
 
         test_loss /= len(loader)
