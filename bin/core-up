@@ -1,8 +1,0 @@
-#!/bin/bash
-TPU=$1
-# RING=.$(git rev-parse --abbrev-ref HEAD)
-# cp .env.example .env
-# cp docker/docker.env.example docker/docker.env
-docker-compose -f common.yml -f producer.yml -f verifier.yml -f worker.$TPU.yml up -d
-echo "Fix tendermint volume permissions"
-sudo chmod -R 755 docker/volumes

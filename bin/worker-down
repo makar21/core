@@ -1,3 +1,0 @@
-#!/bin/bash
-TPU=gpu
-nvidia-docker stop worker_${TPU}
