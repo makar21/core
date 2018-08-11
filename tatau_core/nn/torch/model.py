@@ -97,7 +97,7 @@ class Model(model.Model):
                 #     running_loss = 0.0
             epoch_loss = epoch_loss / len(loader)
             epoch_acc = correct/len(loader.dataset)
-            print("Epoch #{}: Loss: {:.4f} Acc: {:.2f}".format(epoch, epoch_loss, 100 * epoch_acc))
+            logger.info("Epoch #{}: Loss: {:.4f} Acc: {:.2f}".format(epoch, epoch_loss, 100 * epoch_acc))
             train_history['loss'].append(epoch_loss)
             train_history['acc'].append(epoch_acc)
         return train_history
@@ -124,6 +124,6 @@ class Model(model.Model):
 
         test_loss /= len(loader)
         test_acc = correct / len(loader.dataset)
-        print('\nTest set: Average loss: {:.8f}, Accuracy: {}/{} ({:.4f}%)\n'.format(
+        logger.info('\nTest set: Average loss: {:.8f}, Accuracy: {}/{} ({:.4f}%)\n'.format(
             test_loss, correct, len(loader.dataset), test_acc))
         return test_loss, test_acc
