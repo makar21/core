@@ -24,8 +24,14 @@ class WeightsSerializer(serializer.WeightsSerializer):
         :return: state
         """
         # Lazy load torch
-        from torch import load as torch_load
-        return torch_load(path)
+        import torch
+
+        map_location = None
+
+        if not torch.cuda.is_available():
+            map_location = 'cpu'
+
+        return torch.load(path, map_location=map_location)
 
     @classmethod
     def to_numpy(cls, weights):

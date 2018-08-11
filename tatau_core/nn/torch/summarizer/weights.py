@@ -20,7 +20,9 @@ class WeightsSummarizer(Summarizer):
 
         new_state_dict = OrderedDict()
         for key, arr in state_dict_all.items():
-            new_state_dict[key] = torch.from_numpy(self._np_sum_fn(a=np.array(arr, dtype=self.dtype), axis=0))
+            array = np.array(arr)
+            sum_array = self._np_sum_fn(array, axis=0)
+            new_state_dict[key] = torch.tensor(data=sum_array)
 
         return new_state_dict
 
