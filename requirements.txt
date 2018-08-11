@@ -2,7 +2,7 @@
 bigchaindb-driver
 gpustat
 ipfsapi
-numpy
+numpy==1.14.5
 psutil
 pycryptodome
 pymongo
@@ -27,7 +27,7 @@ six==1.11.0
 urllib3==1.23
 yarl
 keras
-tensorflow
+tensorflow==1.10.0
 python-dotenv
 
 #For debug
