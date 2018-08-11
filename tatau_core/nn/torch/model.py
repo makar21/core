@@ -104,7 +104,7 @@ class Model(model.Model):
             for data in loader:
                 # TODO: set cuda device for input (1, multiple gpu)
                 input_, target = data
-                if self.is_cuda_available():
+                if self.is_cuda_available:
                     target = target.cuda(non_blocking=True)
                 outputs = self.native_model(input_)
                 loss = self._criterion(outputs, target)
