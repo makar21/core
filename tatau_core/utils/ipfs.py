@@ -82,7 +82,7 @@ class IPFS:
         return self.api.id()['PublicKey']
 
     def download(self, multihash, target_dir):
-        self.api.get(multihash, filepath=target_dir)
+        self.api.get(multihash, filepath=target_dir, compress=False)
         return os.path.join(target_dir, multihash)
 
     def download_to(self, multihash, target_path):
