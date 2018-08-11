@@ -82,14 +82,15 @@ class IPFS:
         return self.api.id()['PublicKey']
 
     def download(self, multihash, target_dir):
+        logger.info("Downloading {}".format(multihash))
         self.api.get(multihash, filepath=target_dir, compress=False)
-        return os.path.join(target_dir, multihash)
+        target_path = os.path.join(target_dir, multihash)
+        logger.info("Downloaded file size: {}Mb".format(os.path.getsize(target_path) / 1024. / 1024.))
+        return target_path
 
     def download_to(self, multihash, target_path):
-        logger.info("Downloading {} to {}".format(multihash, target_path))
         downloaded_path = self.download(multihash, tempfile.gettempdir())
         os.rename(downloaded_path, target_path)
-        logger.info("Downloaded file size: {}Mb".format(os.path.getsize(target_path) / 1024. / 1024.))
 
     def read(self, multihash):
         return self.api.cat(multihash)
