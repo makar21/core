@@ -3,9 +3,6 @@ version: '2.3'
 services:
   producer:
     image: tataucloud/core_cpu
-    build:
-      context: .
-      dockerfile: ./docker/images/core/cpu/Dockerfile
     command: sh -c "python producer-no-socket.py"
     environment:
       RING: $RING
