@@ -1,2 +1,3 @@
 #!/bin/bash
-docker-compose -f common.yml -f producer.yml -f verifier.yml -f worker.cpu.yml -f worker.gpu.yml build --no-cache --pull
+docker-compose -f common.yml -f worker.cpu.yml build --no-cache --pull
+docker-compose -f common.yml -f producer.yml -f verifier.yml -f worker.gpu.yml build --no-cache
