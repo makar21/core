@@ -50,7 +50,6 @@ class SummarizeSession(Session):
 
     def process_assignment(self, task_declaration: TaskDeclaration):
         ipfs = IPFS()
-
         ipfs.download_to(task_declaration.dataset.x_test_ipfs, self.x_test_path)
         ipfs.download_to(task_declaration.dataset.y_test_ipfs, self.y_test_path)
         ipfs.download_to(task_declaration.train_model.code_ipfs, self.model_path)
@@ -76,6 +75,7 @@ class SummarizeSession(Session):
         task_declaration.weights = ipfs.add_file(self.summarized_weights_path).multihash
 
     def main(self):
+        logger.info("Run Summarizer")
         results_list = self.load_results_list()
         model = Model.load_model(self.model_path)
 
