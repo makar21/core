@@ -53,6 +53,7 @@ class Session(ABC):
         args_list = ["python", "-m", self._module, self.uuid]
 
         args_list += [str(a) for a in args]
+        # TODO: redirect std out
         return subprocess.check_output(args_list)
 
     def main(self):
