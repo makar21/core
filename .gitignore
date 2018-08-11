@@ -117,13 +117,13 @@ tmdata/local
 docker/docker.env
 examples/keras/cifar10/*.npy
 
-verifier/
+/verifier
 
 # Tendermint
-tmdata/tatau/this/config
+/tmdata/tatau/this/config
 
 # Wallet Data
-parity/wallet
+/parity/wallet
 
 examples/torch/*/*.npy
 examples/torch/*/*.zip

@@ -1,0 +1,2 @@
+#!/bin/bash
+bin/compose up --no-recreate -d $1
