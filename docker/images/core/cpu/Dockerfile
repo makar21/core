@@ -1,5 +1,7 @@
 FROM tataucloud/python
 
+RUN apt-get update && apt-get install -y curl unzip nano
+
 RUN mkdir /app
 WORKDIR /app
 

@@ -7,6 +7,9 @@ from torch import from_numpy
 import numpy
 from torch.nn import DataParallel
 from torch import cuda
+from logging import getLogger
+
+logger = getLogger(__name__)
 
 
 class Model(model.Model):
@@ -15,24 +18,36 @@ class Model(model.Model):
 
     def __init__(self, optimizer_class, optimizer_kwargs, criterion):
         super(Model, self).__init__()
-        self._cuda = cuda.is_available()
+
         self._optimizer_kwargs = optimizer_kwargs
 
-        if self._cuda:
-            self._criterion = criterion.cuda()
-            self._model = DataParallel(self.native_model_factory()).cuda()
-        else:
-            self._criterion = criterion
+        self._device = 'cuda' if torch.cuda.is_available() else 'cpu'
+
+        logger.info("Model device: {}".format(self.device))
+
+        self._model = self.native_model_factory()
+
+        if torch.cuda.is_available() and torch.cuda.device_count() > 1:
+            logger.info("Gpu count: {}".format(torch.cuda.device_count()))
+            self._model = DataParallel(self._model)
+
+        self._model = self._model.to(self.device)
+
+        self._criterion = criterion.to(self.device)
 
         self._optimizer = optimizer_class(self._model.parameters(), **optimizer_kwargs)
 
     @property
-    def is_cuda_available(self):
-        return self._cuda
+    def device(self):
+        return self._device
 
     @property
     def optimizer(self):
         return self._optimizer
+
+    @property
+    def criterion(self):
+        return self._criterion
 
     @classmethod
     def native_model_factory(cls):
@@ -64,11 +79,7 @@ class Model(model.Model):
             # running_loss = 0.0
             correct = 0
             for batch_idx, (input_, target) in enumerate(loader, 0):
-                # TODO: set cuda device for input (1, multiple gpu)
-
-                if self.is_cuda_available:
-                    target = target.cuda(non_blocking=True)
-
+                input_, target = input_.to(self.device), target.to(self.device)
                 self.optimizer.zero_grad()
                 output = self.native_model(input_)
                 loss = self._criterion(output, target)
@@ -101,11 +112,8 @@ class Model(model.Model):
         loader = DataLoader(dataset, batch_size=128, shuffle=False, num_workers=0)
 
         with torch.no_grad():
-            for data in loader:
-                # TODO: set cuda device for input (1, multiple gpu)
-                input_, target = data
-                if self.is_cuda_available:
-                    target = target.cuda(non_blocking=True)
+            for input_, target in loader:
+                input_, target = input_.to(self.device), target.to(self.device)
                 outputs = self.native_model(input_)
                 loss = self._criterion(outputs, target)
                 test_loss += loss.item()
