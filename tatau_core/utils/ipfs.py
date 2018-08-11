@@ -86,19 +86,23 @@ class IPFS:
         return os.path.join(target_dir, multihash)
 
     def download_to(self, multihash, target_path):
+        logger.info("Downloading {} to {}".format(multihash, target_path))
         downloaded_path = self.download(multihash, tempfile.gettempdir())
         os.rename(downloaded_path, target_path)
+        logger.info("Downloaded file size: {}Mb".format(os.path.getsize(target_path) / 1024. / 1024.))
 
     def read(self, multihash):
         return self.api.cat(multihash)
 
     def add_file(self, file_path):
-        logger.debug('Uploading file {}'.format(file_path))
+        logger.info('Uploading file {} {}Mb'.format(file_path, os.path.getsize(file_path) / 1024. / 1024.))
         if os.path.isdir(file_path):
             raise ValueError('"{}" must be a path to file, not a to dir'.format(file_path))
 
         data = self.api.add(file_path)
-        return File(ipfs_data=data)
+        result = File(ipfs_data=data)
+        logger.info("Upload complete: {}".format(file_path))
+        return result
 
     def add_dir(self, dir_path, recursive=False):
         logger.debug('Uploading directory {}'.format(dir_path))
