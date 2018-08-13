@@ -20,7 +20,8 @@ python add-task.py \
     --epochs=10 \
     --batch=32 \
     --dataset=examples/torch/cifar10 \
-    --path=examples/torch/cifar10/cnn.py
+    --path=examples/torch/cifar10/cnn.py \
+    --name=cifar10_cnn
 ```
 
 ### ResNet
@@ -32,7 +33,8 @@ python add-task.py \
     --epochs=10 \
     --batch=32 \
     --dataset=examples/torch/cifar10 \
-    --path=examples/torch/cifar10/resnet.py
+    --path=examples/torch/cifar10/resnet.py \
+    --name=cifar10_resnet18
 ```
 
 ## Run Train Remote
