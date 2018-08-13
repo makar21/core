@@ -1,0 +1,48 @@
+# Torch CIFAR10 Example
+
+## Download Dataset
+
+```shell
+cd examples/torch/cifar10
+curl https://s3.amazonaws.com/tatau-public/datasets/torch/cifar10/cifar10.zip -O
+unzip cifar10.zip
+cd ../../../
+```
+
+## Run Train Local
+
+### CNN
+
+```shell
+python add-task.py \
+    --local=1 \
+    --workers=1 \
+    --epochs=10 \
+    --batch=32 \
+    --dataset=examples/torch/cifar10 \
+    --path=examples/torch/cifar10/cnn.py
+```
+
+### ResNet
+
+```shell
+python add-task.py \
+    --local=1 \
+    --workers=1 \
+    --epochs=10 \
+    --batch=32 \
+    --dataset=examples/torch/cifar10 \
+    --path=examples/torch/cifar10/resnet.py
+```
+
+## Run Train Remote
+
+```shell
+python add-task.py \
+    --local=1 \
+    --workers=1 \
+    --epochs=10 \
+    --batch=32 \
+    --dataset=examples/torch/cifar10 \
+    --path=examples/torch/cifar10/cnn.py
+```

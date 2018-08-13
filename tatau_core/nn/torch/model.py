@@ -5,6 +5,11 @@ import torch
 # noinspection PyUnresolvedReferences
 from torch import from_numpy
 import numpy
+from torch.nn import DataParallel
+from torch import cuda
+from logging import getLogger
+
+logger = getLogger(__name__)
 
 
 class Model(model.Model):
@@ -13,17 +18,36 @@ class Model(model.Model):
 
     def __init__(self, optimizer_class, optimizer_kwargs, criterion):
         super(Model, self).__init__()
-        self._optimizer_class = optimizer_class
+
         self._optimizer_kwargs = optimizer_kwargs
-        self._criterion = criterion
-        self._optimizer_class = optimizer_class
-        self._optimizer_instance = None
+
+        self._device = 'cuda' if torch.cuda.is_available() else 'cpu'
+
+        logger.info("Model device: {}".format(self.device))
+
+        self._model = self.native_model_factory()
+
+        if torch.cuda.is_available() and torch.cuda.device_count() > 1:
+            logger.info("Gpu count: {}".format(torch.cuda.device_count()))
+            self._model = DataParallel(self._model)
+
+        self._model = self._model.to(self.device)
+
+        self._criterion = criterion.to(self.device)
+
+        self._optimizer = optimizer_class(self._model.parameters(), **optimizer_kwargs)
+
+    @property
+    def device(self):
+        return self._device
 
     @property
     def optimizer(self):
-        if not self._optimizer_instance:
-            self._optimizer_instance = self._optimizer_class(self.native_model.parameters(), **self._optimizer_kwargs)
-        return self._optimizer_instance
+        return self._optimizer
+
+    @property
+    def criterion(self):
+        return self._criterion
 
     @classmethod
     def native_model_factory(cls):
@@ -54,11 +78,10 @@ class Model(model.Model):
             epoch_loss = 0.0
             # running_loss = 0.0
             correct = 0
-            for batch_idx, (data, target) in enumerate(loader, 0):
-                # TODO move on device
-                # data, target = data.to(device), target.to(device)
+            for batch_idx, (input_, target) in enumerate(loader, 0):
+                input_, target = input_.to(self.device), target.to(self.device)
                 self.optimizer.zero_grad()
-                output = self.native_model(data)
+                output = self.native_model(input_)
                 loss = self._criterion(output, target)
                 epoch_loss += loss.item()
                 _, predicted = torch.max(output.data, 1)
@@ -74,7 +97,7 @@ class Model(model.Model):
                 #     running_loss = 0.0
             epoch_loss = epoch_loss / len(loader)
             epoch_acc = correct/len(loader.dataset)
-            print("Epoch #{}: Loss: {:.4f} Acc: {:.2f}".format(epoch, epoch_loss, 100 * epoch_acc))
+            logger.info("Epoch #{}: Loss: {:.4f} Acc: {:.2f}".format(epoch, epoch_loss, 100 * epoch_acc))
             train_history['loss'].append(epoch_loss)
             train_history['acc'].append(epoch_acc)
         return train_history
@@ -89,19 +112,18 @@ class Model(model.Model):
         loader = DataLoader(dataset, batch_size=128, shuffle=False, num_workers=0)
 
         with torch.no_grad():
-            for data in loader:
-                # TODO: check device compatibility
-                images, labels = data
-                outputs = self.native_model(images)
-                loss = self._criterion(outputs, labels)
+            for input_, target in loader:
+                input_, target = input_.to(self.device), target.to(self.device)
+                outputs = self.native_model(input_)
+                loss = self._criterion(outputs, target)
                 test_loss += loss.item()
                 # noinspection PyUnresolvedReferences
                 _, predicted = torch.max(outputs.data, 1)
-                correct += predicted.eq(labels).sum().item()
+                correct += predicted.eq(target).sum().item()
                 # correct += (predicted == target).sum().item()
 
         test_loss /= len(loader)
         test_acc = correct / len(loader.dataset)
-        print('\nTest set: Average loss: {:.8f}, Accuracy: {}/{} ({:.4f}%)\n'.format(
+        logger.info('\nTest set: Average loss: {:.8f}, Accuracy: {}/{} ({:.4f}%)\n'.format(
             test_loss, correct, len(loader.dataset), test_acc))
         return test_loss, test_acc

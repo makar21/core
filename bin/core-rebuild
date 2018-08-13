@@ -1,3 +1,0 @@
-#!/bin/bash
-TPU=$1
-docker-compose -f common.yml -f producer.yml -f verifier.yml -f worker.$TPU.yml build --no-cache --pull

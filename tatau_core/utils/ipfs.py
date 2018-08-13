@@ -82,8 +82,11 @@ class IPFS:
         return self.api.id()['PublicKey']
 
     def download(self, multihash, target_dir):
-        self.api.get(multihash, filepath=target_dir)
-        return os.path.join(target_dir, multihash)
+        logger.info("Downloading {}".format(multihash))
+        self.api.get(multihash, filepath=target_dir, compress=False)
+        target_path = os.path.join(target_dir, multihash)
+        logger.info("Downloaded file size: {}Mb".format(os.path.getsize(target_path) / 1024. / 1024.))
+        return target_path
 
     def download_to(self, multihash, target_path):
         downloaded_path = self.download(multihash, tempfile.gettempdir())
@@ -93,12 +96,14 @@ class IPFS:
         return self.api.cat(multihash)
 
     def add_file(self, file_path):
-        logger.debug('Uploading file {}'.format(file_path))
+        logger.info('Uploading file {} {}Mb'.format(file_path, os.path.getsize(file_path) / 1024. / 1024.))
         if os.path.isdir(file_path):
             raise ValueError('"{}" must be a path to file, not a to dir'.format(file_path))
 
         data = self.api.add(file_path)
-        return File(ipfs_data=data)
+        result = File(ipfs_data=data)
+        logger.info("Upload complete: {}".format(file_path))
+        return result
 
     def add_dir(self, dir_path, recursive=False):
         logger.debug('Uploading directory {}'.format(dir_path))

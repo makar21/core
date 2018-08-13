@@ -1,56 +1,67 @@
-# Setup Worker
+# Tatau Core Stack
+Core stack for mining tokens and producing training jobs
+
+
+## Preparing Environment
 
 ```shell
 cp .env.example .env
 
 RING="your ring key" && echo -e "\nRING=$RING" >> .env
 
-bin/core-up <cpu|gpu>
+# TODO: Describe CONTRACT_ADDESS & ACCOUNT_ADDRESS
 
-
+bin/start bigchaindb_this
 ```
 
 
-
-
-
-# Deploy Train Job
-
-#### Prepare stack
+Wait for Blockchain Synchronization
 
 ```shell
-
-cp .env.example .env
-
-RING="your ring key" && echo -e "\nRING=$RING" >> .env
-
-docker-compose -f common.yml -f producer.yml up -d
-
+bin/logs tendermint_this
 ```
 
-#### Wait for Blockchain Synchronization
+Check that block has a latest height
+
+`TODO:` describe how to use tendermint api to check sync state
+
+
+## Start Mining
+
 ```shell
-docker logs tatau_core_tendermint_this_1 -f --tail 0
+bin/start <worker_cpu | worker_gpu>
+
 ```
+
+## Train Model
+
+```shell
+bin/start producer
+```
+
 
 #### Deploy Train Job via Local Producer
 
 ```shell
-# Deploy cifar10 job
-docker exec -it tatau_core_producer_1 sh -c "\
-cd examples/keras/cifar10/ && \
-wget https://s3.amazonaws.com/tatau-public/datasets/cifar10/x_test.npy && \
-wget https://s3.amazonaws.com/tatau-public/datasets/cifar10/y_test.npy && \
-wget https://s3.amazonaws.com/tatau-public/datasets/cifar10/x_train.npy && \
-wget https://s3.amazonaws.com/tatau-public/datasets/cifar10/y_train.npy && \
-cd /app && \
+# attach to producer tty
+bin/compose exec producer bash
+
+cd examples/keras/cifar10/
+
+wget https://s3.amazonaws.com/tatau-public/datasets/cifar10/x_test.npy
+wget https://s3.amazonaws.com/tatau-public/datasets/cifar10/y_test.npy
+wget https://s3.amazonaws.com/tatau-public/datasets/cifar10/x_train.npy
+wget https://s3.amazonaws.com/tatau-public/datasets/cifar10/y_train.npy
+
+cd /app
+
 python add-task.py \
     --local=0 \
     --workers=1 \
     --epochs=1 \
     --batch=32 \
     --dataset=examples/keras/cifar10 \
-    --path=examples/keras/cifar10/resnet.py"
+    --path=examples/keras/cifar10/resnet.py
 ```
 
 In output you will see **Train job created**
@@ -71,7 +82,7 @@ Copy Task Declaration ID, in current case it: `d3a2b3e05bbf581078cb16bfd460b1547
 
 #### Start Training Monitor
 ```shell
-docker exec -it tatau_core_producer_1 python train-monitor.py -t d3a2b3e05bbf581078cb16bfd460b15479e11d1ca5203c31105cba11ef3c01d6
+python train-monitor.py -t d3a2b3e05bbf581078cb16bfd460b15479e11d1ca5203c31105cba11ef3c01d6
 ```
 
 
@@ -84,6 +95,8 @@ docker exec -it tatau_core_producer_1 python train-monitor.py -t d3a2b3e05bbf581
 [Keras MNIST](examples/keras/mnist/README.md)
 
 [PyTorch MNIST](examples/torch/mnist/README.md)
+
+[PyTorch CIFAR10](examples/torch/cifar10/README.md)
 
 # Local setup
 

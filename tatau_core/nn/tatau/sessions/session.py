@@ -7,8 +7,6 @@ import subprocess
 from abc import ABC
 import pickle
 
-from tatau_core.metrics import MetricsCollector
-
 logger = getLogger(__name__)
 
 
@@ -16,7 +14,6 @@ class Session(ABC):
     def __init__(self, module, uuid=None):
         self._uuid = uuid or str(uuid4())
         self._module = module
-        self._metrics_collector = MetricsCollector()
         logger.info("Init {}: {}".format(self.__class__.__name__, self.uuid))
 
     @property

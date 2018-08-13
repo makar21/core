@@ -1,7 +1,7 @@
 version: '2.3'
 
 services:
-  worker:
+  worker_gpu:
     image: tataucloud/core_gpu
     build:
       context: .
