@@ -81,6 +81,9 @@ class Worker(Node):
             return
 
         if task_assignment.state == TaskAssignment.State.DATA_IS_READY:
+            if not task_assignment.task_declaration.job_has_enough_balance():
+                return
+
             task_assignment.state = TaskAssignment.State.IN_PROGRESS
             task_assignment.save()
             self._train(task_assignment.asset_id)

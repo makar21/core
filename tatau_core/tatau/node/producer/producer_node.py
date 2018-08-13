@@ -133,7 +133,6 @@ class Producer(Node):
         if estimation_assignment.state == EstimationAssignment.State.REJECTED:
             return
 
-        logger.info('Process: {}, state: {}'.format(estimation_assignment, estimation_assignment.state))
         if estimation_assignment.state == EstimationAssignment.State.INITIAL:
             logger.info('{} requested {}'.format(estimation_assignment.estimator, estimation_assignment))
             if task_declaration.is_estimation_assignment_allowed(estimation_assignment) \
@@ -238,11 +237,10 @@ class Producer(Node):
             return
 
         if task_declaration.state == TaskDeclaration.State.EPOCH_IN_PROGRESS:
-            if self._epoch_is_ready(task_declaration):
-                # check balance
-                if not task_declaration.job_has_enough_balance():
-                    return
+            # check and print balance
+            task_declaration.job_has_enough_balance()
 
+            if self._epoch_is_ready(task_declaration):
                 # are all verifiers are ready for verify
                 if len(task_declaration.get_verification_assignments(
                         states=(VerificationAssignment.State.PARTIAL_DATA_IS_READY,))):
@@ -275,6 +273,9 @@ class Producer(Node):
             return
 
         if task_declaration.state == TaskDeclaration.State.VERIFY_IN_PROGRESS:
+            # check and print balance
+            task_declaration.job_has_enough_balance()
+
             if task_declaration.verification_is_ready():
                 logger.info('{} verification epoch {} is ready'.format(
                     task_declaration, task_declaration.current_epoch))

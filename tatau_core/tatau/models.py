@@ -171,7 +171,7 @@ class TaskDeclaration(models.Model):
 
         balance_eth = web3.fromWei(balance, 'ether')
         epoch_cost_eth = web3.fromWei(epoch_cost, 'ether')
-        if int(balance) > int(epoch_cost):
+        if balance > epoch_cost:
             logger.info('{} balance: {:.5f} ETH, epoch cost: {:.5f} ETH'.format(self, balance_eth, epoch_cost_eth))
             return True
         else:

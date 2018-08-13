@@ -89,11 +89,8 @@ class Verifier(Node):
 
             from verifier.session import VerifySession
 
-            session = VerifySession()
-            try:
-                session.process_assignment(assignment=verification_assignment)
-            finally:
-                session.clean()
+            session_verify = VerifySession()
+            session_verify.process_assignment_and_cleanup(assignment=verification_assignment)
 
             # check is all workers are not fake
             found_fake_workers = False
@@ -101,15 +98,14 @@ class Verifier(Node):
                 if result['is_fake']:
                     found_fake_workers = True
 
+            session_summarize_tflops = 0.0
             if not found_fake_workers:
-                session = SummarizeSession()
-                try:
-                    session.process_assignment(assignment=verification_assignment)
-                finally:
-                    session.clean()
+                session_summarize = SummarizeSession()
+                session_summarize.process_assignment_and_cleanup(assignment=verification_assignment)
+                session_summarize_tflops = session_summarize.get_tflops()
 
             verification_assignment.progress = 100
-            verification_assignment.tflops = 0.0
+            verification_assignment.tflops = session_verify.get_tflops() + session_summarize_tflops
             verification_assignment.state = VerificationAssignment.State.FINISHED
             verification_assignment.set_encryption_key(verification_assignment.producer.enc_key)
             verification_assignment.save(recipients=verification_assignment.producer.address)
