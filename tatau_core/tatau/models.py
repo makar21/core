@@ -162,10 +162,13 @@ class TaskDeclaration(models.Model):
         balance = poa_wrapper.get_job_balance(self)
 
         if self.current_epoch == 0:
-            epoch_cost = self.estimated_tflops / self.epochs * settings.TFLOPS_COST
+            # total cost for all epochs:
+            epoch_cost = self.estimated_tflops * settings.TFLOPS_COST
         elif self.current_epoch == 1:
+            # estimated cost for epoch
             epoch_cost = self.estimated_tflops / self.epochs * settings.TFLOPS_COST
         else:
+            # average cost of epochs based on spend tflops and proceeded epochs
             epoch_cost = self.tflops / (self.current_epoch - 1) * settings.TFLOPS_COST
         epoch_cost = web3.toWei(str(epoch_cost), 'ether')
 
