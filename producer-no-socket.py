@@ -17,5 +17,5 @@ if __name__ == '__main__':
         rsa_pk_fs_name='producer'
     )
 
-    logger.debug('Start {}'.format(producer))
+    logger.info('Start {}'.format(producer.asset))
     producer.process_tasks()
