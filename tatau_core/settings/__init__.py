@@ -44,4 +44,6 @@ PARITY_HOST = os.getenv('PARITY_HOST', 'parity')
 
 CONTRACT_ADDRESS = os.getenv('CONTRACT_ADDRESS')
 
-TFLOPS_COST = float(os.getenv('TFLOPS_COST'))
+TFLOPS_COST = float(os.getenv('TFLOPS_COST', 0.01))
+
+WHITELIST_JSON_PATH = os.getenv('WHITELIST_JSON_PATH')

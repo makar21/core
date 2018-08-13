@@ -2,7 +2,7 @@ import sys
 from logging import getLogger
 
 from tatau_core.contract import NodeContractInfo
-from tatau_core.tatau.node.worker import WorkerEstimator
+from tatau_core.tatau.node import WorkerEstimator
 from tatau_core.utils.logging import configure_logging
 
 configure_logging('worker-estimator-no-socket')

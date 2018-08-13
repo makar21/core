@@ -6,7 +6,7 @@ import numpy as np
 
 from tatau_core import settings, web3
 from tatau_core.contract import poa_wrapper
-from tatau_core.db import models, fields
+from tatau_core.db import models, fields, exceptions
 from tatau_core.utils import cached_property
 from tatau_core.utils.ipfs import IPFS
 
@@ -152,7 +152,7 @@ class TaskDeclaration(models.Model):
 
     def ready_for_start(self):
         ready = self.workers_needed == 0 and self.verifiers_needed == 0
-        logger.info('{} ready:{} workers_needed:{} verifiers_needed:{}'.format(
+        logger.info('{} ready: {} workers_needed: {} verifiers_needed: {}'.format(
             self, ready, self.workers_needed, self.verifiers_needed))
         return ready
 
@@ -287,7 +287,7 @@ class TaskDeclaration(models.Model):
 
         count = EstimationAssignment.count(
             additional_match={
-                'assets.data.worker_id': estimation_assignment.worker_id,
+                'assets.data.estimator_id': estimation_assignment.estimator_id,
                 'assets.data.task_declaration_id': self.asset_id
             },
             created_by_user=False
@@ -330,7 +330,7 @@ class EstimationAssignment(models.Model):
         FINISHED = 'finished'
 
     producer_id = fields.CharField(immutable=True)
-    worker_id = fields.CharField(immutable=True)
+    estimator_id = fields.CharField(immutable=True)
     task_declaration_id = fields.CharField(immutable=True)
 
     state = fields.CharField(initial=State.INITIAL)
@@ -344,8 +344,11 @@ class EstimationAssignment(models.Model):
         return ProducerNode.get(self.producer_id)
 
     @cached_property
-    def worker(self):
-        return WorkerNode.get(self.worker_id)
+    def estimator(self):
+        try:
+            return VerifierNode.get(self.estimator_id)
+        except exceptions.Asset.WrongType:
+            return WorkerNode.get(self.estimator_id)
 
     @cached_property
     def task_declaration(self):

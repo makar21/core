@@ -37,7 +37,7 @@ class Estimator(Node):
             logger.info('Process {}'.format(task_declaration))
             exists = EstimationAssignment.exists(
                 additional_match={
-                    'assets.data.worker_id': self.asset_id,
+                    'assets.data.estimator_id': self.asset_id,
                     'assets.data.task_declaration_id': task_declaration.asset_id,
                 },
                 created_by_user=False
@@ -48,7 +48,7 @@ class Estimator(Node):
                 return
 
             estimation_assignment = EstimationAssignment.create(
-                worker_id=self.asset_id,
+                estimator_id=self.asset_id,
                 producer_id=task_declaration.producer_id,
                 task_declaration_id=task_declaration.asset_id,
                 recipients=task_declaration.producer.address
@@ -63,7 +63,7 @@ class Estimator(Node):
         estimation_assignment = EstimationAssignment.get(asset_id)
 
         # skip another assignment
-        if estimation_assignment.worker_id != self.asset_id:
+        if estimation_assignment.estimator_id != self.asset_id:
             return
 
         self._process_estimation_assignment(estimation_assignment)

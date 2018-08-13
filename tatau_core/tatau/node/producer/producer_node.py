@@ -3,12 +3,12 @@ import time
 from logging import getLogger
 
 from tatau_core import settings
-from tatau_core.contract import poa_wrapper
+from tatau_core.nn.tatau.sessions.summarize import SummarizeSession
 from tatau_core.tatau.models import ProducerNode, TaskDeclaration, TaskAssignment, VerificationAssignment, \
     EstimationAssignment
 from tatau_core.tatau.node.node import Node
 from tatau_core.tatau.node.producer.estimator import Estimator
-from tatau_core.nn.tatau.sessions.summarize import SummarizeSession
+from tatau_core.tatau.whitelist import WhiteList
 from tatau_core.utils.ipfs import Directory
 
 logger = getLogger()
@@ -93,7 +93,9 @@ class Producer(Node):
         logger.info('Process: {}, state: {}'.format(verification_assignment, verification_assignment.state))
         if verification_assignment.state == VerificationAssignment.State.INITIAL:
             logger.info('{} requested {}'.format(verification_assignment.verifier, verification_assignment))
-            if task_declaration.is_verification_assignment_allowed(verification_assignment):
+            if task_declaration.is_verification_assignment_allowed(verification_assignment) \
+                    and WhiteList.is_allowed_verifier(verification_assignment.verifier_id):
+
                 verification_assignment.state = VerificationAssignment.State.ACCEPTED
                 verification_assignment.save()
                 logger.info('Accept {} for {}'.format(verification_assignment, task_declaration))
@@ -134,8 +136,10 @@ class Producer(Node):
 
         logger.info('Process: {}, state: {}'.format(estimation_assignment, estimation_assignment.state))
         if estimation_assignment.state == EstimationAssignment.State.INITIAL:
-            logger.info('{} requested {}'.format(estimation_assignment.worker, estimation_assignment))
-            if task_declaration.is_estimation_assignment_allowed(estimation_assignment):
+            logger.info('{} requested {}'.format(estimation_assignment.estimator, estimation_assignment))
+            if task_declaration.is_estimation_assignment_allowed(estimation_assignment) \
+                    and WhiteList.is_allowed_estimator(estimation_assignment.estimator_id):
+
                 estimation_assignment.state = EstimationAssignment.State.ACCEPTED
                 estimation_assignment.save()
                 logger.info('Accept {} for {}'.format(estimation_assignment, task_declaration))
@@ -387,14 +391,16 @@ class Producer(Node):
         )
 
         if len(estimation_assignments) == 0:
+            logger.info('Estimate for {} is required, {} estimators needed'.format(
+                task_declaration, task_declaration.estimators_needed))
             return
 
         estimation_data = Estimator.get_data_for_estimate(task_declaration)
         for estimation_assignment in estimation_assignments:
             estimation_assignment.estimation_data = estimation_data
             estimation_assignment.state = EstimationAssignment.State.DATA_IS_READY
-            estimation_assignment.set_encryption_key(estimation_assignment.worker.enc_key)
-            estimation_assignment.save(recipients=estimation_assignment.worker.address)
+            estimation_assignment.set_encryption_key(estimation_assignment.estimator.enc_key)
+            estimation_assignment.save(recipients=estimation_assignment.estimator.address)
 
         task_declaration.state = TaskDeclaration.State.ESTIMATE_IN_PROGRESS
         task_declaration.save()
