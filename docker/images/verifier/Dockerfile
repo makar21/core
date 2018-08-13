@@ -1,4 +1,4 @@
-FROM tataucloud/core_cpu
+FROM tataucloud/core_gpu
 
 COPY ./verifier /app/verifier
 

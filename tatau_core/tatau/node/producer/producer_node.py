@@ -3,7 +3,6 @@ import time
 from logging import getLogger
 
 from tatau_core import settings
-from tatau_core.nn.tatau.sessions.summarize import SummarizeSession
 from tatau_core.tatau.models import ProducerNode, TaskDeclaration, TaskAssignment, VerificationAssignment, \
     EstimationAssignment
 from tatau_core.tatau.node.node import Node
@@ -292,8 +291,8 @@ class Producer(Node):
                         task_assignment.save(recipients=task_assignment.worker.address)
                     return
 
-                self._summarize_epoch_results(task_declaration)
-                logger.info('Summarization for {} is finished, loss: {}, accuracy: {}'.format(
+                self._copy_summarize_epoch_results(task_declaration)
+                logger.info('Copy summarization for {}, loss: {}, accuracy: {}'.format(
                     task_declaration, task_declaration.loss, task_declaration.accuracy))
 
                 if task_declaration.all_done():
@@ -498,6 +497,8 @@ class Producer(Node):
 
         for verification_assignment in verification_assignments:
             verification_assignment.train_results = task_declaration.results
+            verification_assignment.x_test_ipfs = task_declaration.dataset.x_test_ipfs
+            verification_assignment.y_test_ipfs = task_declaration.dataset.y_test_ipfs
             verification_assignment.model_code_ipfs = task_declaration.train_model.code_ipfs
             verification_assignment.result = None
             verification_assignment.state = VerificationAssignment.State.DATA_IS_READY
@@ -534,13 +535,16 @@ class Producer(Node):
                 verification_assignment.set_encryption_key(verification_assignment.verifier.enc_key)
                 verification_assignment.save(recipients=verification_assignment.verifier.address)
 
-    def _summarize_epoch_results(self, task_declaration):
+    def _copy_summarize_epoch_results(self, task_declaration):
+        verification_assignments = task_declaration.get_verification_assignments(
+            states=(VerificationAssignment.State.FINISHED,)
+        )
 
-        session = SummarizeSession()
-        try:
-            session.process_assignment(task_declaration=task_declaration)
-        finally:
-            session.clean()
+        for verification_assignment in verification_assignments:
+            task_declaration.weights = verification_assignment.weights
+            task_declaration.loss = verification_assignment.loss
+            task_declaration.accuracy = verification_assignment.accuracy
+            break
 
     def _process_performers(self, task_declaration):
         worker_needed = task_declaration.workers_needed

@@ -1,6 +1,7 @@
 # Tatau Core Stack
 Core stack for mining tokens and producing training jobs
 
+[Install Docker Nvidia 2](https://github.com/nvidia/nvidia-docker/wiki/Installation-(version-2.0))
 
 ## Preparing Environment
 

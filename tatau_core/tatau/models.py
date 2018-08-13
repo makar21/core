@@ -142,6 +142,8 @@ class TaskDeclaration(models.Model):
     @classmethod
     def create(cls, **kwargs):
         kwargs['workers_requested'] = kwargs['workers_needed']
+        # Use only one verifier
+        kwargs['verifiers_needed'] = 1
         kwargs['verifiers_requested'] = kwargs['verifiers_needed']
 
         if 'estimators_needed' not in kwargs:
@@ -414,12 +416,20 @@ class VerificationAssignment(models.Model):
     task_declaration_id = fields.CharField(immutable=True)
 
     state = fields.CharField(initial=State.INITIAL)
+    x_test_ipfs = fields.EncryptedCharField(required=False)
+    y_test_ipfs = fields.EncryptedCharField(required=False)
     model_code_ipfs = fields.EncryptedCharField(required=False)
+
     train_results = fields.EncryptedJsonField(required=False)
 
     progress = fields.FloatField(initial=0.0)
     tflops = fields.FloatField(initial=0.0)
     result = fields.EncryptedJsonField(required=False)
+
+    weights = fields.EncryptedCharField(required=False)
+    loss = fields.FloatField(required=False)
+    accuracy = fields.FloatField(required=False)
+
     error = fields.EncryptedCharField(required=False)
 
     @cached_property
