@@ -16,7 +16,7 @@ if __name__ == '__main__':
     except IndexError:
         index = ''
 
-    NodeContractInfo.init_poa(key_name='worker')
+    NodeContractInfo.init_poa(key_name='worker{}'.format(index))
 
     worker = Worker(
         account_address=NodeContractInfo.get_account_address(),
