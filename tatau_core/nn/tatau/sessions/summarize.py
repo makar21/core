@@ -1,5 +1,5 @@
 from collections import deque
-from tatau_core.tatau.models import TaskDeclaration
+from tatau_core.tatau.models import VerificationAssignment
 from tatau_core.utils.ipfs import IPFS
 from tatau_core.nn.tatau.model import Model
 from .session import Session
@@ -48,19 +48,17 @@ class SummarizeSession(Session):
         result = self.load_object(path=self.eval_result_path)
         return result['loss'], result['acc']
 
-    def process_assignment(self, task_declaration: TaskDeclaration):
+    def process_assignment(self, assignment: VerificationAssignment):
+        verification_assignment = assignment
+
         ipfs = IPFS()
-        ipfs.download_to(task_declaration.dataset.x_test_ipfs, self.x_test_path)
-        ipfs.download_to(task_declaration.dataset.y_test_ipfs, self.y_test_path)
-        ipfs.download_to(task_declaration.train_model.code_ipfs, self.model_path)
+        ipfs.download_to(verification_assignment.x_test_ipfs, self.x_test_path)
+        ipfs.download_to(verification_assignment.y_test_ipfs, self.y_test_path)
+        ipfs.download_to(verification_assignment.model_code_ipfs, self.model_path)
 
         downloaded_results = deque()
-        for worker_result in task_declaration.results:
-            if worker_result['result'] is None:
-                # TODO: handle this
-                pass
-            else:
-                downloaded_results.append(ipfs.download(worker_result['result'], self.base_dir))
+        for worker_result in verification_assignment.train_results:
+            downloaded_results.append(ipfs.download(worker_result['result'], self.base_dir))
 
         if not len(downloaded_results):
             logger.error('list of weights is empty')
@@ -70,9 +68,8 @@ class SummarizeSession(Session):
 
         self._run()
 
-        task_declaration.loss, task_declaration.accuracy = self.load_eval_result()
-
-        task_declaration.weights = ipfs.add_file(self.summarized_weights_path).multihash
+        verification_assignment.loss, verification_assignment.accuracy = self.load_eval_result()
+        verification_assignment.weights = ipfs.add_file(self.summarized_weights_path).multihash
 
     def main(self):
         logger.info("Run Summarizer")
