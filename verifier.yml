@@ -7,6 +7,8 @@ services:
       context: .
       dockerfile: ./docker/images/verifier/Dockerfile
     command: sh -c "python verifier-no-socket.py"
+    # Support nvidia docker 2
+    runtime: nvidia
     volumes:
       - ./keys/${RING}:/app/keys
       - ./verifier:/app/verifier:ro

@@ -41,6 +41,6 @@ class WeightsSerializer(serializer.WeightsSerializer):
         for key in sorted(state_dict.keys()):
             value = state_dict[key]
             if is_tensor(value):
-                layers.append(value.detach().numpy())
+                layers.append(value.detach().cpu().numpy())
 
         return layers

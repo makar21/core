@@ -27,7 +27,7 @@ class OptimizerSummarizer(Summarizer):
                 for kk, vv in v.items():
                     if kk not in states[num]:
                         states[num][kk] = deque()
-                    states[num][kk].append(vv.detach().numpy())
+                    states[num][kk].append(vv.detach().cpu().numpy())
 
             for name, value in param_groups.items():
                 if name == 'params':
@@ -42,7 +42,8 @@ class OptimizerSummarizer(Summarizer):
         for state_num, state_dict in states.items():
             for name, value in state_dict.items():
                 arr_values = np.asarray(value)
-                state_dict[name] = torch.from_numpy(self._np_sum_fn(arr_values, axis=0))
+                sum_array = self._np_sum_fn(arr_values, axis=0)
+                state_dict[name] = torch.tensor(sum_array)
 
         params['params'] = list(states.keys())
 

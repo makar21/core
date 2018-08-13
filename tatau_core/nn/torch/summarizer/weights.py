@@ -16,7 +16,7 @@ class WeightsSummarizer(Summarizer):
                 if torch.is_tensor(value):
                     if key not in state_dict_all:
                         state_dict_all[key] = deque()
-                    state_dict_all[key].append(value.detach().numpy())
+                    state_dict_all[key].append(value.detach().cpu().numpy())
 
         new_state_dict = OrderedDict()
         for key, arr in state_dict_all.items():
