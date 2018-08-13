@@ -6,8 +6,8 @@ from tatau_core import settings
 from tatau_core.tatau.models import ProducerNode, TaskDeclaration, TaskAssignment, VerificationAssignment, \
     EstimationAssignment
 from tatau_core.tatau.node.node import Node
-from tatau_core.tatau.node.producer import poa_wrapper
 from tatau_core.tatau.node.producer.estimator import Estimator
+from tatau_core.tatau.whitelist import WhiteList
 from tatau_core.utils.ipfs import Directory
 
 logger = getLogger()
@@ -15,12 +15,12 @@ logger = getLogger()
 
 # noinspection PyMethodMayBeStatic
 class Producer(Node):
-    node_type = Node.NodeType.PRODUCER
+
     asset_class = ProducerNode
 
-    def __init__(self, rsa_pk_fs_name=None, rsa_pk=None, exit_on_task_completion=None, task_declaration_asset_id=None,
-                 *args, **kwargs):
-        super(Producer, self).__init__(rsa_pk_fs_name, rsa_pk, *args, **kwargs)
+    def __init__(self, account_address, rsa_pk_fs_name=None, rsa_pk=None, exit_on_task_completion=None,
+                 task_declaration_asset_id=None, *args, **kwargs):
+        super(Producer, self).__init__(account_address, rsa_pk_fs_name, rsa_pk, *args, **kwargs)
         self.exit_on_task_completion = exit_on_task_completion
         # if 2 instances of producers with websocket will be started, then without filtering will be shit
         self.task_declaration_asset_id = task_declaration_asset_id
@@ -92,7 +92,9 @@ class Producer(Node):
         logger.info('Process: {}, state: {}'.format(verification_assignment, verification_assignment.state))
         if verification_assignment.state == VerificationAssignment.State.INITIAL:
             logger.info('{} requested {}'.format(verification_assignment.verifier, verification_assignment))
-            if task_declaration.is_verification_assignment_allowed(verification_assignment):
+            if task_declaration.is_verification_assignment_allowed(verification_assignment) \
+                    and WhiteList.is_allowed_verifier(verification_assignment.verifier_id):
+
                 verification_assignment.state = VerificationAssignment.State.ACCEPTED
                 verification_assignment.save()
                 logger.info('Accept {} for {}'.format(verification_assignment, task_declaration))
@@ -131,10 +133,11 @@ class Producer(Node):
         if estimation_assignment.state == EstimationAssignment.State.REJECTED:
             return
 
-        logger.info('Process: {}, state: {}'.format(estimation_assignment, estimation_assignment.state))
         if estimation_assignment.state == EstimationAssignment.State.INITIAL:
-            logger.info('{} requested {}'.format(estimation_assignment.worker, estimation_assignment))
-            if task_declaration.is_estimation_assignment_allowed(estimation_assignment):
+            logger.info('{} requested {}'.format(estimation_assignment.estimator, estimation_assignment))
+            if task_declaration.is_estimation_assignment_allowed(estimation_assignment) \
+                    and WhiteList.is_allowed_estimator(estimation_assignment.estimator_id):
+
                 estimation_assignment.state = EstimationAssignment.State.ACCEPTED
                 estimation_assignment.save()
                 logger.info('Accept {} for {}'.format(estimation_assignment, task_declaration))
@@ -180,7 +183,7 @@ class Producer(Node):
 
         for task_assignment in task_assignments:
             if task_assignment.state == TaskAssignment.State.FINISHED and task_assignment.result is not None:
-                self._download_file_from_ipfs_async(task_assignment.result)
+                self._ipfs_prefetch_async(task_assignment.result)
 
             if task_assignment.state != TaskAssignment.State.FINISHED:
                 return False
@@ -220,7 +223,8 @@ class Producer(Node):
             return
 
         if task_declaration.state == TaskDeclaration.State.ESTIMATED:
-            if poa_wrapper.check_balance(task_declaration):
+            # wait while job will be issued
+            if task_declaration.job_has_enough_balance():
                 task_declaration.state = TaskDeclaration.State.DEPLOYMENT
                 task_declaration.save()
             return
@@ -229,11 +233,13 @@ class Producer(Node):
             return
 
         if task_declaration.state == TaskDeclaration.State.DEPLOYMENT:
-            poa_wrapper.issue_job(task_declaration)
             self._assign_train_data(task_declaration)
             return
 
         if task_declaration.state == TaskDeclaration.State.EPOCH_IN_PROGRESS:
+            # check and print balance
+            task_declaration.job_has_enough_balance()
+
             if self._epoch_is_ready(task_declaration):
                 # are all verifiers are ready for verify
                 if len(task_declaration.get_verification_assignments(
@@ -267,6 +273,9 @@ class Producer(Node):
             return
 
         if task_declaration.state == TaskDeclaration.State.VERIFY_IN_PROGRESS:
+            # check and print balance
+            task_declaration.job_has_enough_balance()
+
             if task_declaration.verification_is_ready():
                 logger.info('{} verification epoch {} is ready'.format(
                     task_declaration, task_declaration.current_epoch))
@@ -382,14 +391,16 @@ class Producer(Node):
         )
 
         if len(estimation_assignments) == 0:
+            logger.info('Estimate for {} is required, {} estimators needed'.format(
+                task_declaration, task_declaration.estimators_needed))
             return
 
         estimation_data = Estimator.get_data_for_estimate(task_declaration)
         for estimation_assignment in estimation_assignments:
             estimation_assignment.estimation_data = estimation_data
             estimation_assignment.state = EstimationAssignment.State.DATA_IS_READY
-            estimation_assignment.set_encryption_key(estimation_assignment.worker.enc_key)
-            estimation_assignment.save(recipients=estimation_assignment.worker.address)
+            estimation_assignment.set_encryption_key(estimation_assignment.estimator.enc_key)
+            estimation_assignment.save(recipients=estimation_assignment.estimator.address)
 
         task_declaration.state = TaskDeclaration.State.ESTIMATE_IN_PROGRESS
         task_declaration.save()
@@ -467,6 +478,10 @@ class Producer(Node):
         )
 
         task_assignment.current_epoch = task_declaration.current_epoch
+        task_assignment.tflops = 0.0
+        task_assignment.progress = 0.0
+        task_assignment.result = None
+        task_assignment.error = None
         task_assignment.state = TaskAssignment.State.DATA_IS_READY
         # encrypt inner data using worker's public key
         task_assignment.set_encryption_key(task_assignment.worker.enc_key)

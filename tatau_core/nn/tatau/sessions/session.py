@@ -7,6 +7,8 @@ import subprocess
 from abc import ABC
 import pickle
 
+from tatau_core.metrics import MetricsCollector
+
 logger = getLogger(__name__)
 
 
@@ -14,6 +16,7 @@ class Session(ABC):
     def __init__(self, module, uuid=None):
         self._uuid = uuid or str(uuid4())
         self._module = module
+        self._metrics_collector = MetricsCollector()
         logger.info("Init {}: {}".format(self.__class__.__name__, self.uuid))
 
     @property
@@ -43,18 +46,31 @@ class Session(ABC):
     def init_weights_path(self):
         return os.path.join(self.base_dir, "init_weights.pkl")
 
+    def get_tflops(self):
+        return self._metrics_collector.get_tflops()
+
     def clean(self):
         shutil.rmtree(self.base_dir)
+        self._metrics_collector.clean()
 
     def process_assignment(self, assignment):
         raise NotImplementedError()
 
+    def process_assignment_and_cleanup(self, assignment):
+        try:
+            self.process_assignment(assignment)
+        finally:
+            self.clean()
+
     def _run(self, *args):
         args_list = ["python", "-m", self._module, self.uuid]
-
         args_list += [str(a) for a in args]
-        # TODO: redirect std out
-        return subprocess.check_output(args_list)
+
+        self._metrics_collector.start_and_wait_signal()
+        with subprocess.Popen(args_list) as process:
+            self._metrics_collector.set_pid(process.pid)
+            with self._metrics_collector:
+                process.wait()
 
     def main(self):
         raise NotImplementedError()

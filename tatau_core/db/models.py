@@ -1,7 +1,7 @@
 import json
 
 from tatau_core import settings
-from tatau_core.db import exceptions, NodeInfo
+from tatau_core.db import exceptions, NodeDBInfo
 from tatau_core.db.fields import Field, JsonField, EncryptedJsonField
 
 
@@ -28,8 +28,8 @@ class Model(metaclass=ModelBase):
         # param "_decrypt_values" was added for using in methods get, history, because when data loads from db,
         # then data should be decrypted, but when new instance is creating, then data which passed to constructor
         # is not encrypted
-        self.db = db or NodeInfo.get_db()
-        self.encryption = encryption or NodeInfo.get_encryption()
+        self.db = db or NodeDBInfo.get_db()
+        self.encryption = encryption or NodeDBInfo.get_encryption()
         self.asset_id = asset_id
         self._address = _address
         self._public_key = None
@@ -110,8 +110,8 @@ class Model(metaclass=ModelBase):
 
     @classmethod
     def get(cls, asset_id, db=None, encryption=None):
-        db = db or NodeInfo.get_db()
-        encryption = encryption or NodeInfo.get_encryption()
+        db = db or NodeDBInfo.get_db()
+        encryption = encryption or NodeDBInfo.get_encryption()
 
         asset = db.retrieve_asset(asset_id)
         address = asset.tx['outputs'][0]['public_keys'][0]
@@ -147,8 +147,8 @@ class Model(metaclass=ModelBase):
 
     @classmethod
     def enumerate(cls, db=None, encryption=None, additional_match=None, created_by_user=True):
-        db = db or NodeInfo.get_db()
-        encryption = encryption or NodeInfo.get_encryption()
+        db = db or NodeDBInfo.get_db()
+        encryption = encryption or NodeDBInfo.get_encryption()
 
         db.connect_to_mongodb()
         match = {
@@ -171,7 +171,7 @@ class Model(metaclass=ModelBase):
 
     @classmethod
     def count(cls, db=None, additional_match=None, created_by_user=True):
-        db = db or NodeInfo.get_db()
+        db = db or NodeDBInfo.get_db()
 
         db.connect_to_mongodb()
         match = {
@@ -184,8 +184,8 @@ class Model(metaclass=ModelBase):
 
     @classmethod
     def get_history(cls, asset_id, db=None, encryption=None):
-        db = db or NodeInfo.get_db()
-        encryption = encryption or NodeInfo.get_encryption()
+        db = db or NodeDBInfo.get_db()
+        encryption = encryption or NodeDBInfo.get_encryption()
 
         data = None
         for transaction in db.retrieve_asset_transactions(asset_id):

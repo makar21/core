@@ -1,1 +1,3 @@
-from .snapshot import Snapshot
+from .snapshot import Snapshot, ProcessSnapshot
+from .collector import MetricsCollector
+
