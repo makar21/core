@@ -1,6 +1,7 @@
 import time
 from logging import getLogger
 from tatau_core import settings
+from tatau_core.nn.tatau.sessions.summarize import SummarizeSession
 from tatau_core.tatau.models import VerifierNode, TaskDeclaration, VerificationAssignment
 from tatau_core.tatau.node.node import Node
 
@@ -86,6 +87,19 @@ class Verifier(Node):
                 session.process_assignment(assignment=verification_assignment)
             finally:
                 session.clean()
+
+            # check is all workers are not fake
+            found_fake_workers = False
+            for result in verification_assignment.result:
+                if result['is_fake']:
+                    found_fake_workers = True
+
+            if not found_fake_workers:
+                session = SummarizeSession()
+                try:
+                    session.process_assignment(assignment=verification_assignment)
+                finally:
+                    session.clean()
 
             verification_assignment.progress = 100
             verification_assignment.tflops = 0.0
