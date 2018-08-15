@@ -24,7 +24,8 @@ class ModelBase(type):
 
 
 class Model(metaclass=ModelBase):
-    def __init__(self, db=None, encryption=None, asset_id=None, _address=None, _decrypt_values=False, **kwargs):
+    def __init__(self, db=None, encryption=None, asset_id=None, _address=None, _decrypt_values=False,
+                 created_at=None, modified_at=None, **kwargs):
         # param "_decrypt_values" was added for using in methods get, history, because when data loads from db,
         # then data should be decrypted, but when new instance is creating, then data which passed to constructor
         # is not encrypted
@@ -33,6 +34,8 @@ class Model(metaclass=ModelBase):
         self.asset_id = asset_id
         self._address = _address
         self._public_key = None
+        self._created_at = created_at
+        self._modified_at = modified_at
 
         for name, attr in self._attrs.items():
             if isinstance(attr, Field):
@@ -63,6 +66,14 @@ class Model(metaclass=ModelBase):
                     'class': attr
                 })
         return fields
+
+    @property
+    def created_at(self):
+        return self._created_at
+
+    @property
+    def modified_at(self):
+        return self._modified_at
 
     @property
     def address(self):
@@ -114,7 +125,7 @@ class Model(metaclass=ModelBase):
         encryption = encryption or NodeDBInfo.get_encryption()
 
         asset = db.retrieve_asset(asset_id)
-        address = asset.tx['outputs'][0]['public_keys'][0]
+        address = asset.last_tx['outputs'][0]['public_keys'][0]
 
         if asset.data['asset_name'] != cls.get_asset_name():
             raise exceptions.Asset.WrongType()

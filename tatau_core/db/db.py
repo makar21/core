@@ -8,14 +8,17 @@ from cryptoconditions.crypto import Base58Encoder
 from pymongo import MongoClient
 
 from tatau_core import settings
+from tatau_core.db import query
 
 
 class Asset:
-    def __init__(self, tx, asset_id, first_tx):
-        self.tx = tx
-        self.data = first_tx['asset']['data']
-        self.metadata = tx['metadata']
+    def __init__(self, asset_id, first_tx, last_tx):
         self.asset_id = asset_id
+        self.last_tx = last_tx
+        self.data = first_tx['asset']['data']
+        self.metadata = last_tx['metadata']
+        self.created_at = first_tx['generation_time']
+        self.modified_at = last_tx['generation_time']
 
 
 class DB:
@@ -151,34 +154,42 @@ class DB:
 
         return txid
 
+    def _get_transaction(self, transaction_id):
+        transaction = query.get_transaction(self.mongo_db, transaction_id)
+
+        if transaction:
+            transaction['generation_time'] = transaction.pop('_id').generation_time
+            asset = query.get_asset(self.mongo_db, transaction_id)
+            metadata = query.get_metadata(self.mongo_db, [transaction_id])
+            if asset:
+                transaction['asset'] = asset
+
+            if 'metadata' not in transaction:
+                metadata = metadata[0] if metadata else None
+                if metadata:
+                    metadata = metadata.get('metadata')
+
+                transaction.update({'metadata': metadata})
+
+        return transaction
+
+    def _get_transactions(self, asset_id):
+        self.connect_to_mongodb()
+        transactions = []
+        for transaction_id in query.get_txids_filtered(self.mongo_db, asset_id=asset_id):
+            transactions.append(self._get_transaction(transaction_id))
+        return transactions
+
     def retrieve_asset(self, asset_id):
-        """
-        Retrieves transactions for an asset.
-
-        Returns the latest transaction metadata.
-        """
-        transactions = self.bdb.transactions.get(asset_id=asset_id)
-
+        transactions = self._get_transactions(asset_id)
         latest_tx = transactions[-1]
-
-        return Asset(tx=latest_tx, asset_id=asset_id, first_tx=transactions[0])
+        return Asset(asset_id=asset_id, first_tx=transactions[0], last_tx=latest_tx)
 
     def retrieve_asset_transactions(self, asset_id):
         """
         Retrieves transactions for an asset.
         """
-        return self.bdb.transactions.get(asset_id=asset_id)
-
-    def retrieve_asset_metadata(self, asset_id):
-        """
-        Retrieves all metadata for an asset.
-
-        Returns a list containing dictionaries
-        with the asset’s metadata.
-        """
-        transactions = self.bdb.transactions.get(asset_id=asset_id)
-
-        return [tx['metadata'] for tx in transactions]
+        return self._get_transactions(asset_id=asset_id)
 
     def retrieve_asset_create_tx(self, asset_id):
         """
