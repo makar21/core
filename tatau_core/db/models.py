@@ -134,6 +134,8 @@ class Model(metaclass=ModelBase):
         kwars.update(asset.data)
         if asset.metadata is not None:
             kwars.update(asset.metadata)
+        kwars['created_at'] = asset.created_at
+        kwars['modified_at'] = asset.modified_at
         return cls(db=db, encryption=encryption, _decrypt_values=True, _address=address, **kwars)
 
     @classmethod
