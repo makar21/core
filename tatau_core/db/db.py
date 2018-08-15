@@ -203,7 +203,7 @@ class DB:
         )[0]
         return create_tx
 
-    def retrieve_asset_ids(self, match, created_by_user=True):
+    def retrieve_asset_ids(self, match, created_by_user=True, skip=None, limit=None):
         """
         Retreives assets that match to a $match provided as match argument.
 
@@ -216,9 +216,8 @@ class DB:
             'operation': 'CREATE',
         }
         if created_by_user:
-            main_transaction_match[
-                'inputs.owners_before'
-            ] = self.kp.public_key,
+            main_transaction_match['inputs.owners_before'] = self.kp.public_key
+
         pipeline = [
             {'$match': main_transaction_match},
             {'$lookup': {
@@ -228,7 +227,45 @@ class DB:
                 'as': 'assets',
             }},
             {'$match': match},
+            # by default sort by -created_at
+            {'$sort': {'_id': -1}}
         ]
-        cursor = self.mongo_db.transactions.aggregate(pipeline)
 
-        return (x['id'] for x in cursor)
+        if skip:
+            pipeline.append({'$skip': skip})
+
+        if limit:
+            pipeline.append({'$limit': limit})
+
+        return (x['id'] for x in self.mongo_db.transactions.aggregate(pipeline))
+
+    def retrieve_asset_count(self, match, created_by_user=True):
+        """
+        Retreives count of assets that match to a $match provided as match argument.
+
+        If created_by_user is True, only retrieves
+        the assets created by the user.
+
+        Returns a generator object.
+        """
+        main_transaction_match = {
+            'operation': 'CREATE',
+        }
+        if created_by_user:
+            main_transaction_match['inputs.owners_before'] = self.kp.public_key
+
+        pipeline = [
+            {'$match': main_transaction_match},
+            {'$lookup': {
+                'from': 'assets',
+                'localField': 'id',
+                'foreignField': 'id',
+                'as': 'assets',
+            }},
+            {'$match': match},
+            {'$count': 'count'}
+        ]
+
+        for cursor in self.mongo_db.transactions.aggregate(pipeline):
+            return cursor['count']
+        return 0

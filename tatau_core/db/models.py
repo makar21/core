@@ -159,7 +159,7 @@ class Model(metaclass=ModelBase):
             )
 
     @classmethod
-    def enumerate(cls, db=None, encryption=None, additional_match=None, created_by_user=True):
+    def enumerate(cls, db=None, encryption=None, additional_match=None, created_by_user=True, limit=None, skip=None):
         db = db or NodeDBInfo.get_db()
         encryption = encryption or NodeDBInfo.get_encryption()
 
@@ -170,17 +170,18 @@ class Model(metaclass=ModelBase):
 
         if additional_match is not None:
             match.update(additional_match)
-        return (cls.get(x, db, encryption) for x in db.retrieve_asset_ids(match=match, created_by_user=created_by_user))
+        return (
+            cls.get(x, db, encryption)
+            for x in db.retrieve_asset_ids(match=match, created_by_user=created_by_user, limit=limit, skip=skip)
+        )
 
     @classmethod
-    def list(cls, db=None, encryption=None, additional_match=None, created_by_user=True):
-        return list(cls.enumerate(db, encryption, additional_match, created_by_user))
+    def list(cls, db=None, encryption=None, additional_match=None, created_by_user=True, limit=None, skip=None):
+        return list(cls.enumerate(db, encryption, additional_match, created_by_user, limit, skip))
 
     @classmethod
-    def exists(cls, db=None, encryption=None, additional_match=None, created_by_user=True):
-        for v in cls.enumerate(db, encryption, additional_match, created_by_user):
-            return True
-        return False
+    def exists(cls, db=None, additional_match=None, created_by_user=True):
+        return cls.count(db, additional_match, created_by_user) > 0
 
     @classmethod
     def count(cls, db=None, additional_match=None, created_by_user=True):
@@ -193,7 +194,8 @@ class Model(metaclass=ModelBase):
 
         if additional_match is not None:
             match.update(additional_match)
-        return len(list(db.retrieve_asset_ids(match=match, created_by_user=created_by_user)))
+
+        return db.retrieve_asset_count(match=match, created_by_user=created_by_user)
 
     @classmethod
     def get_history(cls, asset_id, db=None, encryption=None):
@@ -201,9 +203,11 @@ class Model(metaclass=ModelBase):
         encryption = encryption or NodeDBInfo.get_encryption()
 
         data = None
+        created_at = None
         for transaction in db.retrieve_asset_transactions(asset_id):
             if transaction['operation'] == 'CREATE':
                 data = transaction['asset']['data']
+                created_at = transaction['generation_time']
                 if data['asset_name'] != cls.get_asset_name():
                     raise exceptions.Asset.WrongType()
 
@@ -212,6 +216,8 @@ class Model(metaclass=ModelBase):
 
             kwars = data
             kwars.update(metadata)
+            kwars['created_at'] = created_at
+            kwars['modified_at'] = transaction['generation_time']
             yield cls(db=db, encryption=encryption, asset_id=asset_id, _decrypt_values=True, _address=address, **kwars)
 
 
