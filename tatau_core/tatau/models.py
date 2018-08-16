@@ -217,6 +217,10 @@ class TaskDeclaration(models.Model):
                 ret.append(estimation_assignment)
         return ret
 
+    @property
+    def estimation_assignments(self):
+        return self.get_estimation_assignments()
+
     def is_last_epoch(self):
         return self.current_epoch == self.epochs
 
