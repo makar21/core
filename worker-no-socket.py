@@ -1,7 +1,7 @@
+import os
 import sys
 from logging import getLogger
 
-from tatau_core.contract import NodeContractInfo
 from tatau_core.tatau.node.worker import Worker
 from tatau_core.utils.logging import configure_logging
 
@@ -16,13 +16,16 @@ if __name__ == '__main__':
     except IndexError:
         index = ''
 
-    NodeContractInfo.init_poa(key_name='worker{}'.format(index))
+    account_address = os.getenv('ACCOUNT_ADDRESS')
+    if account_address is None:
+        logger.error('ACCOUNT_ADDRESS is not specified')
+        exit(-1)
 
     worker = Worker(
-        account_address=NodeContractInfo.get_account_address(),
+        account_address=account_address,
         rsa_pk_fs_name='worker-no-socket{}'.format(index)
     )
 
-    logger.info('Start {}'.format(worker.asset))
+    logger.info('Start {} address: {}'.format(worker.asset, account_address))
     worker.search_tasks()
 

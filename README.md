@@ -124,7 +124,7 @@ The data is encrypted using a hybrid encryption scheme. We use RSA with PKCS#1 [
 To run worker:
 
 ```shell
-python worker.py
+./bin/scripts/start-worker <#number|optional>
 ```
 
 **How it works**

@@ -8,7 +8,7 @@ from cryptoconditions.crypto import Base58Encoder
 from pymongo import MongoClient
 
 from tatau_core import settings
-from tatau_core.db import query
+from tatau_core.db import query, exceptions
 
 
 class Asset:
@@ -182,6 +182,8 @@ class DB:
 
     def retrieve_asset(self, asset_id):
         transactions = self._get_transactions(asset_id)
+        if len(transactions) == 0:
+            raise exceptions.Asset.NotFound()
         latest_tx = transactions[-1]
         return Asset(asset_id=asset_id, first_tx=transactions[0], last_tx=latest_tx)
 

@@ -182,9 +182,6 @@ class Producer(Node):
         )
 
         for task_assignment in task_assignments:
-            if task_assignment.state == TaskAssignment.State.FINISHED and task_assignment.result is not None:
-                self._ipfs_prefetch_async(task_assignment.result)
-
             if task_assignment.state != TaskAssignment.State.FINISHED:
                 return False
 
@@ -478,10 +475,7 @@ class Producer(Node):
         )
 
         task_assignment.current_epoch = task_declaration.current_epoch
-        task_assignment.tflops = 0.0
-        task_assignment.progress = 0.0
-        task_assignment.result = None
-        task_assignment.error = None
+        task_assignment.clean()
         task_assignment.state = TaskAssignment.State.DATA_IS_READY
         # encrypt inner data using worker's public key
         task_assignment.set_encryption_key(task_assignment.worker.enc_key)
@@ -501,7 +495,8 @@ class Producer(Node):
             verification_assignment.x_test_ipfs = task_declaration.dataset.x_test_ipfs
             verification_assignment.y_test_ipfs = task_declaration.dataset.y_test_ipfs
             verification_assignment.model_code_ipfs = task_declaration.train_model.code_ipfs
-            verification_assignment.result = None
+            verification_assignment.clean()
+
             verification_assignment.state = VerificationAssignment.State.DATA_IS_READY
             verification_assignment.set_encryption_key(verification_assignment.verifier.enc_key)
             verification_assignment.save(recipients=verification_assignment.verifier.address)
@@ -592,30 +587,15 @@ class Producer(Node):
             task_declaration.save()
 
     def train_task(self, asset_id):
-        counter = 0
         while True:
-            try:
-                task_declaration = TaskDeclaration.get(asset_id)
-                if task_declaration.state in (TaskDeclaration.State.COMPLETED, TaskDeclaration.State.FAILED):
-                    break
+            task_declaration = TaskDeclaration.get(asset_id)
+            if task_declaration.state in (TaskDeclaration.State.COMPLETED, TaskDeclaration.State.FAILED):
+                break
 
-                self._process_performers(task_declaration)
+            self._process_performers(task_declaration)
+            self._process_task_declaration(task_declaration)
 
-                if task_declaration.state == TaskDeclaration.State.DEPLOYMENT:
-                    self._process_task_declaration(task_declaration)
-
-                time.sleep(settings.PRODUCER_PROCESS_INTERVAL)
-
-                # TODO: add state failed
-                # remove infinity loop
-                counter += 1
-                if counter == 1000:
-                    task_declaration.state = TaskDeclaration.State.FAILED
-                    task_declaration.save()
-                    break
-
-            except Exception as e:
-                logger.exception(e)
+            time.sleep(settings.PRODUCER_PROCESS_INTERVAL)
 
     def process_tasks(self):
         while True:

@@ -10,7 +10,7 @@ class NodeContractInfo:
     _keyfile_pass = None
     _account = None
     _personal = None
-    _contract = None
+    _contract = Contract()
 
     @classmethod
     def configure(cls, encrypted_key, keyfile_pass):
@@ -24,8 +24,6 @@ class NodeContractInfo:
         cls._personal.unlockAccount(cls._account.address, keyfile_pass)
 
         web3.eth.defaultAccount = cls._account.address
-
-        cls._contract = Contract()
 
     @classmethod
     def unlock_account(cls):
