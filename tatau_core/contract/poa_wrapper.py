@@ -21,7 +21,6 @@ def issue_job(task_declaration, job_cost):
 
 
 def does_job_exist(task_declaration):
-    NodeContractInfo.unlock_account()
     return NodeContractInfo.get_contract().does_job_exist(task_declaration.asset_id)
 
 

@@ -62,9 +62,13 @@ class Session(ABC):
         finally:
             self.clean()
 
-    def _run(self, *args):
+    def _run(self, *args, async=False):
         args_list = ["python", "-m", self._module, self.uuid]
         args_list += [str(a) for a in args]
+
+        if async:
+            subprocess.Popen(args_list)
+            return
 
         self._metrics_collector.start_and_wait_signal()
         with subprocess.Popen(args_list) as process:
@@ -72,7 +76,7 @@ class Session(ABC):
             with self._metrics_collector:
                 process.wait()
 
-    def main(self):
+    def main(self, *args, **kwargs):
         raise NotImplementedError()
 
     @classmethod

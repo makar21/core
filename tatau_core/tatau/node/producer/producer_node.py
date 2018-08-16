@@ -593,17 +593,14 @@ class Producer(Node):
 
     def train_task(self, asset_id):
         while True:
-            try:
-                task_declaration = TaskDeclaration.get(asset_id)
-                if task_declaration.state in (TaskDeclaration.State.COMPLETED, TaskDeclaration.State.FAILED):
-                    break
+            task_declaration = TaskDeclaration.get(asset_id)
+            if task_declaration.state in (TaskDeclaration.State.COMPLETED, TaskDeclaration.State.FAILED):
+                break
 
-                self._process_performers(task_declaration)
-                self._process_task_declaration(task_declaration)
+            self._process_performers(task_declaration)
+            self._process_task_declaration(task_declaration)
 
-                time.sleep(settings.PRODUCER_PROCESS_INTERVAL)
-            except Exception as e:
-                logger.exception(e)
+            time.sleep(settings.PRODUCER_PROCESS_INTERVAL)
 
     def process_tasks(self):
         while True:
