@@ -399,6 +399,15 @@ class TaskAssignment(models.Model):
 
     error = fields.EncryptedCharField(required=False)
 
+    def clean(self):
+        self.progress = 0.0
+        self.tflops = 0.0
+        self.result = None
+        self.error = None
+        self.loss = 0.0
+        self.accuracy = 0.0
+        self.train_history = None
+
     @cached_property
     def producer(self):
         return ProducerNode.get(self.producer_id)
@@ -443,6 +452,14 @@ class VerificationAssignment(models.Model):
     accuracy = fields.FloatField(required=False)
 
     error = fields.EncryptedCharField(required=False)
+
+    def clean(self):
+        self.progress = 0.0
+        self.tflops = 0.0
+        self.result = None
+        self.weights = None
+        self.loss = 0.0
+        self.accuracy = 0.0
 
     @cached_property
     def producer(self):

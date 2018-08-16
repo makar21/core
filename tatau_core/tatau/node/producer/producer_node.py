@@ -478,10 +478,7 @@ class Producer(Node):
         )
 
         task_assignment.current_epoch = task_declaration.current_epoch
-        task_assignment.tflops = 0.0
-        task_assignment.progress = 0.0
-        task_assignment.result = None
-        task_assignment.error = None
+        task_assignment.clean()
         task_assignment.state = TaskAssignment.State.DATA_IS_READY
         # encrypt inner data using worker's public key
         task_assignment.set_encryption_key(task_assignment.worker.enc_key)
@@ -501,7 +498,8 @@ class Producer(Node):
             verification_assignment.x_test_ipfs = task_declaration.dataset.x_test_ipfs
             verification_assignment.y_test_ipfs = task_declaration.dataset.y_test_ipfs
             verification_assignment.model_code_ipfs = task_declaration.train_model.code_ipfs
-            verification_assignment.result = None
+            verification_assignment.clean()
+
             verification_assignment.state = VerificationAssignment.State.DATA_IS_READY
             verification_assignment.set_encryption_key(verification_assignment.verifier.enc_key)
             verification_assignment.save(recipients=verification_assignment.verifier.address)
