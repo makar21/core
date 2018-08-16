@@ -238,6 +238,25 @@ abi = """[
       "type": "function"
     },
     {
+      "constant": true,
+      "inputs": [
+        {
+          "name": "id",
+          "type": "bytes32"
+        }
+      ],
+      "name": "doesJobFinished",
+      "outputs": [
+        {
+          "name": "",
+          "type": "bool"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
       "constant": false,
       "inputs": [
         {
@@ -320,4 +339,4 @@ abi = """[
       "stateMutability": "view",
       "type": "function"
     }
-  ]"""
+]"""

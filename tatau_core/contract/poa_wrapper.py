@@ -24,6 +24,10 @@ def does_job_exist(task_declaration):
     return NodeContractInfo.get_contract().does_job_exist(task_declaration.asset_id)
 
 
+def does_job_finished(task_declaration):
+    return NodeContractInfo.get_contract().does_job_finished(task_declaration.asset_id)
+
+
 def finish_job(task_declaration):
     logger.info('Finish job {}'.format(task_declaration))
 

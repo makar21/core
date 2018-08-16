@@ -32,6 +32,10 @@ class Verifier(Node):
 
     def _process_task_declaration(self, task_declaration):
         if task_declaration.state in (TaskDeclaration.State.COMPLETED, TaskDeclaration.State.FAILED):
+            if poa_wrapper.does_job_exist(task_declaration) and not poa_wrapper.does_job_finished(task_declaration):
+                poa_wrapper.finish_job(task_declaration)
+
+        if task_declaration.verifiers_needed == 0:
             return
 
         exists = VerificationAssignment.exists(
@@ -119,8 +123,7 @@ class Verifier(Node):
 
     def _process_task_declarations(self):
         for task_declaration in TaskDeclaration.enumerate(created_by_user=False):
-            if task_declaration.state == TaskDeclaration.State.DEPLOYMENT and task_declaration.verifiers_needed > 0:
-                self._process_task_declaration(task_declaration)
+            self._process_task_declaration(task_declaration)
 
     def _process_verification_assignments(self):
         for verification_assignment in VerificationAssignment.enumerate():

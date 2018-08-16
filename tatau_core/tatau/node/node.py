@@ -1,11 +1,14 @@
 import hashlib
 import os
+import shutil
+import tempfile
 from logging import getLogger
+from multiprocessing import Process
 
 from tatau_core.db import DB, TransactionListener, NodeDBInfo
-from tatau_core.nn.tatau.sessions.ipfs_prefetch import IpfsPrefetchSession
 from tatau_core.settings import ROOT_DIR
 from tatau_core.utils.encryption import Encryption
+from tatau_core.utils.ipfs import IPFS
 
 logger = getLogger()
 
@@ -96,8 +99,17 @@ class Node(TransactionListener):
         return False
 
     def _ipfs_prefetch_async(self, multihash):
-        session = IpfsPrefetchSession()
+        Process(
+            target=self._ipfs_prefetch,
+            args=(multihash,)
+        ).start()
+
+    def _ipfs_prefetch(self, multihash):
+        ipfs = IPFS()
+        target_dir = tempfile.mkdtemp()
         try:
-            session.run(multihash)
+            logger.info('Download {}'.format(multihash))
+            ipfs.download(multihash, target_dir)
+            logger.info('End download {}'.format(multihash))
         finally:
-            session.clean()
+            shutil.rmtree(target_dir)

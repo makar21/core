@@ -182,9 +182,6 @@ class Producer(Node):
         )
 
         for task_assignment in task_assignments:
-            if task_assignment.state == TaskAssignment.State.FINISHED and task_assignment.result is not None:
-                self._ipfs_prefetch_async(task_assignment.result)
-
             if task_assignment.state != TaskAssignment.State.FINISHED:
                 return False
 
