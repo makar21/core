@@ -12,7 +12,7 @@ cd ../../../
 ## Run Train Local
 
 ```shell
-python add-task.py \
+python manage-tasks.py -c add \
     --local=1 \
     --workers=1 \
     --epochs=10 \
@@ -41,7 +41,7 @@ Test set: Average loss: 0.03908432, Accuracy: 9869/10000 (0.9869%)
 ## Run Train Remote
 
 ```shell
-python add-task.py \
+python manage-tasks.py -c add \
     --local=0 \
     --workers=1 \
     --epochs=10 \

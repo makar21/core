@@ -56,7 +56,7 @@ wget https://s3.amazonaws.com/tatau-public/datasets/cifar10/y_train.npy
 
 cd /app
 
-python add-task.py \
+python manage-tasks.py -c add \
     --local=0 \
     --workers=1 \
     --epochs=1 \
@@ -83,10 +83,23 @@ Copy Task Declaration ID, in current case it: `d3a2b3e05bbf581078cb16bfd460b1547
 
 #### Start Training Monitor
 ```shell
-python train-monitor.py -t d3a2b3e05bbf581078cb16bfd460b15479e11d1ca5203c31105cba11ef3c01d6
+python manage-tasks.py -c monitor -t d3a2b3e05bbf581078cb16bfd460b15479e11d1ca5203c31105cba11ef3c01d6
 ```
 
+#### Stop Task
+```shell
+python manage-tasks.py -c stop -t d3a2b3e05bbf581078cb16bfd460b15479e11d1ca5203c31105cba11ef3c01d6
+```
 
+#### Issue Task
+```shell
+python manage-tasks.py -c issue -t d3a2b3e05bbf581078cb16bfd460b15479e11d1ca5203c31105cba11ef3c01d6 -eth <balance>
+```
+
+#### Deposit Task
+```shell
+python manage-tasks.py -c deposit -t d3a2b3e05bbf581078cb16bfd460b15479e11d1ca5203c31105cba11ef3c01d6 -eth <balance>
+```
 
 
 # Examples
@@ -124,7 +137,7 @@ The data is encrypted using a hybrid encryption scheme. We use RSA with PKCS#1 [
 To run worker:
 
 ```shell
-./bin/scripts/start-worker <#number|optional>
+python worker.py <#number|optional>
 ```
 
 **How it works**
