@@ -14,7 +14,7 @@ cd ../../../
 ### CNN
 
 ```shell
-python add-task.py \
+python manage-tasks.py -c add \
     --local=1 \
     --workers=1 \
     --epochs=10 \
@@ -27,7 +27,7 @@ python add-task.py \
 ### ResNet
 
 ```shell
-python add-task.py \
+python manage-tasks.py -c add \
     --local=1 \
     --workers=3 \
     --epochs=10 \
@@ -40,7 +40,7 @@ python add-task.py \
 ## Run Train Remote
 
 ```shell
-python add-task.py \
+python manage-tasks.py -c add \
     --local=0 \
     --workers=1 \
     --epochs=10 \

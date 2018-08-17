@@ -3,7 +3,7 @@
 ```shell
 bin/download-cifar10
 # Test train local
-python add-task.py \
+python manage-tasks.py -c add \
     --local=1 \
     --workers=1 \
     --epochs=1 \
