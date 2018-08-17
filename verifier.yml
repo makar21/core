@@ -10,7 +10,7 @@ services:
     # Support nvidia docker 2
     runtime: nvidia
     volumes:
-      - PWD/verifier:/app/verifier:ro
+      - $PWD/verifier:/app/verifier:ro
       - $PWD/$KEYS_PATH/$VERIFIER_ACCOUNT_ADDRESS:/app/$KEYS_PATH/$VERIFIER_ACCOUNT_ADDRESS:ro
     restart: always
     links:
