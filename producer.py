@@ -1,6 +1,6 @@
+import os
 from logging import getLogger
 
-from tatau_core.contract import NodeContractInfo
 from tatau_core.tatau.node.producer import Producer
 from tatau_core.utils.logging import configure_logging
 
@@ -9,13 +9,36 @@ configure_logging('producer')
 logger = getLogger()
 
 
-if __name__ == '__main__':
-    NodeContractInfo.init_poa(key_name='producer')
+def load_credentials(account_address_var_name, storage_path_var_name):
+    address = os.getenv(account_address_var_name)
+    if address is None:
+        raise ValueError('{} is not specified'.format(account_address_var_name))
 
-    producer = Producer(
-        account_address=NodeContractInfo.get_account_address(),
-        rsa_pk_fs_name='producer'
+    storage_path = os.getenv(storage_path_var_name)
+    if storage_path is None:
+        raise ValueError('{} is not specified'.format(storage_path_var_name))
+
+    dir_name = address.replace('0x', '')
+    with open(os.path.join(storage_path, dir_name, 'rsa_pk.pem'), 'r') as f:
+        pk = f.read()
+
+    return address, pk.encode()
+
+
+if __name__ == '__main__':
+
+    account_address, rsa_pk = load_credentials(
+        account_address_var_name='PRODUCER_ACCOUNT_ADDRESS',
+        storage_path_var_name='KEYS_PATH'
     )
 
-    logger.info('Start {}'.format(producer.asset))
-    producer.run_transaction_listener()
+    producer = Producer(
+        account_address=account_address,
+        rsa_pk=rsa_pk
+    )
+
+    logger.info('Start {}, account_address: {}'.format(producer.asset, account_address))
+    if os.getenv('USE_SOCKET', False):
+        producer.run_transaction_listener()
+    else:
+        producer.process_tasks()

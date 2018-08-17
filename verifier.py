@@ -1,27 +1,54 @@
-import sys
+import os
 from logging import getLogger
 
 from tatau_core.contract import NodeContractInfo
 from tatau_core.tatau.node import VerifierEstimator
 from tatau_core.utils.logging import configure_logging
 
-configure_logging('verifier-no-socket')
+configure_logging('verifier')
 
 logger = getLogger()
 
 
+def load_credentials(account_address_var_name, storage_path_var_name):
+    address = os.getenv(account_address_var_name)
+    if address is None:
+        raise ValueError('{} is not specified'.format(account_address_var_name))
+
+    storage_path = os.getenv(storage_path_var_name)
+    if storage_path is None:
+        raise ValueError('{} is not specified'.format(storage_path_var_name))
+
+    dir_name = address.replace('0x', '')
+    with open(os.path.join(storage_path, dir_name, 'rsa_pk.pem'), 'r') as f:
+        pk = f.read()
+
+    with open(os.path.join(storage_path, dir_name, 'wallet.json'), 'r') as f:
+        wallet = f.read()
+
+    with open(os.path.join(storage_path, dir_name, 'wallet.pass'), 'r') as f:
+        wallet_password = f.read()
+
+    return address, wallet, wallet_password, pk.encode()
+
+
 if __name__ == '__main__':
-    try:
-        index = sys.argv[1]
-    except IndexError:
-        index = ''
 
-    NodeContractInfo.init_poa(key_name='verifier')
-
-    verifier = VerifierEstimator(
-        account_address=NodeContractInfo.get_account_address(),
-        rsa_pk_fs_name='verifier-no-socket{}'.format(index)
+    account_address, encrypted_key, password, rsa_pk = load_credentials(
+        account_address_var_name='VERIFIER_ACCOUNT_ADDRESS',
+        storage_path_var_name='KEYS_PATH'
     )
 
-    logger.info('Start {}'.format(verifier.asset))
-    verifier.run_transaction_listener()
+    NodeContractInfo.configure(encrypted_key, password)
+
+    verifier = VerifierEstimator(
+        account_address=account_address,
+        rsa_pk=rsa_pk
+    )
+
+    logger.info('Start {}, address {}'.format(verifier.asset, account_address))
+
+    if os.getenv('USE_SOCKET', False):
+        verifier.run_transaction_listener()
+    else:
+        verifier.search_tasks()
