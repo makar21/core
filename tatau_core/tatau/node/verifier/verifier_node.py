@@ -35,28 +35,28 @@ class Verifier(Node):
             if poa_wrapper.does_job_exist(task_declaration) and not poa_wrapper.does_job_finished(task_declaration):
                 poa_wrapper.finish_job(task_declaration)
 
-        if task_declaration.verifiers_needed == 0:
-            return
+        if task_declaration.state == TaskDeclaration.State.DEPLOYMENT \
+                and task_declaration.verifiers_needed > 0:
 
-        exists = VerificationAssignment.exists(
-            additional_match={
-                'assets.data.verifier_id': self.asset_id,
-                'assets.data.task_declaration_id': task_declaration.asset_id,
-            },
-            created_by_user=False
-        )
+            exists = VerificationAssignment.exists(
+                additional_match={
+                    'assets.data.verifier_id': self.asset_id,
+                    'assets.data.task_declaration_id': task_declaration.asset_id,
+                },
+                created_by_user=False
+            )
 
-        if exists:
-            logger.debug('{} has already created verification assignment to {}'.format(self, task_declaration))
-            return
+            if exists:
+                logger.debug('{} has already created verification assignment to {}'.format(self, task_declaration))
+                return
 
-        verification_assignment = VerificationAssignment.create(
-            producer_id=task_declaration.producer_id,
-            verifier_id=self.asset_id,
-            task_declaration_id=task_declaration.asset_id,
-            recipients=task_declaration.producer.address
-        )
-        logger.info('{} added {}'.format(self, verification_assignment))
+            verification_assignment = VerificationAssignment.create(
+                producer_id=task_declaration.producer_id,
+                verifier_id=self.asset_id,
+                task_declaration_id=task_declaration.asset_id,
+                recipients=task_declaration.producer.address
+            )
+            logger.info('{} added {}'.format(self, verification_assignment))
 
     def _process_verification_assignment_transaction(self, asset_id, transaction):
         if transaction['operation'] == 'CREATE':
