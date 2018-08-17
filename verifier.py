@@ -1,6 +1,7 @@
 import os
 from logging import getLogger
 
+from tatau_core import settings
 from tatau_core.contract import NodeContractInfo
 from tatau_core.tatau.node import VerifierEstimator
 from tatau_core.utils.logging import configure_logging
@@ -10,15 +11,12 @@ configure_logging('verifier')
 logger = getLogger()
 
 
-def load_credentials(account_address_var_name, storage_path_var_name):
+def load_credentials(account_address_var_name):
     address = os.getenv(account_address_var_name)
     if address is None:
         raise ValueError('{} is not specified'.format(account_address_var_name))
 
-    storage_path = os.getenv(storage_path_var_name)
-    if storage_path is None:
-        raise ValueError('{} is not specified'.format(storage_path_var_name))
-
+    storage_path = settings.KEYS_PATH
     dir_name = address.replace('0x', '')
     with open(os.path.join(storage_path, dir_name, 'rsa_pk.pem'), 'r') as f:
         pk = f.read()
@@ -35,8 +33,7 @@ def load_credentials(account_address_var_name, storage_path_var_name):
 if __name__ == '__main__':
 
     account_address, encrypted_key, password, rsa_pk = load_credentials(
-        account_address_var_name='VERIFIER_ACCOUNT_ADDRESS',
-        storage_path_var_name='KEYS_PATH'
+        account_address_var_name='VERIFIER_ACCOUNT_ADDRESS'
     )
 
     NodeContractInfo.configure(encrypted_key, password)

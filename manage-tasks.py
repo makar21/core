@@ -7,6 +7,7 @@ import numpy as np
 from termcolor import colored
 
 from producer import load_producer
+from tatau_core import settings
 from tatau_core.contract import NodeContractInfo, poa_wrapper
 from tatau_core.nn.tatau.model import Model, TrainProgress
 from tatau_core.tatau.models import TaskDeclaration, TaskAssignment, VerificationAssignment
@@ -291,15 +292,12 @@ def monitor_task(asset_id):
             break
 
 
-def load_wallet_credentials(account_address_var_name, storage_path_var_name):
+def load_wallet_credentials(account_address_var_name):
     address = os.getenv(account_address_var_name)
     if address is None:
         raise ValueError('{} is not specified'.format(account_address_var_name))
 
-    storage_path = os.getenv(storage_path_var_name)
-    if storage_path is None:
-        raise ValueError('{} is not specified'.format(storage_path_var_name))
-
+    storage_path = settings.KEYS_PATH
     dir_name = address.replace('0x', '')
     with open(os.path.join(storage_path, dir_name, 'wallet.json'), 'r') as f:
         wallet = f.read()
@@ -374,13 +372,10 @@ def main():
             print('balance is not specified, arg: --eth')
             return
 
-        encrypted_key, password = load_wallet_credentials(
-            account_address_var_name='PRODUCER_ACCOUNT_ADDRESS',
-            storage_path_var_name='KEYS_PATH'
-        )
+        encrypted_key, password = load_wallet_credentials(account_address_var_name='PRODUCER_ACCOUNT_ADDRESS')
         NodeContractInfo.configure(encrypted_key, password)
         task_declaration = TaskDeclaration.get(args.task)
-        poa_wrapper.issue_job(task_declaration, args.balance)
+        poa_wrapper.issue_job(task_declaration, args.eth)
         return
 
     if args.command == 'deposit':
@@ -388,14 +383,10 @@ def main():
             print('balance is not specified, arg: --eth')
             return
 
-        encrypted_key, password = load_wallet_credentials(
-            account_address_var_name='PRODUCER_ACCOUNT_ADDRESS',
-            storage_path_var_name='KEYS_PATH'
-        )
-
+        encrypted_key, password = load_wallet_credentials(account_address_var_name='PRODUCER_ACCOUNT_ADDRESS')
         NodeContractInfo.configure(encrypted_key, password)
         task_declaration = TaskDeclaration.get(args.task)
-        poa_wrapper.deposit(task_declaration, args.balance)
+        poa_wrapper.deposit(task_declaration, args.eth)
         return
 
 
