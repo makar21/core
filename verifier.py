@@ -46,7 +46,7 @@ if __name__ == '__main__':
         rsa_pk=rsa_pk
     )
 
-    logger.info('Start {}, address {}'.format(verifier.asset, account_address))
+    logger.info('Start {}, address {}'.format(verifier.asset, verifier.asset.account_address))
 
     if os.getenv('USE_SOCKET', False):
         verifier.run_transaction_listener()

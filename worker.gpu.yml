@@ -6,7 +6,7 @@ services:
     build:
       context: .
       dockerfile: ./docker/images/core/gpu/Dockerfile
-    command: sh -c "python worker-no-socket.py"
+    command: sh -c "python worker.py"
     # Support nvidia docker 2
     runtime: nvidia
     volumes:

@@ -3,7 +3,7 @@ version: '2.3'
 services:
   producer:
     image: tataucloud/core_cpu
-    command: sh -c "python producer-no-socket.py"
+    command: sh -c "python producer.py"
     environment:
       RING: $RING
       TATAU_DEBUG: $TATAU_DEBUG

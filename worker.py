@@ -42,7 +42,7 @@ if __name__ == '__main__':
         rsa_pk=rsa_pk
     )
 
-    logger.info('Start {} address: {}'.format(worker.asset, account_address))
+    logger.info('Start {} address: {}'.format(worker.asset, worker.asset.account_address))
     if os.getenv('USE_SOCKET', False):
         worker.run_transaction_listener()
     else:

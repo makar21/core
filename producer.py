@@ -25,19 +25,24 @@ def load_credentials(account_address_var_name, storage_path_var_name):
     return address, pk.encode()
 
 
-if __name__ == '__main__':
-
+def load_producer():
     account_address, rsa_pk = load_credentials(
         account_address_var_name='PRODUCER_ACCOUNT_ADDRESS',
         storage_path_var_name='KEYS_PATH'
     )
 
-    producer = Producer(
+    p = Producer(
         account_address=account_address,
         rsa_pk=rsa_pk
     )
 
-    logger.info('Start {}, account_address: {}'.format(producer.asset, account_address))
+    logger.info('Load {}, account_address: {}'.format(p.asset, p.asset.account_address))
+    return p
+
+
+if __name__ == '__main__':
+    producer = load_producer()
+
     if os.getenv('USE_SOCKET', False):
         producer.run_transaction_listener()
     else:

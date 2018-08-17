@@ -6,7 +6,7 @@ services:
     build:
       context: .
       dockerfile: ./docker/images/core/cpu/Dockerfile
-    command: sh -c "python worker-no-socket.py"
+    command: sh -c "python worker.py"
     volumes:
       - $PWD/$KEYS_PATH/$WORKER_ACCOUNT_ADDRESS:/app/$KEYS_PATH/$WORKER_ACCOUNT_ADDRESS:ro
     restart: always
