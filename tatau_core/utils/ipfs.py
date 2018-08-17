@@ -71,7 +71,7 @@ class IPFS:
         return cls._instance
 
     def __init__(self, host=settings.IPFS_HOST, port=settings.IPFS_PORT):
-        self.api = ipfsapi.connect(host, port)
+        self.api = ipfsapi.connect(host, port, chunk_size=1024*1024)
 
     @property
     def id(self):

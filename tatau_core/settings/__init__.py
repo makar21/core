@@ -40,10 +40,24 @@ RING_NAME = os.getenv('RING', '')
 
 PARITY_JSONRPC_PORT = int(os.getenv('PARITY_JSONRPC_PORT', 8545))
 PARITY_WEBSOCKET_PORT = int(os.getenv('PARITY_WEBSOCKET_PORT', 8546))
+
 PARITY_HOST = os.getenv('PARITY_HOST', 'parity')
+POA_NET = os.getenv('POA_NET', 'sandbox')
 
-CONTRACT_ADDRESS = os.getenv('CONTRACT_ADDRESS')
+POA_DEFAULTS = {
+    'sandbox': {
+        # Sandbox v4
+        'CONTRACT_ADDRESS': '0x815d9f345e2f5b20b63650961b68775ce936f408'
+    }
+}
 
-TFLOPS_COST = float(os.getenv('TFLOPS_COST', 0.01))
+CONTRACT_ADDRESS = POA_DEFAULTS[POA_NET]['CONTRACT_ADDRESS']
 
-WHITELIST_JSON_PATH = os.getenv('WHITELIST_JSON_PATH')
+TFLOPS_COST = float(os.getenv('TFLOPS_COST', 0.002036400662))
+
+KEYS_PATH = os.getenv('KEYS_PATH')
+
+WHITELIST_JSON_PATH = os.getenv(
+    'WHITELIST_JSON_PATH',
+    os.path.join(KEYS_PATH,  "whitelist.json")
+)

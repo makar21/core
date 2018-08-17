@@ -127,3 +127,6 @@ examples/keras/cifar10/*.npy
 
 examples/torch/*/*.npy
 examples/torch/*/*.zip
+.idea
+playground.py
+.DS_Store
