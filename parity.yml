@@ -13,6 +13,6 @@ services:
     volumes:
       - $PWD/parity/$POA_NET/config:/parity/config:ro
       - $PWD/docker/volumes/parity/$POA_NET/data:/parity/data
-      - $PWD/$KEYS_PATH/$WORKER_ACCOUNT_ADDRESS/wallet.json:/parity/data/keys/TatauNet/$WORKER_ACCOUNT_ADDRESS.json:ro
-      - $PWD/$KEYS_PATH/$VERIFIER_ACCOUNT_ADDRESS/wallet.json:/parity/data/keys/TatauNet/$VERIFIER_ACCOUNT_ADDRESS.json:ro
-      - $PWD/$KEYS_PATH/$PRODUCER_ACCOUNT_ADDRESS/wallet.json:/parity/data/keys/TatauNet/$PRODUCER_ACCOUNT_ADDRESS.json:ro
+      - $PWD/$KEYS_ROOT/$POA_NET/$WORKER_ACCOUNT_ADDRESS/wallet.json:/parity/data/keys/TatauNet/$WORKER_ACCOUNT_ADDRESS.json:ro
+      - $PWD/$KEYS_ROOT/$POA_NET/$VERIFIER_ACCOUNT_ADDRESS/wallet.json:/parity/data/keys/TatauNet/$VERIFIER_ACCOUNT_ADDRESS.json:ro
+      - $PWD/$KEYS_ROOT/$POA_NET/$PRODUCER_ACCOUNT_ADDRESS/wallet.json:/parity/data/keys/TatauNet/$PRODUCER_ACCOUNT_ADDRESS.json:ro

@@ -1,2 +1,2 @@
 #!/bin/bash
-bin/compose stop $1
+bin/compose rm -f -s -v $1
