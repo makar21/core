@@ -1,0 +1,18 @@
+version: '2.3'
+
+services:
+  parity:
+    image: parity/parity:v1.11.8
+    ports:
+      - "127.0.0.1:$PARITY_JSONRPC_PORT:8545/tcp" # JSONRPC
+      - "127.0.0.1:$PARITY_WEBSOCKET_PORT:8546/tcp" # websocket
+      - "127.0.0.1:$PARITY_WEBSERVER_PORT:8180/tcp" # webserver
+      # - "127.0.0.1:8181:8080/tcp" # ?
+    command: ["--base-path=/parity/data", "--logging=info", "--config=/parity/config/config.toml"]
+    restart: always
+    volumes:
+      - $PWD/parity/$POA_NET/config:/parity/config:ro
+      - $PWD/docker/volumes/parity/$POA_NET/data:/parity/data
+      - $PWD/$KEYS_PATH/$WORKER_ACCOUNT_ADDRESS/wallet.json:/parity/data/keys/TatauNet/$WORKER_ACCOUNT_ADDRESS.json:ro
+      - $PWD/$KEYS_PATH/$VERIFIER_ACCOUNT_ADDRESS/wallet.json:/parity/data/keys/TatauNet/$VERIFIER_ACCOUNT_ADDRESS.json:ro
+      - $PWD/$KEYS_PATH/$PRODUCER_ACCOUNT_ADDRESS/wallet.json:/parity/data/keys/TatauNet/$PRODUCER_ACCOUNT_ADDRESS.json:ro
