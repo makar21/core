@@ -1,10 +1,10 @@
+import hashlib
+import time
+
 from web3.contract import ImplicitContract
-from web3.utils.datastructures import AttributeDict
 
 from tatau_core import settings, web3
 from .abi import abi
-import time
-import hashlib
 
 
 class Contract:
@@ -116,3 +116,30 @@ class Contract:
         _id = self._asset_id_2_job_id(task_declaration_id)
         tx_hash = self._icontract.finishJob(_id)
         return self._wait_for_transaction_mined(tx_hash=tx_hash)
+
+    def does_job_exist(self, task_declaration_id: str):
+        """
+        Finish Job
+        :param task_declaration_id: task declaration id
+        :return: True if job was issued otherwise False
+        """
+        _id = self._asset_id_2_job_id(task_declaration_id)
+        return self._icontract.doesJobExist(_id)
+
+    def does_job_finished(self, task_declaration_id: str):
+        """
+        Get Job
+        :param task_declaration_id: task declaration id
+        :return: True if job finished
+        """
+        _id = self._asset_id_2_job_id(task_declaration_id)
+        return self._icontract.doesJobFinished(_id)
+
+    def add_validator(self, task_declaration_id: str, validator_address: str):
+        """
+        Add validator to JOB
+        :param task_declaration_id: task declaration id
+        :return: True if job was issued otherwise False
+        """
+        _id = self._asset_id_2_job_id(task_declaration_id)
+        return self._icontract.add(_id)

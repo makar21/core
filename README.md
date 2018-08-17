@@ -124,7 +124,7 @@ The data is encrypted using a hybrid encryption scheme. We use RSA with PKCS#1 [
 To run worker:
 
 ```shell
-python worker.py
+./bin/scripts/start-worker <#number|optional>
 ```
 
 **How it works**
@@ -228,3 +228,13 @@ balance = contract.get_job_balance(task_declaration_id)
 balance_eth = web3.fromWei(balance, 'ether')
 print("Job Balance After Finish: {} ETH".format(balance_eth))
 ```
+
+# White listing
+
+Before start work white lists of verifiers and estimators should be  created,
+  ```shell
+cp whitelist.json.example whitelist.json 
+```
+
+In whitelist.json file add to "estimators" array asset id of estimator (string type) and to "verifiers" asset id of verifier (string type) 
+

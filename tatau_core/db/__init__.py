@@ -3,7 +3,7 @@ from .transaction_listener import TransactionListener
 from .exceptions import NodeNotConfigured
 
 
-class NodeInfo:
+class NodeDBInfo:
     _db = None
     _encryption = None
 

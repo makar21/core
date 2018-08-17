@@ -2,6 +2,7 @@ import argparse
 import time
 from logging import getLogger, basicConfig, StreamHandler, INFO
 
+from tatau_core.contract import NodeContractInfo
 from tatau_core.tatau.models import TaskDeclaration, TaskAssignment, VerificationAssignment
 from tatau_core.tatau.node import Producer
 
@@ -211,8 +212,12 @@ def main():
     parser.add_argument('-t', '--task', metavar='TASK_ASSET', help='asset id of task declaration')
 
     args = parser.parse_args()
+    NodeContractInfo.init_poa(key_name='producer')
 
-    Producer(rsa_pk_fs_name=args.key)
+    Producer(
+        account_address=NodeContractInfo.get_account_address(),
+        rsa_pk_fs_name=args.key
+    )
 
     task_declaration = TaskDeclaration.get(args.task)
     while task_declaration.state != TaskDeclaration.State.FAILED:

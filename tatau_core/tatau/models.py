@@ -3,7 +3,10 @@ import os
 import shutil
 import tempfile
 import numpy as np
-from tatau_core.db import models, fields
+
+from tatau_core import settings, web3
+from tatau_core.contract import poa_wrapper
+from tatau_core.db import models, fields, exceptions
 from tatau_core.utils import cached_property
 from tatau_core.utils.ipfs import IPFS
 
@@ -72,16 +75,19 @@ class NodeType:
 class ProducerNode(models.Model):
     node_type = fields.CharField(immutable=True, initial=NodeType.PRODUCER)
     enc_key = fields.CharField(immutable=True)
+    account_address = fields.CharField(immutable=True)
 
 
 class WorkerNode(models.Model):
     node_type = fields.CharField(immutable=True, initial=NodeType.WORKER)
     enc_key = fields.CharField(immutable=True)
+    account_address = fields.CharField(immutable=True)
 
 
 class VerifierNode(models.Model):
-    node_type = fields.CharField(immutable=True, initial=NodeType.WORKER)
+    node_type = fields.CharField(immutable=True, initial=NodeType.VERIFIER)
     enc_key = fields.CharField(immutable=True)
+    account_address = fields.CharField(immutable=True)
 
 
 class TaskDeclaration(models.Model):
@@ -148,9 +154,40 @@ class TaskDeclaration(models.Model):
 
     def ready_for_start(self):
         ready = self.workers_needed == 0 and self.verifiers_needed == 0
-        logger.info('{} ready:{} workers_needed:{} verifiers_needed:{}'.format(
+        logger.info('{} ready: {} workers_needed: {} verifiers_needed: {}'.format(
             self, ready, self.workers_needed, self.verifiers_needed))
         return ready
+
+    def job_has_enough_balance(self):
+        balance = poa_wrapper.get_job_balance(self)
+
+        cost_name = 'epoch'
+        if self.current_epoch == 0:
+            # total cost for all epochs:
+            epoch_cost = self.estimated_tflops * settings.TFLOPS_COST
+            cost_name = 'train'
+        elif self.current_epoch == 1:
+            # estimated cost for epoch
+            epoch_cost = self.estimated_tflops / self.epochs * settings.TFLOPS_COST
+        else:
+            # average cost of epochs based on spend tflops and proceeded epochs
+            epoch_cost = self.tflops / (self.current_epoch - 1) * settings.TFLOPS_COST
+        epoch_cost = web3.toWei(str(epoch_cost), 'ether')
+
+        balance_eth = web3.fromWei(balance, 'ether')
+        epoch_cost_eth = web3.fromWei(epoch_cost, 'ether')
+        if balance > epoch_cost:
+            logger.info('{} balance: {:.5f} ETH, {} cost: {:.5f} ETH'.format(
+                self, balance_eth, cost_name, epoch_cost_eth))
+            return True
+        else:
+            if poa_wrapper.does_job_exist(self):
+                logger.info('{} balance: {:.5f} ETH, epoch cost: {:.5f} ETH. Deposit is required!!!'.format(
+                    self, balance_eth, epoch_cost_eth))
+            else:
+                estimated_cost = self.estimated_tflops * settings.TFLOPS_COST
+                logger.info('{} Issue job is required!!! Estimated cost: {:.5f} ETH'.format(self, estimated_cost))
+            return False
 
     def get_task_assignments(self, states=None):
         task_assignments = TaskAssignment.enumerate(
@@ -179,6 +216,13 @@ class TaskDeclaration(models.Model):
             if states is None or estimation_assignment.state in states:
                 ret.append(estimation_assignment)
         return ret
+
+    @property
+    def estimation_assignments(self):
+        return self.get_estimation_assignments()
+
+    def is_last_epoch(self):
+        return self.current_epoch == self.epochs
 
     @property
     def task_assignments(self):
@@ -257,7 +301,7 @@ class TaskDeclaration(models.Model):
 
         count = EstimationAssignment.count(
             additional_match={
-                'assets.data.worker_id': estimation_assignment.worker_id,
+                'assets.data.estimator_id': estimation_assignment.estimator_id,
                 'assets.data.task_declaration_id': self.asset_id
             },
             created_by_user=False
@@ -300,7 +344,7 @@ class EstimationAssignment(models.Model):
         FINISHED = 'finished'
 
     producer_id = fields.CharField(immutable=True)
-    worker_id = fields.CharField(immutable=True)
+    estimator_id = fields.CharField(immutable=True)
     task_declaration_id = fields.CharField(immutable=True)
 
     state = fields.CharField(initial=State.INITIAL)
@@ -314,8 +358,11 @@ class EstimationAssignment(models.Model):
         return ProducerNode.get(self.producer_id)
 
     @cached_property
-    def worker(self):
-        return WorkerNode.get(self.worker_id)
+    def estimator(self):
+        try:
+            return VerifierNode.get(self.estimator_id)
+        except exceptions.Asset.WrongType:
+            return WorkerNode.get(self.estimator_id)
 
     @cached_property
     def task_declaration(self):
@@ -351,6 +398,15 @@ class TaskAssignment(models.Model):
     train_history = fields.JsonField(required=False)
 
     error = fields.EncryptedCharField(required=False)
+
+    def clean(self):
+        self.progress = 0.0
+        self.tflops = 0.0
+        self.result = None
+        self.error = None
+        self.loss = 0.0
+        self.accuracy = 0.0
+        self.train_history = None
 
     @cached_property
     def producer(self):
@@ -396,6 +452,14 @@ class VerificationAssignment(models.Model):
     accuracy = fields.FloatField(required=False)
 
     error = fields.EncryptedCharField(required=False)
+
+    def clean(self):
+        self.progress = 0.0
+        self.tflops = 0.0
+        self.result = None
+        self.weights = None
+        self.loss = 0.0
+        self.accuracy = 0.0
 
     @cached_property
     def producer(self):

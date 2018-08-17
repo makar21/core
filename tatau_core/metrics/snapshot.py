@@ -1,7 +1,7 @@
 import json
-from logging import getLogger
 import os
 from datetime import datetime
+from logging import getLogger
 
 import psutil
 
@@ -98,3 +98,41 @@ class Snapshot(object):
         gpu_tflops = settings.GPU_TFLOPS
         cpu_tflops = settings.CPU_TFLOPS
         return float(self.average_gpu_load/100.0 * gpu_tflops + self.average_cpu_load/100.0 * cpu_tflops)
+
+
+class ProcessSnapshot:
+
+    def __init__(self, pid):
+        self._pid = pid
+        self.process = psutil.Process(pid=self._pid)
+        self.process.cpu_percent(interval=1)
+        self._cpu_count = psutil.cpu_count()
+
+    def update(self):
+        self._cpu_percent = self.process.cpu_percent() / self._cpu_count
+        self._gpu_percent = 0.0
+
+        if os.name != 'nt':
+            try:
+                import gpustat
+                gpu_load = []
+                for gpu in gpustat.GPUStatCollection.new_query():
+                    gpu_load.append(gpu.utilization)
+                if len(gpu_load):
+                    self._gpu_percent = sum(g for g in gpu_load) / float(len(gpu_load))
+            except Exception as ex:
+                logger.error('Collect gpu metrics error: {}'.format(ex))
+        logger.info('Metrics: cpu: {}% gpu: {}%'.format(self._cpu_percent, self._gpu_percent))
+
+    def get_cpu_tflops(self):
+        cpu_tflops = settings.CPU_TFLOPS
+        return float(self._cpu_percent / 100.0 * cpu_tflops)
+
+    def get_gpu_tflops(self):
+        gpu_tflops = settings.GPU_TFLOPS
+        return float(self._gpu_percent / 100.0 * gpu_tflops)
+
+    def get_total_tflops(self):
+        return self.get_cpu_tflops() + self.get_gpu_tflops()
+
+
