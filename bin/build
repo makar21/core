@@ -1,4 +1,4 @@
 #!/bin/bash
-docker-compose -f common.yml -f worker.cpu.yml build --no-cache --pull --force-rm
-docker-compose -f common.yml -f worker.gpu.yml build --no-cache --force-rm
-docker-compose -f common.yml -f verifier.yml build --no-cache --force-rm
+docker-compose -f common.yml -f parity.yml -f worker.cpu.yml build --no-cache --pull --force-rm
+docker-compose -f common.yml -f parity.yml -f worker.gpu.yml build --no-cache --force-rm
+docker-compose -f common.yml -f parity.yml -f verifier.yml build --no-cache --force-rm

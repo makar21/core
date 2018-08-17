@@ -46,7 +46,7 @@ def distribute(task_declaration, verification_result):
     for task_assignment in task_assignments:
         for vr in verification_result:
             if vr['worker_id'] == task_assignment.worker.asset_id and not vr['is_fake']:
-                workers.append(task_assignment.worker.account_address)
+                workers.append(web3.toChecksumAddress(task_assignment.worker.account_address))
                 amount = web3.toWei(str(settings.TFLOPS_COST * task_assignment.tflops), 'ether')
                 total_amount += amount
                 amounts.append(amount)
@@ -57,7 +57,7 @@ def distribute(task_declaration, verification_result):
     )
 
     for verification_assignment in verification_assignments:
-        workers.append(verification_assignment.verifier.account_address)
+        workers.append(web3.toChecksumAddress(verification_assignment.verifier.account_address))
         amount = web3.toWei(str(settings.TFLOPS_COST * verification_assignment.tflops), 'ether')
         total_amount += amount
         amounts.append(amount)
