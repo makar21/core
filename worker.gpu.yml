@@ -10,7 +10,7 @@ services:
     # Support nvidia docker 2
     runtime: nvidia
     volumes:
-      - $PWD/$KEYS_PATH/$WORKER_ACCOUNT_ADDRESS:/app/$KEYS_PATH/$WORKER_ACCOUNT_ADDRESS:ro
+      - $PWD/$KEYS_ROOT/$POA_NET/$WORKER_ACCOUNT_ADDRESS:/app/$KEYS_ROOT/$POA_NET/$WORKER_ACCOUNT_ADDRESS:ro
     restart: always
     links:
       - ipfs
@@ -22,5 +22,5 @@ services:
       RING: $RING
       TATAU_DEBUG: $TATAU_DEBUG
       TATAU_RAVEN_DSN: $TATAU_RAVEN_DSN
-      KEYS_PATH: $KEYS_PATH
+      KEYS_ROOT: $KEYS_ROOT
       WORKER_ACCOUNT_ADDRESS: $WORKER_ACCOUNT_ADDRESS
