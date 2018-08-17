@@ -130,3 +130,7 @@ examples/torch/*/*.zip
 .idea
 playground.py
 .DS_Store
+addrbook.json
+config.toml
+node_key.json
+priv_validator.json
