@@ -64,21 +64,24 @@ class Session(ABC):
             self.clean()
 
     def _run(self, *args, async=False):
-        try:
-            args_list = ["python", "-m", self._module, self.uuid]
-            args_list += [str(a) for a in args]
 
-            if async:
-                subprocess.Popen(args_list)
-                return
+        args_list = ["python", "-m", self._module, self.uuid]
+        args_list += [str(a) for a in args]
 
-            self._metrics_collector.start_and_wait_signal()
-            with subprocess.Popen(args_list) as process:
-                self._metrics_collector.set_pid(process.pid)
-                with self._metrics_collector:
-                    process.wait()
-        except Exception as e:
-            self.save_exception(exception=e)
+        if async:
+            subprocess.Popen(args_list)
+            return
+
+        self._metrics_collector.start_and_wait_signal()
+        with subprocess.Popen(args_list) as process:
+            self._metrics_collector.set_pid(process.pid)
+            with self._metrics_collector:
+                process.wait()
+
+        error_data = self.load_exception()
+
+        if error_data:
+            raise Exception(**error_data)
 
     def main(self):
         raise NotImplementedError()
