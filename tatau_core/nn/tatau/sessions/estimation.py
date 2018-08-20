@@ -51,5 +51,4 @@ class EstimationSession(Session):
 
 
 if __name__ == '__main__':
-    session = EstimationSession(uuid=sys.argv[1])
-    session.main()
+    session = EstimationSession.run()

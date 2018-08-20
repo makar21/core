@@ -6,7 +6,8 @@ import shutil
 import subprocess
 from abc import ABC
 import pickle
-
+import traceback
+import sys
 from tatau_core.metrics import MetricsCollector
 
 logger = getLogger(__name__)
@@ -63,6 +64,7 @@ class Session(ABC):
             self.clean()
 
     def _run(self, *args, async=False):
+
         args_list = ["python", "-m", self._module, self.uuid]
         args_list += [str(a) for a in args]
 
@@ -76,8 +78,22 @@ class Session(ABC):
             with self._metrics_collector:
                 process.wait()
 
-    def main(self, *args, **kwargs):
+        error_data = self.load_exception()
+
+        if error_data:
+            raise Exception(**error_data)
+
+    def main(self):
         raise NotImplementedError()
+
+    @classmethod
+    def run(cls):
+        session = cls(uuid=sys.argv[1])
+        try:
+            session.main()
+        except Exception as e:
+            session.save_exception(exception=e)
+            exit(1)
 
     @classmethod
     def save_object(cls, path, obj):
@@ -90,4 +106,19 @@ class Session(ABC):
             obj = pickle.load(f)
         return obj
 
+    @property
+    def exception_path(self):
+        return os.path.join(self.base_dir, "exception.pkl")
 
+    def save_exception(self, exception: Exception):
+        self.save_object(
+            self.exception_path,
+            obj={
+                'exception': exception,
+                'traceback': traceback.format_tb(exception.__traceback__)
+            }
+        )
+
+    def load_exception(self):
+        if os.path.exists(self.exception_path):
+            return self.load_object(self.exception_path)
