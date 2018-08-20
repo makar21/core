@@ -106,6 +106,28 @@ class Contract:
         tx_hash = self._icontract.distribute(_id, workers, amounts)
         return self._wait_for_transaction_mined(tx_hash=tx_hash)
 
+    def distribute_async(self, task_declaration_id: str, workers: list, amounts: list):
+        """
+        Payout workers
+        :role: validator
+        :param task_declaration_id: task declaration id
+        :param workers: workers address list
+        :param amounts: amounts list for each worker
+        :return: tx_hash
+        """
+        _id = self._asset_id_2_job_id(task_declaration_id)
+        return self._icontract.distribute(_id, workers, amounts)
+
+    def wait_for_transaction_mined(self, tx_hash):
+        return self._wait_for_transaction_mined(tx_hash=tx_hash)
+
+    @classmethod
+    def is_transaction_mined(cls, tx_hash):
+        receipt = web3.eth.waitForTransactionReceipt(tx_hash)
+        if len(receipt.logs) and receipt.logs[0].type == 'mined':
+            return True
+        return False
+
     def finish_job(self, task_declaration_id: str):
         """
         Finish Job

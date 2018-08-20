@@ -19,16 +19,33 @@ class WorkerEstimator(Worker, Estimator):
         return methods
     
     def _process_task_declaration_transaction(self, asset_id, transaction):
-        Estimator._process_task_declaration_transaction(self, asset_id, transaction)
-        Worker._process_task_declaration_transaction(self, asset_id, transaction)
+        try:
+            Estimator._process_task_declaration_transaction(self, asset_id, transaction)
+        except Exception as ex:
+            logger.exception(ex)
+
+        try:
+            Worker._process_task_declaration_transaction(self, asset_id, transaction)
+        except Exception as ex:
+            logger.exception(ex)
 
     def _process_task_declaration(self, task_declaration):
-        Estimator._process_task_declaration(self, task_declaration)
-        Worker._process_task_declaration(self, task_declaration)
+        try:
+            Estimator._process_task_declaration(self, task_declaration)
+        except Exception as ex:
+            logger.exception(ex)
+
+        try:
+            Worker._process_task_declaration(self, task_declaration)
+        except Exception as ex:
+            logger.exception(ex)
 
     def _process_task_declarations(self):
         for task_declaration in TaskDeclaration.enumerate(created_by_user=False):
-            self._process_task_declaration(task_declaration)
+            try:
+                self._process_task_declaration(task_declaration)
+            except Exception as ex:
+                logger.exception(ex)
 
     def search_tasks(self):
         while True:

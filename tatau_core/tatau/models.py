@@ -160,23 +160,35 @@ class TaskDeclaration(models.Model):
 
     def job_has_enough_balance(self):
         balance = poa_wrapper.get_job_balance(self)
-
         cost_name = 'epoch'
-        if self.current_epoch == 0:
-            # total cost for all epochs:
-            epoch_cost = self.estimated_tflops * settings.TFLOPS_COST
-            cost_name = 'train'
-        elif self.current_epoch == 1:
-            # estimated cost for epoch
-            epoch_cost = self.estimated_tflops / self.epochs * settings.TFLOPS_COST
+
+        # calc real epoch cost
+        if self.state == TaskDeclaration.State.VERIFY_IN_PROGRESS:
+            spent_tflops = 0.0
+            for task_assignments in self.get_task_assignments(states=(TaskAssignment.State.FINISHED,)):
+                spent_tflops += task_assignments.tflops
+            for verification_assignments in self.get_verification_assignments(
+                    states=(VerificationAssignment.State.VERIFICATION_FINISHED,)):
+                spent_tflops += verification_assignments.tflops
+
+            epoch_cost = spent_tflops * settings.TFLOPS_COST
         else:
-            # average cost of epochs based on spend tflops and proceeded epochs
-            epoch_cost = self.tflops / (self.current_epoch - 1) * settings.TFLOPS_COST
+            if self.current_epoch == 0:
+                # total cost for all epochs:
+                epoch_cost = self.estimated_tflops * settings.TFLOPS_COST
+                cost_name = 'train'
+            elif self.current_epoch == 1:
+                # estimated cost for epoch
+                epoch_cost = self.estimated_tflops / self.epochs * settings.TFLOPS_COST
+            else:
+                # average cost of epochs based on spend tflops and proceeded epochs
+                epoch_cost = self.tflops / (self.current_epoch - 1) * settings.TFLOPS_COST
+
         epoch_cost = web3.toWei(str(epoch_cost), 'ether')
 
         balance_eth = web3.fromWei(balance, 'ether')
         epoch_cost_eth = web3.fromWei(epoch_cost, 'ether')
-        if balance > epoch_cost:
+        if balance >= epoch_cost:
             logger.info('{} balance: {:.5f} ETH, {} cost: {:.5f} ETH'.format(
                 self, balance_eth, cost_name, epoch_cost_eth))
             return True
@@ -320,6 +332,7 @@ class TaskDeclaration(models.Model):
             states=(
                 VerificationAssignment.State.DATA_IS_READY,
                 VerificationAssignment.State.IN_PROGRESS,
+                VerificationAssignment.State.VERIFICATION_FINISHED,
                 VerificationAssignment.State.FINISHED
             )
         )
@@ -430,6 +443,7 @@ class VerificationAssignment(models.Model):
         PARTIAL_DATA_IS_DOWNLOADED = 'partial data is downloaded'
         DATA_IS_READY = 'data is ready'
         IN_PROGRESS = 'in progress'
+        VERIFICATION_FINISHED = 'verification is finished'
         FINISHED = 'finished'
 
     producer_id = fields.CharField(immutable=True)
@@ -452,6 +466,7 @@ class VerificationAssignment(models.Model):
     accuracy = fields.FloatField(required=False)
 
     error = fields.EncryptedCharField(required=False)
+    distribute_history = fields.EncryptedJsonField(initial=None, null=True)
 
     def clean(self):
         self.progress = 0.0

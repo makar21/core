@@ -41,16 +41,17 @@ class Model(metaclass=ModelBase):
             if isinstance(attr, Field):
                 attr._name = name
                 value = kwargs[name] if name in kwargs else attr.initial
-                if attr.encrypted and _decrypt_values:
-                    value = self.encryption.decrypt_text(value)
-                if isinstance(attr, JsonField) and isinstance(value, str):
-                    try:
-                        value = json.loads(value)
-                    except json.JSONDecodeError:
-                        if attr.encrypted:
-                            value = value
-                        else:
-                            raise
+                if value is not None:
+                    if attr.encrypted and _decrypt_values:
+                        value = self.encryption.decrypt_text(value)
+                    if isinstance(attr, JsonField) and isinstance(value, str):
+                        try:
+                            value = json.loads(value)
+                        except json.JSONDecodeError:
+                            if attr.encrypted:
+                                value = value
+                            else:
+                                raise
                 attr.__set__(self, value)
 
     def __str__(self):
@@ -95,12 +96,14 @@ class Model(metaclass=ModelBase):
         if value is None and not attr.null and attr.required:
             raise ValueError('{} is required'.format(name))
 
-        if attr.encrypted:
+        if attr.encrypted and value is not None:
             if isinstance(attr, EncryptedJsonField):
-                value = json.dumps(value)
-            return self.encryption.encrypt_text(value, self.get_encryption_key())
+                value = self.encryption.encrypt_text(
+                    text=json.dumps(value),
+                    public_key=self.get_encryption_key()
+                )
 
-        if isinstance(attr, JsonField):
+        if isinstance(attr, JsonField) and value is not None:
             return json.dumps(value)
 
         return value
