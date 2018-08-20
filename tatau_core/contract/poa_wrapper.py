@@ -46,6 +46,9 @@ def distribute(verification_assignment):
     if verification_assignment.distribute_history is not None:
         try:
             tx_hash_str = verification_assignment.distribute_history[str(task_declaration.current_epoch)]
+            logger.info('Transaction for {} for epoch {} is {}'.format(
+                task_declaration, task_declaration.current_epoch, tx_hash_str))
+
             tx_hash = HexBytes.fromhex(tx_hash_str)
             if NodeContractInfo.get_contract().is_transaction_mined(tx_hash):
                 logger.info('Distribute for {} for epoch {} already mined'.format(
