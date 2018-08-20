@@ -1,3 +1,4 @@
+import json
 import time
 from logging import getLogger
 from tatau_core import settings
@@ -107,7 +108,21 @@ class Verifier(Node):
             from verifier.session import VerifySession
 
             session_verify = VerifySession()
-            session_verify.process_assignment_and_cleanup(assignment=verification_assignment)
+            try:
+                session_verify.process_assignment(assignment=verification_assignment)
+            except Exception as e:
+                error_dict = {'exception': type(e).__name__}
+                msg = str(e)
+                if msg:
+                    error_dict['message'] = msg
+
+                verification_assignment.error = json.dumps(error_dict)
+                verification_assignment.state = VerificationAssignment.State.VERIFICATION_FINISHED
+                verification_assignment.save()
+                logger.exception(e)
+                return
+            finally:
+                session_verify.clean()
 
             # check is all workers are not fake
             found_fake_workers = False
@@ -118,8 +133,22 @@ class Verifier(Node):
             session_summarize_tflops = 0.0
             if not found_fake_workers:
                 session_summarize = SummarizeSession()
-                session_summarize.process_assignment_and_cleanup(assignment=verification_assignment)
-                session_summarize_tflops = session_summarize.get_tflops()
+                try:
+                    session_summarize.process_assignment(assignment=verification_assignment)
+                    session_summarize_tflops = session_summarize.get_tflops()
+                except Exception as e:
+                    error_dict = {'exception': type(e).__name__}
+                    msg = str(e)
+                    if msg:
+                        error_dict['message'] = msg
+
+                    verification_assignment.error = json.dumps(error_dict)
+                    verification_assignment.state = VerificationAssignment.State.VERIFICATION_FINISHED
+                    verification_assignment.save()
+                    logger.exception(e)
+                    return
+                finally:
+                    session_summarize.clean()
 
             verification_assignment.progress = 100
             verification_assignment.tflops = session_verify.get_tflops() + session_summarize_tflops

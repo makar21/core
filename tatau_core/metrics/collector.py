@@ -56,7 +56,7 @@ class MetricsCollector:
         self._process.start()
 
     def clean(self):
-        self._start_collect_metrics()
+        self._stop_collect_metrics()
 
         if self._process:
             self._process.join()

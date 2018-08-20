@@ -461,6 +461,7 @@ class VerificationAssignment(models.Model):
     model_code_ipfs = fields.EncryptedCharField(required=False)
 
     train_results = fields.EncryptedJsonField(required=False)
+    current_epoch = fields.IntegerField(initial=0)
 
     progress = fields.FloatField(initial=0.0)
     tflops = fields.FloatField(initial=0.0)
