@@ -1,6 +1,7 @@
-import os
 from logging import getLogger
 from multiprocessing import RLock, Event, Value, Process
+
+from psutil import NoSuchProcess
 
 from tatau_core.metrics import ProcessSnapshot
 
@@ -41,6 +42,7 @@ class MetricsCollector:
         return self._event_stop.wait(wait)
 
     def _stop_collect_metrics(self):
+        self._event_start_collect_metrics.set()
         self._event_stop.set()
 
     def __enter__(self):
@@ -64,9 +66,12 @@ class MetricsCollector:
     def _collect_metrics(self):
         self.wait_for_start_collect_metrics()
         logger.info('Start collect metrics')
-        snapshot = ProcessSnapshot(self.get_pid())
-        while not self.should_stop_collect_metrics(self.interval):
-            snapshot.update()
-            self.add_tflops(snapshot.get_total_tflops() * self.interval)
+        try:
+            snapshot = ProcessSnapshot(self.get_pid())
+            while not self.should_stop_collect_metrics(self.interval):
+                snapshot.update()
+                self.add_tflops(snapshot.get_total_tflops() * self.interval)
+        except NoSuchProcess as ex:
+            logger.exception(ex)
 
         logger.info('Stop collect metrics')

@@ -282,6 +282,7 @@ def print_task_declaration(task_declaration):
 
 def monitor_task(asset_id):
     task_declaration = TaskDeclaration.get(asset_id)
+    logger.info('{} sate {}'.format(task_declaration, task_declaration.state))
     while task_declaration.state != TaskDeclaration.State.FAILED:
         print_task_declaration(task_declaration)
 

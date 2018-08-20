@@ -1,13 +1,14 @@
-from logging import getLogger
-from uuid import uuid4
-import tempfile
 import os
+import pickle
 import shutil
 import subprocess
-from abc import ABC
-import pickle
-import traceback
 import sys
+import tempfile
+import traceback
+from abc import ABC
+from logging import getLogger
+from uuid import uuid4
+
 from tatau_core.metrics import MetricsCollector
 
 logger = getLogger(__name__)
@@ -75,7 +76,7 @@ class Session(ABC):
         error_data = self.load_exception()
 
         if error_data:
-            raise Exception(**error_data)
+            raise RuntimeError('{}'.format(error_data))
 
     def main(self):
         raise NotImplementedError()

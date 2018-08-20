@@ -111,13 +111,13 @@ class Verifier(Node):
             try:
                 session_verify.process_assignment(assignment=verification_assignment)
             except Exception as e:
-                error_dict = {'exception': type(e).__name__}
+                error_dict = {'step': 'verification', 'exception': type(e).__name__}
                 msg = str(e)
                 if msg:
                     error_dict['message'] = msg
 
                 verification_assignment.error = json.dumps(error_dict)
-                verification_assignment.state = VerificationAssignment.State.VERIFICATION_FINISHED
+                verification_assignment.state = VerificationAssignment.State.FINISHED
                 verification_assignment.save()
                 logger.exception(e)
                 return
@@ -137,13 +137,13 @@ class Verifier(Node):
                     session_summarize.process_assignment(assignment=verification_assignment)
                     session_summarize_tflops = session_summarize.get_tflops()
                 except Exception as e:
-                    error_dict = {'exception': type(e).__name__}
+                    error_dict = {'step': 'summarization', 'exception': type(e).__name__}
                     msg = str(e)
                     if msg:
                         error_dict['message'] = msg
 
                     verification_assignment.error = json.dumps(error_dict)
-                    verification_assignment.state = VerificationAssignment.State.VERIFICATION_FINISHED
+                    verification_assignment.state = VerificationAssignment.State.FINISHED
                     verification_assignment.save()
                     logger.exception(e)
                     return
