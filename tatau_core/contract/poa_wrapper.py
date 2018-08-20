@@ -37,7 +37,7 @@ def finish_job(task_declaration):
 
 
 def distribute(verification_assignment):
-    from tatau_core.tatau.models import TaskAssignment, VerificationAssignment
+    from tatau_core.tatau.models import TaskAssignment, VerificationAssignment, WorkerPayment, VerifierPayment
     task_declaration = verification_assignment.task_declaration
     verification_result = verification_assignment.result
 
@@ -64,15 +64,30 @@ def distribute(verification_assignment):
 
     workers = []
     amounts = []
+    worker_payments = []
+    verifier_payments = []
     total_amount = 0
     task_assignments = task_declaration.get_task_assignments(states=(TaskAssignment.State.FINISHED,))
     for task_assignment in task_assignments:
         for vr in verification_result:
             if vr['worker_id'] == task_assignment.worker.asset_id and not vr['is_fake']:
                 workers.append(web3.toChecksumAddress(task_assignment.worker.account_address))
-                amount = web3.toWei(str(settings.TFLOPS_COST * task_assignment.tflops), 'ether')
+                pay_amount = settings.TFLOPS_COST * task_assignment.tflops
+                amount = web3.toWei(str(pay_amount), 'ether')
                 total_amount += amount
                 amounts.append(amount)
+
+                worker_payments.append(WorkerPayment(
+                    db=verification_assignment.db,
+                    encryption=verification_assignment.encryption,
+                    producer_id=task_declaration.producer_id,
+                    worker_id=task_assignment.worker_id,
+                    task_declaration_id=task_declaration.asset_id,
+                    epoch=task_declaration.current_epoch,
+                    tflops=task_assignment.tflops,
+                    tokens=pay_amount
+                ))
+
                 break
 
     verification_assignments = task_declaration.get_verification_assignments(
@@ -81,9 +96,21 @@ def distribute(verification_assignment):
 
     for va in verification_assignments:
         workers.append(web3.toChecksumAddress(va.verifier.account_address))
-        amount = web3.toWei(str(settings.TFLOPS_COST * va.tflops), 'ether')
+        pay_amount = settings.TFLOPS_COST * va.tflops
+        amount = web3.toWei(str(pay_amount), 'ether')
         total_amount += amount
         amounts.append(amount)
+
+        verifier_payments.append(VerifierPayment(
+            db=verification_assignment.db,
+            encryption=verification_assignment.encryption,
+            producer_id=task_declaration.producer_id,
+            verifier_id=verification_assignment.verifier_id,
+            task_declaration_id=task_declaration.asset_id,
+            epoch=task_declaration.current_epoch,
+            tflops=verification_assignment.tflops,
+            tokens=pay_amount
+        ))
 
     NodeContractInfo.unlock_account()
     job_balance = get_job_balance(task_declaration)
@@ -99,6 +126,12 @@ def distribute(verification_assignment):
     verification_assignment.distribute_history[str(task_declaration.current_epoch)] = ''.join(
         '{:02x}'.format(x) for x in tx_hash)
     verification_assignment.save()
+
+    for worker_payment in worker_payments:
+        worker_payment.save()
+
+    for verifier_payment in verifier_payments:
+        verifier_payment.save()
 
     NodeContractInfo.get_contract().wait_for_transaction_mined(tx_hash)
 
