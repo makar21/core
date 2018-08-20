@@ -158,10 +158,7 @@ class TaskDeclaration(models.Model):
             self, ready, self.workers_needed, self.verifiers_needed))
         return ready
 
-    def job_has_enough_balance(self):
-        balance = poa_wrapper.get_job_balance(self)
-        cost_name = 'epoch'
-
+    def get_current_cost(self):
         # calc real epoch cost
         if self.state == TaskDeclaration.State.VERIFY_IN_PROGRESS:
             spent_tflops = 0.0
@@ -176,7 +173,6 @@ class TaskDeclaration(models.Model):
             if self.current_epoch == 0:
                 # total cost for all epochs:
                 epoch_cost = self.estimated_tflops * settings.TFLOPS_COST
-                cost_name = 'train'
             elif self.current_epoch == 1:
                 # estimated cost for epoch
                 epoch_cost = self.estimated_tflops / self.epochs * settings.TFLOPS_COST
@@ -184,7 +180,16 @@ class TaskDeclaration(models.Model):
                 # average cost of epochs based on spend tflops and proceeded epochs
                 epoch_cost = self.tflops / (self.current_epoch - 1) * settings.TFLOPS_COST
 
-        epoch_cost = web3.toWei(str(epoch_cost), 'ether')
+        return web3.toWei(str(epoch_cost), 'ether')
+
+    def job_has_enough_balance(self):
+        balance = poa_wrapper.get_job_balance(self)
+        if self.current_epoch == 0:
+            cost_name = 'train'
+        else:
+            cost_name = 'epoch'
+
+        epoch_cost = self.get_current_cost()
 
         balance_eth = web3.fromWei(balance, 'ether')
         epoch_cost_eth = web3.fromWei(epoch_cost, 'ether')
