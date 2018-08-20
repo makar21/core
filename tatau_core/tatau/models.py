@@ -493,3 +493,21 @@ class VerificationAssignment(models.Model):
     @cached_property
     def task_declaration(self):
         return TaskDeclaration.get(self.task_declaration_id)
+
+
+class WorkerPayment(models.Model):
+    producer_id = fields.CharField(immutable=True)
+    worker_id = fields.CharField(immutable=True)
+    task_declaration_id = fields.CharField(immutable=True)
+    epoch = fields.IntegerField(immutable=True)
+    tflops = fields.FloatField(immutable=True)
+    tokens = fields.FloatField(immutable=True)
+
+
+class VerifierPayment(models.Model):
+    producer_id = fields.CharField(immutable=True)
+    verifier_id = fields.CharField(immutable=True)
+    task_declaration_id = fields.CharField(immutable=True)
+    epoch = fields.IntegerField(immutable=True)
+    tflops = fields.FloatField(immutable=True)
+    tokens = fields.FloatField(immutable=True)
