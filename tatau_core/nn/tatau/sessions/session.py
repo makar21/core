@@ -6,7 +6,8 @@ import shutil
 import subprocess
 from abc import ABC
 import pickle
-
+import traceback
+import sys
 from tatau_core.metrics import MetricsCollector
 
 logger = getLogger(__name__)
@@ -63,21 +64,33 @@ class Session(ABC):
             self.clean()
 
     def _run(self, *args, async=False):
-        args_list = ["python", "-m", self._module, self.uuid]
-        args_list += [str(a) for a in args]
+        try:
+            args_list = ["python", "-m", self._module, self.uuid]
+            args_list += [str(a) for a in args]
 
-        if async:
-            subprocess.Popen(args_list)
-            return
+            if async:
+                subprocess.Popen(args_list)
+                return
 
-        self._metrics_collector.start_and_wait_signal()
-        with subprocess.Popen(args_list) as process:
-            self._metrics_collector.set_pid(process.pid)
-            with self._metrics_collector:
-                process.wait()
+            self._metrics_collector.start_and_wait_signal()
+            with subprocess.Popen(args_list) as process:
+                self._metrics_collector.set_pid(process.pid)
+                with self._metrics_collector:
+                    process.wait()
+        except Exception as e:
+            self.save_exception(exception=e)
 
-    def main(self, *args, **kwargs):
+    def main(self):
         raise NotImplementedError()
+
+    @classmethod
+    def run(cls):
+        session = cls(uuid=sys.argv[1])
+        try:
+            session.main()
+        except Exception as e:
+            session.save_exception(exception=e)
+            exit(1)
 
     @classmethod
     def save_object(cls, path, obj):
@@ -90,4 +103,19 @@ class Session(ABC):
             obj = pickle.load(f)
         return obj
 
+    @property
+    def exception_path(self):
+        return os.path.join(self.base_dir, "exception.pkl")
 
+    def save_exception(self, exception: Exception):
+        self.save_object(
+            self.exception_path,
+            obj={
+                'exception': exception,
+                'traceback': traceback.format_tb(exception.__traceback__)
+            }
+        )
+
+    def load_exception(self):
+        if os.path.exists(self.exception_path):
+            return self.load_object(self.exception_path)

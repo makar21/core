@@ -130,5 +130,4 @@ class TrainSession(Session):
 
 
 if __name__ == '__main__':
-    session = TrainSession(uuid=sys.argv[1])
-    session.main()
+    TrainSession.run()

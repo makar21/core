@@ -93,5 +93,4 @@ class SummarizeSession(Session):
 
 
 if __name__ == '__main__':
-    session = SummarizeSession(uuid=sys.argv[1])
-    session.main()
+    session = SummarizeSession.run()
