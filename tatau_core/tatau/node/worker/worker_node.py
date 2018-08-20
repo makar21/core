@@ -127,11 +127,17 @@ class Worker(Node):
 
     def _process_task_declarations(self):
         for task_declaration in TaskDeclaration.enumerate(created_by_user=False):
-            self._process_task_declaration(task_declaration)
+            try:
+                self._process_task_declaration(task_declaration)
+            except Exception as ex:
+                logger.exception(ex)
 
     def _process_task_assignments(self):
         for task_assignment in TaskAssignment.enumerate():
-            self._process_task_assignment(task_assignment)
+            try:
+                self._process_task_assignment(task_assignment)
+            except Exception as ex:
+                logger.exception(ex)
 
     def search_tasks(self):
         while True:
