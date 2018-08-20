@@ -117,11 +117,17 @@ class Estimator(Node):
 
     def _process_task_declarations(self):
         for task_declaration in TaskDeclaration.enumerate(created_by_user=False):
-            self._process_task_declaration(task_declaration)
+            try:
+                self._process_task_declaration(task_declaration)
+            except Exception as ex:
+                logger.exception(ex)
 
     def _process_estimation_assignments(self):
         for estimation_assignment in EstimationAssignment.enumerate():
-            self._process_estimation_assignment(estimation_assignment)
+            try:
+                self._process_estimation_assignment(estimation_assignment)
+            except Exception as ex:
+                logger.exception(ex)
 
     def search_tasks(self):
         while True:

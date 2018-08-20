@@ -1,8 +1,9 @@
 from logging import getLogger
 
+from hexbytes import HexBytes
+
 from tatau_core import settings, web3
 from tatau_core.contract import NodeContractInfo
-
 
 logger = getLogger()
 
@@ -35,9 +36,28 @@ def finish_job(task_declaration):
     NodeContractInfo.get_contract().finish_job(task_declaration.asset_id)
 
 
-def distribute(task_declaration, verification_result):
+def distribute(verification_assignment):
     from tatau_core.tatau.models import TaskAssignment, VerificationAssignment
+    task_declaration = verification_assignment.task_declaration
+    verification_result = verification_assignment.result
+
     logger.info('Distribute job {}'.format(task_declaration))
+
+    if verification_assignment.distribute_history is not None:
+        try:
+            tx_hash_str = verification_assignment.distribute_history[str(task_declaration.current_epoch)]
+            tx_hash = HexBytes.fromhex(tx_hash_str)
+            if NodeContractInfo.get_contract().is_transaction_mined(tx_hash):
+                logger.info('Distribute for {} for epoch {} already mined'.format(
+                    task_declaration, task_declaration.current_epoch))
+                return
+            else:
+                NodeContractInfo.get_contract().wait_for_transaction_mined(tx_hash)
+                return
+        except KeyError:
+            pass
+    else:
+        verification_assignment.distribute_history = {}
 
     workers = []
     amounts = []
@@ -53,12 +73,12 @@ def distribute(task_declaration, verification_result):
                 break
 
     verification_assignments = task_declaration.get_verification_assignments(
-        states=(VerificationAssignment.State.FINISHED,)
+        states=(VerificationAssignment.State.VERIFICATION_FINISHED,)
     )
 
-    for verification_assignment in verification_assignments:
-        workers.append(web3.toChecksumAddress(verification_assignment.verifier.account_address))
-        amount = web3.toWei(str(settings.TFLOPS_COST * verification_assignment.tflops), 'ether')
+    for va in verification_assignments:
+        workers.append(web3.toChecksumAddress(va.verifier.account_address))
+        amount = web3.toWei(str(settings.TFLOPS_COST * va.tflops), 'ether')
         total_amount += amount
         amounts.append(amount)
 
@@ -67,20 +87,17 @@ def distribute(task_declaration, verification_result):
     logger.info('Job balance: {:.5f} ETH distribute: {:.5f} ETH'.format(
         web3.fromWei(job_balance, 'ether'),  web3.fromWei(total_amount, 'ether')))
 
-    if total_amount > job_balance:
-        logger.info('Job balance: {:.5f} ETH lower than total amount: {:.5f} ETH'.format(
-            web3.fromWei(job_balance, 'ether'), web3.fromWei(total_amount, 'ether')))
-
-        amount_for_worker = int(job_balance/len(amounts))
-        amounts = [amount_for_worker for _ in workers]
-
-    NodeContractInfo.get_contract().distribute(
+    tx_hash = NodeContractInfo.get_contract().distribute_async(
         task_declaration_id=task_declaration.asset_id,
         workers=workers,
         amounts=amounts
     )
 
-    return None
+    verification_assignment.distribute_history[str(task_declaration.current_epoch)] = ''.join(
+        '{:02x}'.format(x) for x in tx_hash)
+    verification_assignment.save()
+
+    NodeContractInfo.get_contract().wait_for_transaction_mined(tx_hash)
 
 
 def get_job_balance(task_declaration):

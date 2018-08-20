@@ -556,7 +556,10 @@ class Producer(Node):
         )
 
         for task_assignment in task_assignments:
-            self._process_task_assignment(task_assignment, task_declaration, save=False)
+            try:
+                self._process_task_assignment(task_assignment, task_declaration, save=False)
+            except Exception as ex:
+                logger.exception(ex)
 
         verification_assignments = task_declaration.get_verification_assignments(
             states=(
@@ -567,7 +570,10 @@ class Producer(Node):
         )
 
         for verification_assignment in verification_assignments:
-            self._process_verification_assignment(verification_assignment, task_declaration, save=False)
+            try:
+                self._process_verification_assignment(verification_assignment, task_declaration, save=False)
+            except Exception as ex:
+                logger.exception(ex)
 
         estimation_assignments = task_declaration.get_estimation_assignments(
             states=(
@@ -578,7 +584,10 @@ class Producer(Node):
         )
 
         for estimation_assignment in estimation_assignments:
-            self._process_estimation_assignment(estimation_assignment, task_declaration, save=False)
+            try:
+                self._process_estimation_assignment(estimation_assignment, task_declaration, save=False)
+            except Exception as ex:
+                logger.exception(ex)
 
         # save if were changes
         if task_declaration.workers_needed != worker_needed \

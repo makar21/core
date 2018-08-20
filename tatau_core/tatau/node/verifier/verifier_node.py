@@ -69,6 +69,12 @@ class Verifier(Node):
 
         self._process_verification_assignment(verification_assignment)
 
+    def _distribute(self, verification_assignment):
+        poa_wrapper.distribute(verification_assignment)
+        verification_assignment.state = VerificationAssignment.State.FINISHED
+        verification_assignment.set_encryption_key(verification_assignment.producer.enc_key)
+        verification_assignment.save(recipients=verification_assignment.producer.address)
+
     def _process_verification_assignment(self, verification_assignment):
         if verification_assignment.task_declaration.state in [TaskDeclaration.State.FAILED,
                                                               TaskDeclaration.State.COMPLETED]:
@@ -84,6 +90,13 @@ class Verifier(Node):
             verification_assignment.state = VerificationAssignment.State.PARTIAL_DATA_IS_DOWNLOADED
             verification_assignment.set_encryption_key(verification_assignment.producer.enc_key)
             verification_assignment.save(recipients=verification_assignment.producer.address)
+            return
+
+        if verification_assignment.state == VerificationAssignment.State.VERIFICATION_FINISHED:
+            if verification_assignment.task_declaration.job_has_enough_balance():
+                self._distribute(verification_assignment)
+                if verification_assignment.task_declaration.is_last_epoch():
+                    poa_wrapper.finish_job(verification_assignment.task_declaration)
             return
 
         if verification_assignment.state == VerificationAssignment.State.DATA_IS_READY:
@@ -110,24 +123,29 @@ class Verifier(Node):
 
             verification_assignment.progress = 100
             verification_assignment.tflops = session_verify.get_tflops() + session_summarize_tflops
-            verification_assignment.state = VerificationAssignment.State.FINISHED
-            verification_assignment.set_encryption_key(verification_assignment.producer.enc_key)
-            verification_assignment.save(recipients=verification_assignment.producer.address)
+            verification_assignment.state = VerificationAssignment.State.VERIFICATION_FINISHED
+            verification_assignment.save()
+            self._distribute(verification_assignment)
 
             logger.info('{} finish verify {} results: {}'.format(
                 self, verification_assignment, verification_assignment.result))
 
-            poa_wrapper.distribute(verification_assignment.task_declaration, verification_assignment.result)
             if verification_assignment.task_declaration.is_last_epoch():
                 poa_wrapper.finish_job(verification_assignment.task_declaration)
 
     def _process_task_declarations(self):
         for task_declaration in TaskDeclaration.enumerate(created_by_user=False):
-            self._process_task_declaration(task_declaration)
+            try:
+                self._process_task_declaration(task_declaration)
+            except Exception as ex:
+                logger.exception(ex)
 
     def _process_verification_assignments(self):
         for verification_assignment in VerificationAssignment.enumerate():
-            self._process_verification_assignment(verification_assignment)
+            try:
+                self._process_verification_assignment(verification_assignment)
+            except Exception as ex:
+                logger.exception(ex)
 
     def search_tasks(self):
         while True:
@@ -135,5 +153,5 @@ class Verifier(Node):
                 self._process_task_declarations()
                 self._process_verification_assignments()
                 time.sleep(settings.VERIFIER_PROCESS_INTERVAL)
-            except Exception as e:
-                logger.exception(e)
+            except Exception as ex:
+                logger.exception(ex)
