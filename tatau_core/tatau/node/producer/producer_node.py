@@ -277,7 +277,13 @@ class Producer(Node):
                 logger.info('{} verification epoch {} is ready'.format(
                     task_declaration, task_declaration.current_epoch))
 
-                can_continue = self._process_verification_results(task_declaration)
+                can_continue, failed = self._process_verification_results(task_declaration)
+                if failed:
+                    logger.info('{} is failed'.format(task_declaration))
+                    task_declaration.state = TaskDeclaration.State.FAILED
+                    task_declaration.save()
+                    return
+
                 if not can_continue:
                     # set RETRY to REJECTED task_assignments
                     rejected_task_declarations = task_declaration.get_task_assignments(
@@ -312,7 +318,13 @@ class Producer(Node):
         )
 
         fake_workers = {}
+        failed = False
         for verification_assignment in verification_assignments:
+            if verification_assignment.error is not None:
+                failed = True
+                can_continue = False
+                return can_continue, failed
+
             task_declaration.tflops += verification_assignment.tflops
             for result in verification_assignment.result:
                 if result['is_fake']:
@@ -343,9 +355,11 @@ class Producer(Node):
 
             task_declaration.state = TaskDeclaration.State.DEPLOYMENT
             task_declaration.save()
-            return False
+            can_continue = False
+            return can_continue, failed
 
-        return True
+        can_continue = True
+        return can_continue, failed
 
     def _get_file_indexes(self, worker_index, train_files_count, workers_requested):
         files_count_for_worker = int(train_files_count / (2 * workers_requested))
@@ -492,6 +506,7 @@ class Producer(Node):
 
         for verification_assignment in verification_assignments:
             verification_assignment.train_results = task_declaration.results
+            verification_assignment.current_epoch = task_declaration.current_epoch
             verification_assignment.x_test_ipfs = task_declaration.dataset.x_test_ipfs
             verification_assignment.y_test_ipfs = task_declaration.dataset.y_test_ipfs
             verification_assignment.model_code_ipfs = task_declaration.train_model.code_ipfs
@@ -526,6 +541,7 @@ class Producer(Node):
 
             for verification_assignment in verification_assignments:
                 verification_assignment.train_results = current_train_results
+                verification_assignment.current_epoch = task_declaration.current_epoch
                 verification_assignment.result = None
                 verification_assignment.state = VerificationAssignment.State.PARTIAL_DATA_IS_READY
                 verification_assignment.set_encryption_key(verification_assignment.verifier.enc_key)
