@@ -73,7 +73,9 @@ def train_remote(x_train_path, y_train_path, x_test_path, y_test_path, args):
     logger.info('Create model')
     train_model = TrainModel.upload_and_create(
         name=args.name,
-        code_path=args.path
+        code_path=args.path,
+        db=producer.db,
+        encryption=producer.encryption
     )
 
     logger.debug('Model created: {}'.format(train_model))
@@ -87,7 +89,9 @@ def train_remote(x_train_path, y_train_path, x_test_path, y_test_path, args):
         verifiers_needed=args.verifiers,
         batch_size=args.batch,
         epochs=args.epochs,
-        weights=initial_weights_file.multihash
+        weights=initial_weights_file.multihash,
+        db=producer.db,
+        encryption=producer.encryption
     )
 
     logger.debug('Train job created: {}'.format(task))
@@ -149,7 +153,8 @@ def get_progress_data(task_declaration):
     if task_declaration.state == TaskDeclaration.State.COMPLETED:
         data['train_result'] = task_declaration.weights
 
-    for td in TaskDeclaration.get_history(task_declaration.asset_id):
+    for td in TaskDeclaration.get_history(
+            task_declaration.asset_id, db=task_declaration.db, encryption=task_declaration.encryption):
         if td.loss and td.accuracy and td.state in [TaskDeclaration.State.EPOCH_IN_PROGRESS,
                                                     TaskDeclaration.State.COMPLETED]:
             if td.state == TaskDeclaration.State.EPOCH_IN_PROGRESS:
@@ -169,7 +174,8 @@ def get_progress_data(task_declaration):
     for task_assignment in task_assignments:
         worker_id = task_assignment.worker_id
         data['workers'][worker_id] = []
-        history = TaskAssignment.get_history(task_assignment.asset_id)
+        history = TaskAssignment.get_history(
+            task_assignment.asset_id, db=task_declaration.db, encryption=task_declaration.encryption)
         for ta in history:
             if ta.state == TaskAssignment.State.FINISHED:
                 data['workers'][worker_id].append({
@@ -204,7 +210,8 @@ def get_progress_data(task_declaration):
     for verification_assignment in verification_assignments:
         verifier_id = verification_assignment.verifier_id
         data['verifiers'][verifier_id] = []
-        history = VerificationAssignment.get_history(verification_assignment.asset_id)
+        history = VerificationAssignment.get_history(
+            verification_assignment.asset_id, db=task_declaration.db, encryption=task_declaration.encryption)
         for va in history:
             if va.state == VerificationAssignment.State.FINISHED:
                 data['verifiers'][verifier_id].append({
@@ -280,14 +287,14 @@ def print_task_declaration(task_declaration):
         logger.info('Result: {}'.format(yellow(task_declaration.weights)))
 
 
-def monitor_task(asset_id):
-    task_declaration = TaskDeclaration.get(asset_id)
+def monitor_task(asset_id, producer):
+    task_declaration = TaskDeclaration.get(asset_id, db=producer.db, encryption=producer.encryption)
     logger.info('{} sate {}'.format(task_declaration, task_declaration.state))
     while task_declaration.state != TaskDeclaration.State.FAILED:
         print_task_declaration(task_declaration)
 
         time.sleep(3)
-        task_declaration = TaskDeclaration.get(asset_id)
+        task_declaration = TaskDeclaration.get(asset_id, db=producer.db, encryption=producer.encryption)
         if task_declaration.state == TaskDeclaration.State.COMPLETED:
             print_task_declaration(task_declaration)
             break
@@ -345,27 +352,27 @@ def main():
             )
         return
 
-    load_producer()
+    producer = load_producer()
     if not args.task:
         print('task is not specified, arg: -t')
         return
 
     if args.command == 'cancel':
-        td = TaskDeclaration.get(args.task)
+        td = TaskDeclaration.get(args.task, db=producer.db, encryption=producer.encryption)
         td.state = TaskDeclaration.State.FAILED
         td.save()
         print('Canceled {}'.format(td))
         return
 
     if args.command == 'stop':
-        td = TaskDeclaration.get(args.task)
+        td = TaskDeclaration.get(args.task, db=producer.db, encryption=producer.encryption)
         td.state = TaskDeclaration.State.COMPLETED
         td.save()
         print('Stopped {}'.format(td))
         return
 
     if args.command == 'monitor':
-        monitor_task(args.task)
+        monitor_task(args.task, producer)
         return
 
     if args.command == 'issue':
@@ -375,7 +382,7 @@ def main():
 
         encrypted_key, password = load_wallet_credentials(account_address_var_name='PRODUCER_ACCOUNT_ADDRESS')
         NodeContractInfo.configure(encrypted_key, password)
-        task_declaration = TaskDeclaration.get(args.task)
+        task_declaration = TaskDeclaration.get(args.task, db=producer.db, encryption=producer.encryption)
         poa_wrapper.issue_job(task_declaration, args.eth)
         return
 
@@ -386,7 +393,7 @@ def main():
 
         encrypted_key, password = load_wallet_credentials(account_address_var_name='PRODUCER_ACCOUNT_ADDRESS')
         NodeContractInfo.configure(encrypted_key, password)
-        task_declaration = TaskDeclaration.get(args.task)
+        task_declaration = TaskDeclaration.get(args.task, db=producer.db, encryption=producer.encryption)
         poa_wrapper.deposit(task_declaration, args.eth)
         return
 

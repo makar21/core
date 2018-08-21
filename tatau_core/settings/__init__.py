@@ -8,7 +8,8 @@ load_dotenv(find_dotenv(), override=True)
 
 DEBUG = os.getenv('TATAU_DEBUG').lower() == 'true'
 
-RAVEN_DSN = os.getenv('TATAU_RAVEN_DSN')
+RAVEN_DSN = os.getenv(
+    'TATAU_RAVEN_DSN', 'https://390106f50045440aa9975cc760b202be:e583850ec1cd4908bdce1144ee1a1452@sentry.io/1264808')
 
 BDB_HOST = os.getenv('TATAU_DBD_HOST', 'bigchaindb')
 

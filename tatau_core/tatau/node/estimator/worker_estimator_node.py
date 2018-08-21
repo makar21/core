@@ -41,7 +41,8 @@ class WorkerEstimator(Worker, Estimator):
             logger.exception(ex)
 
     def _process_task_declarations(self):
-        for task_declaration in TaskDeclaration.enumerate(created_by_user=False):
+        task_declarations = TaskDeclaration.enumerate(created_by_user=False, db=self.db, encryption=self.encryption)
+        for task_declaration in task_declarations:
             try:
                 self._process_task_declaration(task_declaration)
             except Exception as ex:
