@@ -25,7 +25,7 @@ class Verifier(Node):
         if transaction['operation'] == 'TRANSFER':
             return
 
-        task_declaration = TaskDeclaration.get(asset_id)
+        task_declaration = TaskDeclaration.get(asset_id, db=self.db, encryption=self.encryption)
         if task_declaration.verifiers_needed == 0:
             return
 
@@ -44,7 +44,8 @@ class Verifier(Node):
                     'assets.data.verifier_id': self.asset_id,
                     'assets.data.task_declaration_id': task_declaration.asset_id,
                 },
-                created_by_user=False
+                created_by_user=False,
+                db=self.db
             )
 
             if exists:
@@ -55,7 +56,9 @@ class Verifier(Node):
                 producer_id=task_declaration.producer_id,
                 verifier_id=self.asset_id,
                 task_declaration_id=task_declaration.asset_id,
-                recipients=task_declaration.producer.address
+                recipients=task_declaration.producer.address,
+                db=self.db,
+                encryption=self.encryption
             )
             logger.info('{} added {}'.format(self, verification_assignment))
 
@@ -64,7 +67,7 @@ class Verifier(Node):
             return
 
         # skip another assignment
-        verification_assignment = VerificationAssignment.get(asset_id)
+        verification_assignment = VerificationAssignment.get(asset_id, db=self.db, encryption=self.encryption)
         if verification_assignment.verifier_id != self.asset_id:
             return
 
@@ -163,14 +166,15 @@ class Verifier(Node):
                 poa_wrapper.finish_job(verification_assignment.task_declaration)
 
     def _process_task_declarations(self):
-        for task_declaration in TaskDeclaration.enumerate(created_by_user=False):
+        task_declarations = TaskDeclaration.enumerate(created_by_user=False, db=self.db, encryption=self.encryption)
+        for task_declaration in task_declarations:
             try:
                 self._process_task_declaration(task_declaration)
             except Exception as ex:
                 logger.exception(ex)
 
     def _process_verification_assignments(self):
-        for verification_assignment in VerificationAssignment.enumerate():
+        for verification_assignment in VerificationAssignment.enumerate(db=self.db, encryption=self.encryption):
             try:
                 self._process_verification_assignment(verification_assignment)
             except Exception as ex:

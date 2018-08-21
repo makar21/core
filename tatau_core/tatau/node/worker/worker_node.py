@@ -24,7 +24,7 @@ class Worker(Node):
         if transaction['operation'] == 'TRANSFER':
             return
 
-        task_declaration = TaskDeclaration.get(asset_id)
+        task_declaration = TaskDeclaration.get(asset_id, db=self.db, encryption=self.encryption)
         logger.info('Received {}, workers_needed: {}'.format(task_declaration, task_declaration.workers_needed))
         if task_declaration.workers_needed == 0:
             return
@@ -40,7 +40,8 @@ class Worker(Node):
                     'assets.data.worker_id': self.asset_id,
                     'assets.data.task_declaration_id': task_declaration.asset_id,
                 },
-                created_by_user=False
+                created_by_user=False,
+                db=self.db
             )
 
             if exists:
@@ -51,7 +52,9 @@ class Worker(Node):
                 worker_id=self.asset_id,
                 producer_id=task_declaration.producer_id,
                 task_declaration_id=task_declaration.asset_id,
-                recipients=task_declaration.producer.address
+                recipients=task_declaration.producer.address,
+                db=self.db,
+                encryption=self.encryption
             )
 
             logger.info('Added {}'.format(task_assignment))
@@ -60,7 +63,7 @@ class Worker(Node):
         if transaction['operation'] == 'CREATE':
             return
 
-        task_assignment = TaskAssignment.get(asset_id)
+        task_assignment = TaskAssignment.get(asset_id, db=self.db, encryption=self.encryption)
 
         # skip another assignment
         if task_assignment.worker_id != self.asset_id:
@@ -90,7 +93,7 @@ class Worker(Node):
 
     def _train(self, asset_id):
         logger.info('Start work process'.format(asset_id))
-        task_assignment = TaskAssignment.get(asset_id)
+        task_assignment = TaskAssignment.get(asset_id, db=self.db, encryption=self.encryption)
         logger.info("Train Task: {}".format(task_assignment))
         session = TrainSession()
 
@@ -126,14 +129,15 @@ class Worker(Node):
             session.clean()
 
     def _process_task_declarations(self):
-        for task_declaration in TaskDeclaration.enumerate(created_by_user=False):
+        task_declarations = TaskDeclaration.enumerate(created_by_user=False, db=self.db, encryption=self.encryption)
+        for task_declaration in task_declarations:
             try:
                 self._process_task_declaration(task_declaration)
             except Exception as ex:
                 logger.exception(ex)
 
     def _process_task_assignments(self):
-        for task_assignment in TaskAssignment.enumerate():
+        for task_assignment in TaskAssignment.enumerate(db=self.db, encryption=self.encryption):
             try:
                 self._process_task_assignment(task_assignment)
             except Exception as ex:

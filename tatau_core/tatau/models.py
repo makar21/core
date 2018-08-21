@@ -129,15 +129,15 @@ class TaskDeclaration(models.Model):
 
     @cached_property
     def producer(self):
-        return ProducerNode.get(self.producer_id)
+        return ProducerNode.get(self.producer_id, db=self.db, encryption=self.encryption)
 
     @cached_property
     def dataset(self):
-        return Dataset.get(self.dataset_id)
+        return Dataset.get(self.dataset_id, db=self.db, encryption=self.encryption)
 
     @cached_property
     def train_model(self):
-        return TrainModel.get(self.train_model_id)
+        return TrainModel.get(self.train_model_id, db=self.db, encryption=self.encryption)
 
     @classmethod
     def create(cls, **kwargs):
@@ -211,7 +211,9 @@ class TaskDeclaration(models.Model):
             additional_match={
                 'assets.data.task_declaration_id': self.asset_id
             },
-            created_by_user=False
+            created_by_user=False,
+            db=self.db,
+            encryption=self.encryption
         )
 
         ret = []
@@ -225,7 +227,9 @@ class TaskDeclaration(models.Model):
             additional_match={
                 'assets.data.task_declaration_id': self.asset_id
             },
-            created_by_user=False
+            created_by_user=False,
+            db=self.db,
+            encryption=self.encryption
         )
 
         ret = []
@@ -250,7 +254,9 @@ class TaskDeclaration(models.Model):
             additional_match={
                 'assets.data.task_declaration_id': self.asset_id
             },
-            created_by_user=False
+            created_by_user=False,
+            db=self.db,
+            encryption=self.encryption
         )
 
         ret = []
@@ -275,7 +281,8 @@ class TaskDeclaration(models.Model):
                 'assets.data.worker_id': task_assignment.worker_id,
                 'assets.data.task_declaration_id': self.asset_id
             },
-            created_by_user=False
+            created_by_user=False,
+            db=self.db
         )
 
         if count == 1:
@@ -298,7 +305,8 @@ class TaskDeclaration(models.Model):
                 'assets.data.verifier_id': verification_assignment.verifier_id,
                 'assets.data.task_declaration_id': self.asset_id
             },
-            created_by_user=False
+            created_by_user=False,
+            db=self.db
         )
 
         if count == 1:
@@ -321,7 +329,8 @@ class TaskDeclaration(models.Model):
                 'assets.data.estimator_id': estimation_assignment.estimator_id,
                 'assets.data.task_declaration_id': self.asset_id
             },
-            created_by_user=False
+            created_by_user=False,
+            db=self.db
         )
 
         if count == 1:
@@ -373,18 +382,18 @@ class EstimationAssignment(models.Model):
 
     @cached_property
     def producer(self):
-        return ProducerNode.get(self.producer_id)
+        return ProducerNode.get(self.producer_id, db=self.db, encryption=self.encryption)
 
     @cached_property
     def estimator(self):
         try:
-            return VerifierNode.get(self.estimator_id)
+            return VerifierNode.get(self.estimator_id, db=self.db, encryption=self.encryption)
         except exceptions.Asset.WrongType:
-            return WorkerNode.get(self.estimator_id)
+            return WorkerNode.get(self.estimator_id, db=self.db, encryption=self.encryption)
 
     @cached_property
     def task_declaration(self):
-        return TaskDeclaration.get(self.task_declaration_id)
+        return TaskDeclaration.get(self.task_declaration_id, db=self.db, encryption=self.encryption)
 
 
 class TaskAssignment(models.Model):
@@ -428,15 +437,15 @@ class TaskAssignment(models.Model):
 
     @cached_property
     def producer(self):
-        return ProducerNode.get(self.producer_id)
+        return ProducerNode.get(self.producer_id, db=self.db, encryption=self.encryption)
 
     @cached_property
     def worker(self):
-        return WorkerNode.get(self.worker_id)
+        return WorkerNode.get(self.worker_id, db=self.db, encryption=self.encryption)
 
     @cached_property
     def task_declaration(self):
-        return TaskDeclaration.get(self.task_declaration_id)
+        return TaskDeclaration.get(self.task_declaration_id, db=self.db, encryption=self.encryption)
 
 
 class VerificationAssignment(models.Model):
@@ -484,15 +493,15 @@ class VerificationAssignment(models.Model):
 
     @cached_property
     def producer(self):
-        return ProducerNode.get(self.producer_id)
+        return ProducerNode.get(self.producer_id, db=self.db, encryption=self.encryption)
 
     @cached_property
     def verifier(self):
-        return VerifierNode.get(self.verifier_id)
+        return VerifierNode.get(self.verifier_id, db=self.db, encryption=self.encryption)
 
     @cached_property
     def task_declaration(self):
-        return TaskDeclaration.get(self.task_declaration_id)
+        return TaskDeclaration.get(self.task_declaration_id, db=self.db, encryption=self.encryption)
 
 
 class WorkerPayment(models.Model):
@@ -503,6 +512,18 @@ class WorkerPayment(models.Model):
     tflops = fields.FloatField(immutable=True)
     tokens = fields.FloatField(immutable=True)
 
+    @cached_property
+    def producer(self):
+        return ProducerNode.get(self.producer_id, db=self.db, encryption=self.encryption)
+
+    @cached_property
+    def worker(self):
+        return WorkerNode.get(self.worker_id, db=self.db, encryption=self.encryption)
+
+    @cached_property
+    def task_declaration(self):
+        return TaskDeclaration.get(self.task_declaration_id, db=self.db, encryption=self.encryption)
+
 
 class VerifierPayment(models.Model):
     producer_id = fields.CharField(immutable=True)
@@ -511,3 +532,15 @@ class VerifierPayment(models.Model):
     epoch = fields.IntegerField(immutable=True)
     tflops = fields.FloatField(immutable=True)
     tokens = fields.FloatField(immutable=True)
+
+    @cached_property
+    def producer(self):
+        return ProducerNode.get(self.producer_id, db=self.db, encryption=self.encryption)
+
+    @cached_property
+    def verifier(self):
+        return VerifierNode.get(self.verifier_id, db=self.db, encryption=self.encryption)
+
+    @cached_property
+    def task_declaration(self):
+        return TaskDeclaration.get(self.task_declaration_id, db=self.db, encryption=self.encryption)

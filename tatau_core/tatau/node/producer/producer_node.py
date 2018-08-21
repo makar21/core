@@ -38,7 +38,7 @@ class Producer(Node):
         }
 
     def _process_task_assignment_transaction(self, asset_id, transaction):
-        task_assignment = TaskAssignment.get(asset_id)
+        task_assignment = TaskAssignment.get(asset_id, db=self.db, encryption=self.encryption)
         if task_assignment.producer_id != self.asset_id:
             return
 
@@ -76,7 +76,7 @@ class Producer(Node):
             self._process_task_declaration(task_declaration)
 
     def _process_verification_assignment_transaction(self, asset_id, transaction):
-        verification_assignment = VerificationAssignment.get(asset_id)
+        verification_assignment = VerificationAssignment.get(asset_id, db=self.db, encryption=self.encryption)
         if verification_assignment.producer_id != self.asset_id:
             return
 
@@ -120,7 +120,7 @@ class Producer(Node):
             self._process_task_declaration(task_declaration)
 
     def _process_estimation_assignment_transaction(self, asset_id, transaction):
-        estimation_assignment = EstimationAssignment.get(asset_id)
+        estimation_assignment = EstimationAssignment.get(asset_id, db=self.db, encryption=self.encryption)
         if estimation_assignment.producer_id != self.asset_id:
             return
 
@@ -166,7 +166,7 @@ class Producer(Node):
         if self._ignore_task_declaration(asset_id):
             return
 
-        task_declaration = TaskDeclaration.get(asset_id)
+        task_declaration = TaskDeclaration.get(asset_id, db=self.db, encryption=self.encryption)
         if task_declaration.producer_id != self.asset_id or task_declaration.state == TaskDeclaration.State.COMPLETED:
             return
 
@@ -341,7 +341,9 @@ class Producer(Node):
                         'assets.data.worker_id': worker_id,
                         'assets.data.task_declaration_id': task_declaration.asset_id
                     },
-                    created_by_user=False
+                    created_by_user=False,
+                    db=self.db,
+                    encryption=self.encryption
                 )
                 assert len(task_assignments) == 1
 
@@ -613,7 +615,7 @@ class Producer(Node):
 
     def train_task(self, asset_id):
         while True:
-            task_declaration = TaskDeclaration.get(asset_id)
+            task_declaration = TaskDeclaration.get(asset_id, db=self.db, encryption=self.encryption)
             if task_declaration.state in (TaskDeclaration.State.COMPLETED, TaskDeclaration.State.FAILED):
                 break
 
@@ -625,7 +627,7 @@ class Producer(Node):
     def process_tasks(self):
         while True:
             try:
-                for task_declaration in TaskDeclaration.enumerate():
+                for task_declaration in TaskDeclaration.enumerate(db=self.db, encryption=self.encryption):
                     if task_declaration.state in (TaskDeclaration.State.COMPLETED, TaskDeclaration.State.FAILED):
                         continue
 

@@ -24,7 +24,7 @@ class Estimator(Node):
         if transaction['operation'] == 'TRANSFER':
             return
 
-        task_declaration = TaskDeclaration.get(asset_id)
+        task_declaration = TaskDeclaration.get(asset_id, db=self.db, encryption=self.encryption)
         logger.info('Received {}, estimators_needed: {}'.format(task_declaration, task_declaration.estimators_needed))
         if task_declaration.estimators_needed == 0:
             return
@@ -40,7 +40,8 @@ class Estimator(Node):
                     'assets.data.estimator_id': self.asset_id,
                     'assets.data.task_declaration_id': task_declaration.asset_id,
                 },
-                created_by_user=False
+                created_by_user=False,
+                db=self.db
             )
 
             if exists:
@@ -51,7 +52,9 @@ class Estimator(Node):
                 estimator_id=self.asset_id,
                 producer_id=task_declaration.producer_id,
                 task_declaration_id=task_declaration.asset_id,
-                recipients=task_declaration.producer.address
+                recipients=task_declaration.producer.address,
+                db=self.db,
+                encryption=self.encryption
             )
 
             logger.info('Added {}'.format(estimation_assignment))
@@ -60,7 +63,7 @@ class Estimator(Node):
         if transaction['operation'] == 'CREATE':
             return
 
-        estimation_assignment = EstimationAssignment.get(asset_id)
+        estimation_assignment = EstimationAssignment.get(asset_id, db=self.db, encryption=self.encryption)
 
         # skip another assignment
         if estimation_assignment.estimator_id != self.asset_id:
@@ -89,7 +92,7 @@ class Estimator(Node):
     # noinspection PyMethodMayBeStatic
     def _estimate(self, asset_id):
         logger.info('Start estimate process')
-        estimation_assignment = EstimationAssignment.get(asset_id)
+        estimation_assignment = EstimationAssignment.get(asset_id, db=self.db, encryption=self.encryption)
 
         session = EstimationSession()
 
@@ -116,14 +119,15 @@ class Estimator(Node):
             session.clean()
 
     def _process_task_declarations(self):
-        for task_declaration in TaskDeclaration.enumerate(created_by_user=False):
+        task_declarations = TaskDeclaration.enumerate(created_by_user=False, db=self.db, encryption=self.encryption)
+        for task_declaration in task_declarations:
             try:
                 self._process_task_declaration(task_declaration)
             except Exception as ex:
                 logger.exception(ex)
 
     def _process_estimation_assignments(self):
-        for estimation_assignment in EstimationAssignment.enumerate():
+        for estimation_assignment in EstimationAssignment.enumerate(db=self.db, encryption=self.encryption):
             try:
                 self._process_estimation_assignment(estimation_assignment)
             except Exception as ex:
