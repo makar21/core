@@ -12,8 +12,8 @@ services:
       - node
       - "--log_level=*:info"
     volumes:
-      - ./docker/volumes/$NET/tendermint/data:/tendermint/data
-      - ./docker/volumes/$NET/tendermint/config:/tendermint/config
+      - $PWD//docker/volumes/$NET/tendermint/data:/tendermint/data
+      - $PWD//docker/volumes/$NET/tendermint/config:/tendermint/config
       - ./nets/$NET/tendermint/config.toml:/tendermint/config/config.toml:ro
       - ./nets/$NET/tendermint/genesis.json:/tendermint/config/genesis.json:ro
 
@@ -23,7 +23,7 @@ services:
     ports:
       - "127.0.0.1:$TATAU_MONGO_DB_PORT:27017/tcp"
     volumes:
-      - ./docker/volumes/$NET/mongo/this:/data/db
+      - $PWD/docker/volumes/$NET/mongo/this:/data/db
     restart: always
 
 
@@ -50,8 +50,8 @@ services:
       - "127.0.0.1:9985:9985"
       - "127.0.0.1:26658:26658"
     volumes:
-      - ./docker/volumes/$NET/bigchaindb/data:/data
-      - ./docker/volumes/$NET/bigchaindb/certs:/certs
+      - $PWD/docker/volumes/$NET/bigchaindb/data:/data
+      - $PWD/docker/volumes/$NET/bigchaindb/certs:/certs
     healthcheck:
       test: ["CMD", "bash", "-c", "curl http://bigchaindb:9984 && curl http://tendermint:26657/abci_query"]
       interval: 3s
@@ -66,8 +66,8 @@ services:
     volumes:
       - ./nets/$NET/ipfs/swarm.key:/data/ipfs/swarm.key:ro
       - ./nets/$NET/ipfs/bin/container_daemon:/usr/local/bin/start_ipfs:ro
-      - ./docker/volumes/$NET/ipfs/staging:/export
-      - ./docker/volumes/$NET/ipfs/data:/data/ipfs
+      - $PWD/docker/volumes/$NET/ipfs/staging:/export
+      - $PWD/docker/volumes/$NET/ipfs/data:/data/ipfs
     ports:
       - "4001:4001/tcp"
       - "4002:4002/udp"
