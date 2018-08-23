@@ -5,10 +5,11 @@
 
 # TCP or UNIX socket address of the ABCI application,
 # or the name of an ABCI application compiled in with the Tendermint binary
-proxy_app = "tcp://127.0.0.1:26658"
+proxy_app = "tcp://bigchaindb:26658"
 
 # A custom human readable name for this node
-moniker = "83df81d701ff"
+# Moved to CMD
+# moniker = "${HOSTNAME}"
 
 # If this node is many blocks behind the tip of the chain, FastSync
 # allows them to catchup quickly by downloading blocks in parallel
@@ -91,7 +92,7 @@ seeds = ""
 
 # Comma separated list of nodes to keep persistent connections to
 # Do not add private peers to this list if you don't want them advertised
-persistent_peers = "36c1a3cc33be539f56a834864a2eb7945f31e534@tatau0:26656,468e5e3823997addfb01da7df98e76b2f44b4d48@tatau1:26656,b6455b0d8b41bf0b24af104ff9fdb0b7dbdf3b79@tatau2:26656,5848890d7a344fe6e3c06a3f391d12a3140b488a@tatau3:26656,91f35e5dda5f895869daa8ff62d94e74d441047f@tatau4:26656"
+persistent_peers = "ba1908c1482eb6e76716582d9cf58fe8dacf8953@34.198.185.217:26656,399e5a275fc0a83f626f1fc70791860473fbfacc@18.211.150.58:26656,c7f24ae473af2c8d0199642428d02fd2c90e7a5b@34.199.110.132:26656,4db64c25708584c2b11fb20c0cfb2ae557aab4a0@35.168.159.92:26656"
 
 # UPNP port forwarding
 upnp = false
@@ -161,7 +162,7 @@ timeout_commit = 1000
 skip_timeout_commit = false
 
 # EmptyBlocks mode and possible interval between empty blocks in seconds
-create_empty_blocks = true
+create_empty_blocks = false
 create_empty_blocks_interval = 0
 
 # Reactor sleep duration parameters are in milliseconds

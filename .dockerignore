@@ -1,7 +1,6 @@
 # Created by .ignore support plugin (hsz.mobi)
 docker/volumes
 docker/images
-keys
 bin
 venv
 .venv
@@ -9,8 +8,9 @@ venv
 .gitignore
 /docker-compose.*.yml
 /docker-compose.yml
-/tmdata
 /keys
+/nets
 # Wallet Data
 parity/wallet
 parity/sandbox/keys
+

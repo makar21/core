@@ -12,9 +12,9 @@ services:
     restart: always
     links:
       - ipfs
-      - bigchaindb_this:bigchaindb
-      - mongodb_this:mongodb
-      - tendermint_this:tendermint
+      - bigchaindb
+      - mongodb
+      - tendermint
       - parity
     environment:
       RING: $RING

@@ -30,7 +30,7 @@ python manage-tasks.py -c add \
 python manage-tasks.py -c add \
     --local=1 \
     --workers=3 \
-    --epochs=10 \
+    --epochs=2 \
     --batch=32 \
     --dataset=examples/torch/cifar10 \
     --path=examples/torch/cifar10/resnet.py \
