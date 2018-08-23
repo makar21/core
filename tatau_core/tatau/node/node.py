@@ -5,6 +5,7 @@ import tempfile
 from logging import getLogger
 from multiprocessing import Process
 
+from tatau_core import web3
 from tatau_core.db import DB, TransactionListener, NodeDBInfo
 from tatau_core.settings import ROOT_DIR
 from tatau_core.utils.encryption import Encryption
@@ -64,7 +65,7 @@ class Node(TransactionListener):
         else:
             return self.asset_class.create(
                 enc_key=self.encryption.get_public_key().decode(),
-                account_address=account_address,
+                account_address=web3.toChecksumAddress(account_address),
                 db=self.db,
                 encryption=self.encryption
             )
