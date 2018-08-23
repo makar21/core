@@ -43,7 +43,7 @@ PARITY_JSONRPC_PORT = int(os.getenv('PARITY_JSONRPC_PORT', 8545))
 PARITY_WEBSOCKET_PORT = int(os.getenv('PARITY_WEBSOCKET_PORT', 8546))
 
 PARITY_HOST = os.getenv('PARITY_HOST', 'parity')
-POA_NET = os.getenv('POA_NET', 'sandbox')
+NET = os.getenv('NET', 'sandbox')
 
 POA_DEFAULTS = {
     'sandbox': {
@@ -52,11 +52,11 @@ POA_DEFAULTS = {
     }
 }
 
-CONTRACT_ADDRESS = POA_DEFAULTS[POA_NET]['CONTRACT_ADDRESS']
+CONTRACT_ADDRESS = POA_DEFAULTS[NET]['CONTRACT_ADDRESS']
 
 TFLOPS_COST = float(os.getenv('TFLOPS_COST', 0.002036400662))
 
-KEYS_PATH = os.path.join(os.getenv('KEYS_ROOT'), POA_NET)
+KEYS_PATH = os.path.join(os.getenv('KEYS_ROOT'), NET)
 
 WHITELIST_JSON_PATH = os.getenv(
     'WHITELIST_JSON_PATH',

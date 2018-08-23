@@ -8,13 +8,13 @@ services:
       dockerfile: ./docker/images/core/cpu/Dockerfile
     command: sh -c "python worker.py"
     volumes:
-      - $PWD/$KEYS_ROOT/$POA_NET/$WORKER_ACCOUNT_ADDRESS:/app/$KEYS_ROOT/$POA_NET/$WORKER_ACCOUNT_ADDRESS:ro
+      - $PWD/$KEYS_ROOT/$NET/$WORKER_ACCOUNT_ADDRESS:/app/$KEYS_ROOT/$NET/$WORKER_ACCOUNT_ADDRESS:ro
     restart: always
     links:
       - ipfs
-      - bigchaindb_this:bigchaindb
-      - mongodb_this:mongodb
-      - tendermint_this:tendermint
+      - bigchaindb
+      - mongodb
+      - tendermint
       - parity
     environment:
       RING: $RING
@@ -22,3 +22,4 @@ services:
       TATAU_RAVEN_DSN: $TATAU_RAVEN_DSN
       KEYS_ROOT: $KEYS_ROOT
       WORKER_ACCOUNT_ADDRESS: $WORKER_ACCOUNT_ADDRESS
+      NET: $NET
