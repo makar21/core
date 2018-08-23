@@ -11,7 +11,7 @@ services:
     runtime: nvidia
     volumes:
       - $PWD/verifier:/app/verifier:ro
-      - $PWD/$KEYS_ROOT/$POA_NET/$VERIFIER_ACCOUNT_ADDRESS:/app/$KEYS_ROOT/$POA_NET/$VERIFIER_ACCOUNT_ADDRESS:ro
+      - $PWD/$KEYS_ROOT/$NET/$VERIFIER_ACCOUNT_ADDRESS:/app/$KEYS_ROOT/$NET/$VERIFIER_ACCOUNT_ADDRESS:ro
     restart: always
     links:
       - ipfs
@@ -25,3 +25,4 @@ services:
       TATAU_RAVEN_DSN: $TATAU_RAVEN_DSN
       KEYS_ROOT: $KEYS_ROOT
       VERIFIER_ACCOUNT_ADDRESS: $VERIFIER_ACCOUNT_ADDRESS
+      NET: $NET

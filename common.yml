@@ -2,7 +2,8 @@ version: '2.3'
 
 services:
   tendermint:
-    image: tendermint/tendermint:0.22.4
+    image: tendermint/tendermint:0.22.8
+    hostname: tendermint_${NET}
     ports:
       - "26656:26656"
       - "127.0.0.1:26657:26657"
@@ -11,12 +12,14 @@ services:
       - node
       - "--log_level=*:info"
     volumes:
-      - ./nets/$NET/tendermint:/tendermint/config
-#      - ./nets/$NET/tendermint/config.toml:/tendermint/config/config.toml:ro
-#      - ./nets/$NET/tendermint/genesis.json:/tendermint/config/genesis.json:ro
+      - ./docker/volumes/$NET/tendermint/data:/tendermint/data
+      - ./docker/volumes/$NET/tendermint/config:/tendermint/config
+      - ./nets/$NET/tendermint/config.toml:/tendermint/config/config.toml:ro
+      - ./nets/$NET/tendermint/genesis.json:/tendermint/config/genesis.json:ro
 
   mongodb:
     image: mongo:3.7
+    hostname: mongodb_${NET}
     ports:
       - "127.0.0.1:$TATAU_MONGO_DB_PORT:27017/tcp"
     volumes:
@@ -25,7 +28,8 @@ services:
 
 
   bigchaindb:
-    image: bigchaindb/bigchaindb:2.0.0-beta3
+    image: bigchaindb/bigchaindb:2.0.0-beta5
+    hostname: bigchaindb_${NET}
     depends_on:
       - mongodb
       - tendermint
@@ -58,11 +62,15 @@ services:
 
   ipfs:
     image: ipfs/go-ipfs:v0.4.17
+    hostname: ipfs_${NET}
     volumes:
+      - ./nets/$NET/ipfs/swarm.key:/data/ipfs/swarm.key:ro
+      - ./nets/$NET/ipfs/bin/container_daemon:/usr/local/bin/start_ipfs:ro
       - ./docker/volumes/$NET/ipfs/staging:/export
       - ./docker/volumes/$NET/ipfs/data:/data/ipfs
     ports:
-      - "4001:4001"
-      - "127.0.0.1:8080:8080"
-      - "127.0.0.1:$TATAU_IPFS_PORT:5001"
+      - "4001:4001/tcp"
+      - "4002:4002/udp"
+      - "8080:8080/tcp"
+      - "127.0.0.1:$TATAU_IPFS_PORT:5001/tcp"
     restart: always

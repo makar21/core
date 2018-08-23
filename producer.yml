@@ -9,11 +9,11 @@ services:
       TATAU_DEBUG: $TATAU_DEBUG
       TATAU_RAVEN_DSN: $TATAU_RAVEN_DSN
       KEYS_ROOT: $KEYS_ROOT
-      POA_NET: $POA_NET
+      NET: $NET
       PRODUCER_ACCOUNT_ADDRESS: $PRODUCER_ACCOUNT_ADDRESS
     volumes:
-      - $PWD/$KEYS_ROOT/$POA_NET/$PRODUCER_ACCOUNT_ADDRESS:/app/$KEYS_ROOT/$POA_NET/$PRODUCER_ACCOUNT_ADDRESS:ro
-      - $PWD/$KEYS_ROOT/$POA_NET/whitelist.json:/app/$KEYS_ROOT/$POA_NET/whitelist.json:ro
+      - $PWD/$KEYS_ROOT/$NET/$PRODUCER_ACCOUNT_ADDRESS:/app/$KEYS_ROOT/$NET/$PRODUCER_ACCOUNT_ADDRESS:ro
+      - $PWD/$KEYS_ROOT/$NET/whitelist.json:/app/$KEYS_ROOT/$NET/whitelist.json:ro
     restart: always
     links:
       - ipfs

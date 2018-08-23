@@ -1,0 +1,3 @@
+#/bin/bash
+source .env
+chmod -R 777 ./docker/volumes/$NET/tendermint
