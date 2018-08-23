@@ -33,8 +33,8 @@ class Verifier(Node):
 
     def _process_task_declaration(self, task_declaration):
         if task_declaration.state in (TaskDeclaration.State.COMPLETED, TaskDeclaration.State.FAILED):
-            if poa_wrapper.does_job_exist(task_declaration) and not poa_wrapper.does_job_finished(task_declaration):
-                poa_wrapper.finish_job(task_declaration)
+            self._finish_job(task_declaration)
+            return
 
         if task_declaration.state == TaskDeclaration.State.DEPLOYMENT \
                 and task_declaration.verifiers_needed > 0:
@@ -78,6 +78,38 @@ class Verifier(Node):
         verification_assignment.state = VerificationAssignment.State.FINISHED
         verification_assignment.set_encryption_key(verification_assignment.producer.enc_key)
         verification_assignment.save(recipients=verification_assignment.producer.address)
+
+    def _finish_job(self, task_declaration):
+        if not poa_wrapper.does_job_exist(task_declaration):
+            return
+
+        if poa_wrapper.does_job_finished(task_declaration):
+            return
+
+        verification_assignments = VerificationAssignment.list(
+            db=self.db,
+            encryption=self.encryption,
+            additional_match={
+                'assets.data.task_declaration_id': task_declaration.id
+            },
+            created_by_user=True
+        )
+
+        # task canceled before train
+        if len(verification_assignments) == 0:
+            poa_wrapper.finish_job(task_declaration)
+            return
+
+        assert len(verification_assignments) == 1
+        verification_assignment = verification_assignments[0]
+        distribute_history = verification_assignment.distribute_history
+        if distribute_history.get(str(task_declaration.current_epoch)) is not None:
+            poa_wrapper.finish_job(task_declaration)
+            return
+
+        # pay to workers because verification was failed
+        poa_wrapper.distribute(verification_assignment)
+        poa_wrapper.finish_job(task_declaration)
 
     def _process_verification_assignment(self, verification_assignment):
         if verification_assignment.task_declaration.state in [TaskDeclaration.State.FAILED,
