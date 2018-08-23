@@ -111,6 +111,7 @@ class TaskDeclaration(models.Model):
 
     batch_size = fields.IntegerField(immutable=True)
     epochs = fields.IntegerField(immutable=True)
+    epochs_in_iteration = fields.IntegerField(immutable=True, initial=1)
 
     workers_requested = fields.IntegerField(immutable=True)
     verifiers_requested = fields.IntegerField(immutable=True)
@@ -142,6 +143,7 @@ class TaskDeclaration(models.Model):
     @classmethod
     def create(cls, **kwargs):
         kwargs['workers_requested'] = kwargs['workers_needed']
+
         # Use only one verifier
         kwargs['verifiers_needed'] = 1
         kwargs['verifiers_requested'] = kwargs['verifiers_needed']

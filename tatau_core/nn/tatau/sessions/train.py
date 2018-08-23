@@ -63,6 +63,7 @@ class TrainSession(Session):
         logger.info('model code successfully downloaded')
 
         batch_size = assignment.train_data['batch_size']
+        epochs = assignment.train_data['epochs']
 
         train_x_paths = deque()
         for x_train in assignment.train_data['x_train_ipfs']:
@@ -99,7 +100,7 @@ class TrainSession(Session):
 
         logger.info('Start training')
 
-        self._run(batch_size, 1)
+        self._run(batch_size, epochs)
 
         assignment.train_history = self.load_train_history()
 

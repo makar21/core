@@ -234,9 +234,6 @@ class Producer(Node):
             return
 
         if task_declaration.state == TaskDeclaration.State.EPOCH_IN_PROGRESS:
-            # check and print balance
-            task_declaration.job_has_enough_balance()
-
             if self._epoch_is_ready(task_declaration):
                 # are all verifiers are ready for verify
                 if len(task_declaration.get_verification_assignments(
@@ -270,9 +267,6 @@ class Producer(Node):
             return
 
         if task_declaration.state == TaskDeclaration.State.VERIFY_IN_PROGRESS:
-            # check and print balance
-            task_declaration.job_has_enough_balance()
-
             if task_declaration.verification_is_ready():
                 logger.info('{} verification epoch {} is ready'.format(
                     task_declaration, task_declaration.current_epoch))
@@ -368,6 +362,8 @@ class Producer(Node):
         return [x + files_count_for_worker * worker_index for x in range(files_count_for_worker)]
 
     def _create_train_data(self, worker_index, ipfs_files, task_declaration):
+        epochs = min(task_declaration.epochs_in_iteration, task_declaration.epochs - task_declaration.current_epoch)
+
         file_indexes = self._get_file_indexes(
             worker_index=worker_index,
             train_files_count=len(ipfs_files),
@@ -392,7 +388,7 @@ class Producer(Node):
             y_test_ipfs=task_declaration.dataset.y_test_ipfs,
             initial_weights=task_declaration.weights,
             batch_size=task_declaration.batch_size,
-            epochs=task_declaration.epochs,
+            epochs=epochs,
             worker_index=worker_index
         )
 
@@ -462,7 +458,9 @@ class Producer(Node):
                 return
 
         task_declaration.progress = int(task_declaration.current_epoch * 100 / task_declaration.epochs)
-        task_declaration.current_epoch += 1
+
+        task_declaration.current_epoch = min(
+            task_declaration.epochs, task_declaration.current_epoch + task_declaration.epochs_in_iteration)
 
         worker_index = 0
 
