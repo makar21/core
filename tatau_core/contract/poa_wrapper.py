@@ -38,29 +38,28 @@ def finish_job(task_declaration):
 
 def distribute(verification_assignment):
     from tatau_core.tatau.models import TaskAssignment, VerificationAssignment, WorkerPayment, VerifierPayment
+
     task_declaration = verification_assignment.task_declaration
     verification_result = verification_assignment.result
 
     logger.info('Distribute job {}'.format(task_declaration))
 
-    if verification_assignment.distribute_history is not None:
-        try:
-            tx_hash_str = verification_assignment.distribute_history[str(task_declaration.current_iteration)]
-            logger.info('Transaction for {} for iteration {} is {}'.format(
-                task_declaration, task_declaration.current_iteration, tx_hash_str))
+    distribute_history = verification_assignment.distribute_history
+    try:
+        tx_hash_str = distribute_history.distribute_transactions[str(task_declaration.current_iteration)]
+        logger.info('Transaction for {} for iteration {} is {}'.format(
+            task_declaration, task_declaration.current_iteration, tx_hash_str))
 
-            tx_hash = HexBytes.fromhex(tx_hash_str)
-            if NodeContractInfo.get_contract().is_transaction_mined(tx_hash):
-                logger.info('Distribute for {} for iteration {} already mined'.format(
-                    task_declaration, task_declaration.current_iteration))
-                return
-            else:
-                NodeContractInfo.get_contract().wait_for_transaction_mined(tx_hash)
-                return
-        except KeyError:
-            pass
-    else:
-        verification_assignment.distribute_history = {}
+        tx_hash = HexBytes.fromhex(tx_hash_str)
+        if NodeContractInfo.get_contract().is_transaction_mined(tx_hash):
+            logger.info('Distribute for {} for iteration {} already mined'.format(
+                task_declaration, task_declaration.current_iteration))
+            return
+        else:
+            NodeContractInfo.get_contract().wait_for_transaction_mined(tx_hash)
+            return
+    except KeyError:
+        pass
 
     workers = []
     amounts = []
@@ -69,6 +68,10 @@ def distribute(verification_assignment):
     total_amount = 0
     task_assignments = task_declaration.get_task_assignments(states=(TaskAssignment.State.FINISHED,))
     for task_assignment in task_assignments:
+        # task was canceled before verification was start or verification is failed
+        if not verification_result:
+            verification_result = [{'worker_id': ta.worker_id, 'is_fake': False} for ta in task_assignments]
+
         for vr in verification_result:
             if vr['worker_id'] == task_assignment.worker.asset_id and not vr['is_fake']:
                 workers.append(web3.toChecksumAddress(task_assignment.worker.account_address))
@@ -117,15 +120,18 @@ def distribute(verification_assignment):
     logger.info('Job balance: {:.5f} ETH distribute: {:.5f} ETH'.format(
         web3.fromWei(job_balance, 'ether'),  web3.fromWei(total_amount, 'ether')))
 
+    if len(amounts) == 0:
+        logger.info('No targets for distribute')
+        return
     tx_hash = NodeContractInfo.get_contract().distribute_async(
         task_declaration_id=task_declaration.asset_id,
         workers=workers,
         amounts=amounts
     )
 
-    verification_assignment.distribute_history[str(task_declaration.current_iteration)] = ''.join(
+    distribute_history.distribute_transactions[str(task_declaration.current_iteration)] = ''.join(
         '{:02x}'.format(x) for x in tx_hash)
-    verification_assignment.save()
+    distribute_history.save()
 
     for worker_payment in worker_payments:
         worker_payment.save()

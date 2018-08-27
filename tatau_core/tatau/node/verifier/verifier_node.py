@@ -4,7 +4,7 @@ from logging import getLogger
 from tatau_core import settings
 from tatau_core.contract import poa_wrapper
 from tatau_core.nn.tatau.sessions.summarize import SummarizeSession
-from tatau_core.tatau.models import VerifierNode, TaskDeclaration, VerificationAssignment
+from tatau_core.tatau.models import VerifierNode, TaskDeclaration, VerificationAssignment, DistributeHistory
 from tatau_core.tatau.node.node import Node
 
 
@@ -86,9 +86,6 @@ class Verifier(Node):
         if poa_wrapper.does_job_finished(task_declaration):
             return
 
-        poa_wrapper.finish_job(task_declaration)
-        return
-
         verification_assignments = VerificationAssignment.list(
             db=self.db,
             encryption=self.encryption,
@@ -105,12 +102,8 @@ class Verifier(Node):
 
         assert len(verification_assignments) == 1
         verification_assignment = verification_assignments[0]
-        distribute_history = verification_assignment.distribute_history
-        if distribute_history.get(str(task_declaration.current_iteration)) is not None:
-            poa_wrapper.finish_job(task_declaration)
-            return
 
-        # pay to workers because verification was failed
+        # pay to workers if verification was failed
         poa_wrapper.distribute(verification_assignment)
         poa_wrapper.finish_job(task_declaration)
 

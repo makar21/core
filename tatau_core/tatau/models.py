@@ -3,6 +3,7 @@ import os
 import shutil
 import tempfile
 import numpy as np
+from bigchaindb_driver.exceptions import MissingPrivateKeyError
 
 from tatau_core import settings, web3
 from tatau_core.contract import poa_wrapper
@@ -490,7 +491,7 @@ class VerificationAssignment(models.Model):
     accuracy = fields.FloatField(required=False)
 
     error = fields.EncryptedCharField(required=False)
-    distribute_history = fields.EncryptedJsonField(initial=None, null=True)
+    distribute_history_id = fields.CharField(null=True, initial=None)
 
     def clean(self):
         self.progress = 0.0
@@ -511,6 +512,60 @@ class VerificationAssignment(models.Model):
     @cached_property
     def task_declaration(self):
         return TaskDeclaration.get(self.task_declaration_id, db=self.db, encryption=self.encryption)
+
+    @cached_property
+    def distribute_history(self):
+        if self.distribute_history_id:
+            return DistributeHistory.get(self.distribute_history_id, db=self.db, encryption=self.encryption)
+
+        # try to load exist if it present
+        distribute_histories = DistributeHistory.list(
+            additional_match={
+                'assets.data.task_declaration_id': self.task_declaration_id
+            },
+            created_by_user=True,
+            db=self.db,
+            encryption=self.encryption
+        )
+
+        distribute_history = None
+        if len(distribute_histories):
+            for dh in distribute_histories:
+                if dh.verification_assignment_id == self.asset_id:
+                    distribute_history = dh
+                    break
+
+        if not distribute_history:
+            distribute_history = DistributeHistory(
+                task_declaration_id=self.task_declaration_id,
+                verification_assignment_id=self.asset_id,
+                distribute_transactions={},
+                db=self.db,
+                encryption=self.encryption
+            )
+            distribute_history.save()
+
+        try:
+            self.distribute_history_id = distribute_history.asset_id
+            self.save()
+        except MissingPrivateKeyError:
+            pass
+
+        return distribute_history
+
+
+class DistributeHistory(models.Model):
+    task_declaration_id = fields.CharField(immutable=True)
+    verification_assignment_id = fields.CharField(immutable=True)
+    distribute_transactions = fields.EncryptedJsonField()
+
+    @cached_property
+    def task_declaration(self):
+        return TaskDeclaration.get(self.task_declaration_id, db=self.db, encryption=self.encryption)
+
+    @cached_property
+    def verification_assignment(self):
+        return VerificationAssignment.get(self.verification_assignment_id, db=self.db, encryption=self.encryption)
 
 
 class WorkerPayment(models.Model):
