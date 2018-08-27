@@ -203,7 +203,7 @@ class Producer(Node):
         return True
 
     def _process_task_declaration(self, task_declaration):
-        if task_declaration.state in (TaskDeclaration.State.FAILED, TaskDeclaration.State.COMPLETED):
+        if task_declaration.is_in_finished_state():
             return
 
         if task_declaration.state == TaskDeclaration.State.ESTIMATE_IS_REQUIRED:
@@ -234,9 +234,6 @@ class Producer(Node):
             return
 
         if task_declaration.state == TaskDeclaration.State.EPOCH_IN_PROGRESS:
-            # check and print balance
-            task_declaration.job_has_enough_balance()
-
             if self._epoch_is_ready(task_declaration):
                 # are all verifiers are ready for verify
                 if len(task_declaration.get_verification_assignments(
@@ -244,8 +241,8 @@ class Producer(Node):
                     # wait verifiers
                     return
 
-                logger.info('{} train epoch {} is ready'.format(task_declaration, task_declaration.current_epoch))
-                # collect results from epoch
+                logger.info('{} train iteration {} is ready'.format(task_declaration, task_declaration.current_iteration))
+                # collect results from train_iteration
                 task_assignments = task_declaration.get_task_assignments(
                     states=(TaskAssignment.State.FINISHED,)
                 )
@@ -270,12 +267,9 @@ class Producer(Node):
             return
 
         if task_declaration.state == TaskDeclaration.State.VERIFY_IN_PROGRESS:
-            # check and print balance
-            task_declaration.job_has_enough_balance()
-
             if task_declaration.verification_is_ready():
-                logger.info('{} verification epoch {} is ready'.format(
-                    task_declaration, task_declaration.current_epoch))
+                logger.info('{} verification iteration {} is ready'.format(
+                    task_declaration, task_declaration.current_iteration))
 
                 can_continue, failed = self._process_verification_results(task_declaration)
                 if failed:
@@ -308,8 +302,8 @@ class Producer(Node):
                 else:
                     self._assign_train_data(task_declaration)
             else:
-                logger.info('{} verification for epoch {} is not ready'.format(
-                    task_declaration, task_declaration.current_epoch))
+                logger.info('{} verification for iteration {} is not ready'.format(
+                    task_declaration, task_declaration.current_iteration))
             return
 
     def _process_verification_results(self, task_declaration):
@@ -368,6 +362,11 @@ class Producer(Node):
         return [x + files_count_for_worker * worker_index for x in range(files_count_for_worker)]
 
     def _create_train_data(self, worker_index, ipfs_files, task_declaration):
+        epochs = task_declaration.epochs_in_iteration
+        if task_declaration.current_iteration * task_declaration.epochs_in_iteration > task_declaration.epochs:
+            epochs = task_declaration.epochs - \
+                     (task_declaration.current_iteration - 1) * task_declaration.epochs_in_iteration
+
         file_indexes = self._get_file_indexes(
             worker_index=worker_index,
             train_files_count=len(ipfs_files),
@@ -392,7 +391,7 @@ class Producer(Node):
             y_test_ipfs=task_declaration.dataset.y_test_ipfs,
             initial_weights=task_declaration.weights,
             batch_size=task_declaration.batch_size,
-            epochs=task_declaration.epochs,
+            epochs=epochs,
             worker_index=worker_index
         )
 
@@ -427,7 +426,7 @@ class Producer(Node):
             )
         )
 
-        # clean results from previous epoch
+        # clean results from previous train_iteration
         task_declaration.results = []
 
         ipfs_dir = Directory(multihash=task_declaration.dataset.train_dir_ipfs)
@@ -440,7 +439,7 @@ class Producer(Node):
                 fake_worker_indexes.append(task_assignment.train_data['worker_index'])
 
         if len(fake_worker_indexes):
-            # epoch is not finished if task assignments with "accepted" and "fake results" states are present
+            # train_iteration is not finished if task assignments with "accepted" and "fake results" states are present
             reassign_performed = False
             for task_assignment in task_assignments:
                 if task_assignment.state == TaskAssignment.State.ACCEPTED:
@@ -455,15 +454,16 @@ class Producer(Node):
                 if len(fake_worker_indexes) == 0:
                     break
 
-            # if reassign train data was not performed to another worker, then continue do next epoch
+            # if reassign train data was not performed to another worker, then continue do next train_iteration
             if reassign_performed:
                 task_declaration.state = TaskDeclaration.State.EPOCH_IN_PROGRESS
                 task_declaration.save()
                 return
 
-        task_declaration.progress = int(task_declaration.current_epoch * 100 / task_declaration.epochs)
-        task_declaration.current_epoch += 1
+        task_declaration.progress = int(task_declaration.current_iteration * task_declaration.epochs_in_iteration * 100
+                                        / task_declaration.epochs)
 
+        task_declaration.current_iteration += 1
         worker_index = 0
 
         for task_assignment in task_assignments:
@@ -490,7 +490,7 @@ class Producer(Node):
             task_declaration=task_declaration
         )
 
-        task_assignment.current_epoch = task_declaration.current_epoch
+        task_assignment.current_iteration = task_declaration.current_iteration
         task_assignment.clean()
         task_assignment.state = TaskAssignment.State.DATA_IS_READY
         # encrypt inner data using worker's public key
@@ -508,7 +508,7 @@ class Producer(Node):
 
         for verification_assignment in verification_assignments:
             verification_assignment.train_results = task_declaration.results
-            verification_assignment.current_epoch = task_declaration.current_epoch
+            verification_assignment.current_iteration = task_declaration.current_iteration
             verification_assignment.x_test_ipfs = task_declaration.dataset.x_test_ipfs
             verification_assignment.y_test_ipfs = task_declaration.dataset.y_test_ipfs
             verification_assignment.model_code_ipfs = task_declaration.train_model.code_ipfs
@@ -543,7 +543,7 @@ class Producer(Node):
 
             for verification_assignment in verification_assignments:
                 verification_assignment.train_results = current_train_results
-                verification_assignment.current_epoch = task_declaration.current_epoch
+                verification_assignment.current_iteration = task_declaration.current_iteration
                 verification_assignment.result = None
                 verification_assignment.state = VerificationAssignment.State.PARTIAL_DATA_IS_READY
                 verification_assignment.set_encryption_key(verification_assignment.verifier.enc_key)
@@ -628,7 +628,7 @@ class Producer(Node):
         while True:
             try:
                 for task_declaration in TaskDeclaration.enumerate(db=self.db, encryption=self.encryption):
-                    if task_declaration.state in (TaskDeclaration.State.COMPLETED, TaskDeclaration.State.FAILED):
+                    if task_declaration.is_in_finished_state():
                         continue
 
                     self._process_performers(task_declaration)

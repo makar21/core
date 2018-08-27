@@ -72,6 +72,9 @@ class Worker(Node):
         self._process_task_assignment(task_assignment)
 
     def _process_task_assignment(self, task_assignment):
+        if task_assignment.task_declaration.is_in_finished_state():
+            return
+
         logger.debug('{} process {} state:{}'.format(self, task_assignment, task_assignment.state))
 
         if task_assignment.state == TaskAssignment.State.IN_PROGRESS:
@@ -101,7 +104,7 @@ class Worker(Node):
 
             # progress = TaskProgress(self, asset_id, collect_metrics)
 
-            # reset data from previous epoch
+            # reset data from previous iteration
             task_assignment.result = None
             task_assignment.error = None
 

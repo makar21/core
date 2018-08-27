@@ -91,7 +91,8 @@ def train_remote(x_train_path, y_train_path, x_test_path, y_test_path, args):
         epochs=args.epochs,
         weights=initial_weights_file.multihash,
         db=producer.db,
-        encryption=producer.encryption
+        encryption=producer.encryption,
+        epochs_in_iteration=args.epochs_in_iteration
     )
 
     logger.debug('Train job created: {}'.format(task))
@@ -141,7 +142,8 @@ def get_progress_data(task_declaration):
             task_declaration.verifiers_requested - task_declaration.verifiers_needed,
             task_declaration.verifiers_requested),
         'total_progress': task_declaration.progress,
-        'current_epoch': task_declaration.current_epoch,
+        'current_iteration': task_declaration.current_iteration,
+        'epochs_in_iteration': task_declaration.epochs_in_iteration,
         'epochs': task_declaration.epochs,
         'history': {},
         'spent_tflops': task_declaration.tflops,
@@ -155,12 +157,12 @@ def get_progress_data(task_declaration):
 
     for td in TaskDeclaration.get_history(
             task_declaration.asset_id, db=task_declaration.db, encryption=task_declaration.encryption):
-        if td.loss and td.accuracy and td.state in [TaskDeclaration.State.EPOCH_IN_PROGRESS,
-                                                    TaskDeclaration.State.COMPLETED]:
+        if td.loss and td.accuracy and td.state in (TaskDeclaration.State.EPOCH_IN_PROGRESS,
+                                                    TaskDeclaration.State.COMPLETED):
             if td.state == TaskDeclaration.State.EPOCH_IN_PROGRESS:
-                epoch = td.current_epoch - 1
+                epoch = td.current_iteration - 1
             else:
-                epoch = td.current_epoch
+                epoch = td.current_iteration
 
             data['history'][epoch] = {
                 'loss': td.loss,
@@ -181,7 +183,7 @@ def get_progress_data(task_declaration):
                 data['workers'][worker_id].append({
                     'asset_id': ta.worker_id,
                     'state': ta.state,
-                    'current_epoch': ta.current_epoch,
+                    'current_iteration': ta.current_iteration,
                     'progress': ta.progress,
                     'spent_tflops': ta.tflops,
                     'loss': ta.loss,
@@ -192,7 +194,7 @@ def get_progress_data(task_declaration):
             data['workers'][worker_id].append({
                 'asset_id': task_assignment.asset_id,
                 'state': task_assignment.state,
-                'current_epoch': task_assignment.current_epoch,
+                'current_iteration': task_assignment.current_iteration,
                 'progress': task_assignment.progress,
                 'spent_tflops': task_assignment.tflops,
                 'loss': task_assignment.loss,
@@ -250,16 +252,17 @@ def print_task_declaration(task_declaration):
     logger.info('Workers: {}, Verifiers: {}'.format(
         yellow(data['accepted_workers']), yellow(data['accepted_verifiers'])))
 
-    logger.info('Epochs: {}'.format(yellow('{}/{}'.format(data['current_epoch'], data['epochs']))))
+    logger.info('Epochs: {}'.format(yellow('{}/{}'.format(
+        min(data['current_iteration'] * data['epochs_in_iteration'], data['epochs']), data['epochs']))))
     for epoch, value in data['history'].items():
-        logger.info('Epoch #{}\tloss: {}\taccuracy: {}'.format(epoch, green(value['loss']), green(value['accuracy'])))
+        logger.info('Iteration #{}\tloss: {}\taccuracy: {}'.format(epoch, green(value['loss']), green(value['accuracy'])))
 
     logger.info('-------------------------------------------------------------------------------------------')
 
     for worker_id, worker_data in data['workers'].items():
         logger.info('\tWorker: {}'.format(worker_id))
         for wd in worker_data:
-            logger.info('\t\tEpoch: #{}'.format(wd['current_epoch']))
+            logger.info('\t\tIteration: #{}'.format(wd['current_iteration']))
             logger.info('\t\t\tState: {}\tProgress: {}\tTFLOPS: {}'.format(
                 magenta(wd['state']), blue(wd['progress']), cyan(wd['spent_tflops'])))
             if wd['loss'] and wd['accuracy']:
@@ -271,7 +274,7 @@ def print_task_declaration(task_declaration):
         logger.info('\tVerifier: {}'.format(verifier_id))
         epoch = 1
         for vd in verifier_data:
-            logger.info('\t\tEpoch: #{}'.format(epoch))
+            logger.info('\t\tIteration: #{}'.format(epoch))
             logger.info('\t\t\tState: {}\tProgress: {}\tTFLOPS: {}'.format(
                 magenta(vd['state']), blue(vd['progress']), cyan(vd['spent_tflops'])))
             if vd['result']:
@@ -328,6 +331,8 @@ def main():
     parser.add_argument('-v', '--verifiers', default=1, type=int, metavar='VERIFIERS', help='verifiers count')
     parser.add_argument('-b', '--batch', default=128, type=int, metavar='BATCH_SIZE', help='batch size')
     parser.add_argument('-e', '--epochs', default=3, type=int, metavar='EPOCHS', help='epochs')
+    parser.add_argument('-ei', '--epochs_in_iteration', default=3, type=int, metavar='EPOCHS IN ITERATION',
+                        help='epochs in iteration')
     parser.add_argument('-l', '--local', default=0, type=int, metavar='LOCAL', help='train model local')
     parser.add_argument('-t', '--task', default=None, type=str, metavar='TASK_ID', help='task declaration asset id')
     parser.add_argument('-eth', '--eth', default=None, type=float, metavar='ETH', help='ETH for deposit or issue')

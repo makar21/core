@@ -3,6 +3,7 @@ import os
 import shutil
 import tempfile
 import numpy as np
+from bigchaindb_driver.exceptions import MissingPrivateKeyError
 
 from tatau_core import settings, web3
 from tatau_core.contract import poa_wrapper
@@ -75,19 +76,19 @@ class NodeType:
 class ProducerNode(models.Model):
     node_type = fields.CharField(immutable=True, initial=NodeType.PRODUCER)
     enc_key = fields.CharField(immutable=True)
-    account_address = fields.CharField(immutable=True)
+    account_address = fields.CharField(immutable=False)
 
 
 class WorkerNode(models.Model):
     node_type = fields.CharField(immutable=True, initial=NodeType.WORKER)
     enc_key = fields.CharField(immutable=True)
-    account_address = fields.CharField(immutable=True)
+    account_address = fields.CharField(immutable=False)
 
 
 class VerifierNode(models.Model):
     node_type = fields.CharField(immutable=True, initial=NodeType.VERIFIER)
     enc_key = fields.CharField(immutable=True)
-    account_address = fields.CharField(immutable=True)
+    account_address = fields.CharField(immutable=False)
 
 
 class TaskDeclaration(models.Model):
@@ -111,6 +112,7 @@ class TaskDeclaration(models.Model):
 
     batch_size = fields.IntegerField(immutable=True)
     epochs = fields.IntegerField(immutable=True)
+    epochs_in_iteration = fields.IntegerField(immutable=True, initial=1)
 
     workers_requested = fields.IntegerField(immutable=True)
     verifiers_requested = fields.IntegerField(immutable=True)
@@ -121,7 +123,7 @@ class TaskDeclaration(models.Model):
     estimators_needed = fields.IntegerField()
 
     state = fields.CharField(initial=State.ESTIMATE_IS_REQUIRED)
-    current_epoch = fields.IntegerField(initial=0)
+    current_iteration = fields.IntegerField(initial=0)
     progress = fields.FloatField(initial=0.0)
     tflops = fields.FloatField(initial=0.0)
     estimated_tflops = fields.FloatField(initial=0.0)
@@ -142,6 +144,7 @@ class TaskDeclaration(models.Model):
     @classmethod
     def create(cls, **kwargs):
         kwargs['workers_requested'] = kwargs['workers_needed']
+
         # Use only one verifier
         kwargs['verifiers_needed'] = 1
         kwargs['verifiers_requested'] = kwargs['verifiers_needed']
@@ -159,7 +162,7 @@ class TaskDeclaration(models.Model):
         return ready
 
     def get_current_cost(self):
-        # calc real epoch cost
+        # calc real iteration cost
         if self.state == TaskDeclaration.State.VERIFY_IN_PROGRESS:
             spent_tflops = 0.0
             for task_assignments in self.get_task_assignments(states=(TaskAssignment.State.FINISHED,)):
@@ -168,26 +171,30 @@ class TaskDeclaration(models.Model):
                     states=(VerificationAssignment.State.VERIFICATION_FINISHED,)):
                 spent_tflops += verification_assignments.tflops
 
-            epoch_cost = spent_tflops * settings.TFLOPS_COST
+            iteration_cost = spent_tflops * settings.TFLOPS_COST
         else:
-            if self.current_epoch == 0:
+            if self.current_iteration == 0:
                 # total cost for all epochs:
-                epoch_cost = self.estimated_tflops * settings.TFLOPS_COST
-            elif self.current_epoch == 1:
-                # estimated cost for epoch
-                epoch_cost = self.estimated_tflops / self.epochs * settings.TFLOPS_COST
+                iteration_cost = self.estimated_tflops * settings.TFLOPS_COST
+            elif self.current_iteration == 1:
+                epochs_in_next_iteration = self.epochs_in_iteration
+                if self.epochs_in_iteration * self.current_iteration > self.epochs:
+                    epochs_in_next_iteration = self.epochs_in_iteration * self.current_iteration - self.epochs
+                # estimated cost for train_iteration
+                iteration_cost = self.estimated_tflops * epochs_in_next_iteration / self.epochs * settings.TFLOPS_COST
             else:
                 # average cost of epochs based on spend tflops and proceeded epochs
-                epoch_cost = self.tflops / (self.current_epoch - 1) * settings.TFLOPS_COST
+                proceeded_epochs = (self.current_iteration - 1) * self.epochs_in_iteration
+                iteration_cost = self.tflops / proceeded_epochs * settings.TFLOPS_COST
 
-        return web3.toWei(str(epoch_cost), 'ether')
+        return web3.toWei(str(iteration_cost), 'ether')
 
     def job_has_enough_balance(self):
         balance = poa_wrapper.get_job_balance(self)
-        if self.current_epoch == 0:
+        if self.current_iteration == 0:
             cost_name = 'train'
         else:
-            cost_name = 'epoch'
+            cost_name = 'iteration'
 
         epoch_cost = self.get_current_cost()
 
@@ -199,7 +206,7 @@ class TaskDeclaration(models.Model):
             return True
         else:
             if poa_wrapper.does_job_exist(self):
-                logger.info('{} balance: {:.5f} ETH, epoch cost: {:.5f} ETH. Deposit is required!!!'.format(
+                logger.info('{} balance: {:.5f} ETH, iteration cost: {:.5f} ETH. Deposit is required!!!'.format(
                     self, balance_eth, epoch_cost_eth))
             else:
                 estimated_cost = self.estimated_tflops * settings.TFLOPS_COST
@@ -243,7 +250,7 @@ class TaskDeclaration(models.Model):
         return self.get_estimation_assignments()
 
     def is_last_epoch(self):
-        return self.current_epoch == self.epochs
+        return self.current_iteration * self.epochs_in_iteration >= self.epochs
 
     @property
     def task_assignments(self):
@@ -357,7 +364,10 @@ class TaskDeclaration(models.Model):
         return True
 
     def all_done(self):
-        return self.epochs == self.current_epoch and self.verification_is_ready()
+        return self.is_last_epoch() and self.verification_is_ready()
+
+    def is_in_finished_state(self):
+        return self.state in (TaskDeclaration.State.FAILED, TaskDeclaration.State.COMPLETED)
 
 
 class EstimationAssignment(models.Model):
@@ -414,7 +424,7 @@ class TaskAssignment(models.Model):
     state = fields.CharField(initial=State.INITIAL)
 
     train_data = fields.EncryptedJsonField(required=False)
-    current_epoch = fields.IntegerField(initial=0)
+    current_iteration = fields.IntegerField(initial=0)
 
     progress = fields.FloatField(initial=0.0)
     tflops = fields.FloatField(initial=0.0)
@@ -470,7 +480,7 @@ class VerificationAssignment(models.Model):
     model_code_ipfs = fields.EncryptedCharField(required=False)
 
     train_results = fields.EncryptedJsonField(required=False)
-    current_epoch = fields.IntegerField(initial=0)
+    current_iteration = fields.IntegerField(initial=0)
 
     progress = fields.FloatField(initial=0.0)
     tflops = fields.FloatField(initial=0.0)
@@ -481,7 +491,7 @@ class VerificationAssignment(models.Model):
     accuracy = fields.FloatField(required=False)
 
     error = fields.EncryptedCharField(required=False)
-    distribute_history = fields.EncryptedJsonField(initial=None, null=True)
+    distribute_history_id = fields.CharField(null=True, initial=None)
 
     def clean(self):
         self.progress = 0.0
@@ -503,12 +513,66 @@ class VerificationAssignment(models.Model):
     def task_declaration(self):
         return TaskDeclaration.get(self.task_declaration_id, db=self.db, encryption=self.encryption)
 
+    @cached_property
+    def distribute_history(self):
+        if self.distribute_history_id:
+            return DistributeHistory.get(self.distribute_history_id, db=self.db, encryption=self.encryption)
+
+        # try to load exist if it present
+        distribute_histories = DistributeHistory.list(
+            additional_match={
+                'assets.data.task_declaration_id': self.task_declaration_id
+            },
+            created_by_user=True,
+            db=self.db,
+            encryption=self.encryption
+        )
+
+        distribute_history = None
+        if len(distribute_histories):
+            for dh in distribute_histories:
+                if dh.verification_assignment_id == self.asset_id:
+                    distribute_history = dh
+                    break
+
+        if not distribute_history:
+            distribute_history = DistributeHistory(
+                task_declaration_id=self.task_declaration_id,
+                verification_assignment_id=self.asset_id,
+                distribute_transactions={},
+                db=self.db,
+                encryption=self.encryption
+            )
+            distribute_history.save()
+
+        try:
+            self.distribute_history_id = distribute_history.asset_id
+            self.save()
+        except MissingPrivateKeyError:
+            pass
+
+        return distribute_history
+
+
+class DistributeHistory(models.Model):
+    task_declaration_id = fields.CharField(immutable=True)
+    verification_assignment_id = fields.CharField(immutable=True)
+    distribute_transactions = fields.EncryptedJsonField()
+
+    @cached_property
+    def task_declaration(self):
+        return TaskDeclaration.get(self.task_declaration_id, db=self.db, encryption=self.encryption)
+
+    @cached_property
+    def verification_assignment(self):
+        return VerificationAssignment.get(self.verification_assignment_id, db=self.db, encryption=self.encryption)
+
 
 class WorkerPayment(models.Model):
     producer_id = fields.CharField(immutable=True)
     worker_id = fields.CharField(immutable=True)
     task_declaration_id = fields.CharField(immutable=True)
-    epoch = fields.IntegerField(immutable=True)
+    train_iteration = fields.IntegerField(immutable=True)
     tflops = fields.FloatField(immutable=True)
     tokens = fields.FloatField(immutable=True)
 
@@ -529,7 +593,7 @@ class VerifierPayment(models.Model):
     producer_id = fields.CharField(immutable=True)
     verifier_id = fields.CharField(immutable=True)
     task_declaration_id = fields.CharField(immutable=True)
-    epoch = fields.IntegerField(immutable=True)
+    train_iteration = fields.IntegerField(immutable=True)
     tflops = fields.FloatField(immutable=True)
     tokens = fields.FloatField(immutable=True)
 
