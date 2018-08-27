@@ -365,6 +365,9 @@ class TaskDeclaration(models.Model):
     def all_done(self):
         return self.is_last_epoch() and self.verification_is_ready()
 
+    def is_in_finished_state(self):
+        return self.state in (TaskDeclaration.State.FAILED, TaskDeclaration.State.COMPLETED)
+
 
 class EstimationAssignment(models.Model):
     class State:

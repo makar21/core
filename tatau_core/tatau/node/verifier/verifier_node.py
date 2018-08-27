@@ -32,7 +32,7 @@ class Verifier(Node):
         self._process_task_declaration(task_declaration)
 
     def _process_task_declaration(self, task_declaration):
-        if task_declaration.state in (TaskDeclaration.State.COMPLETED, TaskDeclaration.State.FAILED):
+        if task_declaration.is_in_finished_state():
             self._finish_job(task_declaration)
             return
 
@@ -115,8 +115,7 @@ class Verifier(Node):
         poa_wrapper.finish_job(task_declaration)
 
     def _process_verification_assignment(self, verification_assignment):
-        if verification_assignment.task_declaration.state in [TaskDeclaration.State.FAILED,
-                                                              TaskDeclaration.State.COMPLETED]:
+        if verification_assignment.task_declaration.is_in_finished_state():
             return
 
         if verification_assignment.state == VerificationAssignment.State.PARTIAL_DATA_IS_READY:

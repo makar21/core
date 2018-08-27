@@ -157,8 +157,8 @@ def get_progress_data(task_declaration):
 
     for td in TaskDeclaration.get_history(
             task_declaration.asset_id, db=task_declaration.db, encryption=task_declaration.encryption):
-        if td.loss and td.accuracy and td.state in [TaskDeclaration.State.EPOCH_IN_PROGRESS,
-                                                    TaskDeclaration.State.COMPLETED]:
+        if td.loss and td.accuracy and td.state in (TaskDeclaration.State.EPOCH_IN_PROGRESS,
+                                                    TaskDeclaration.State.COMPLETED):
             if td.state == TaskDeclaration.State.EPOCH_IN_PROGRESS:
                 epoch = td.current_iteration - 1
             else:

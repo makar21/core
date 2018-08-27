@@ -203,7 +203,7 @@ class Producer(Node):
         return True
 
     def _process_task_declaration(self, task_declaration):
-        if task_declaration.state in (TaskDeclaration.State.FAILED, TaskDeclaration.State.COMPLETED):
+        if task_declaration.is_in_finished_state():
             return
 
         if task_declaration.state == TaskDeclaration.State.ESTIMATE_IS_REQUIRED:
@@ -628,7 +628,7 @@ class Producer(Node):
         while True:
             try:
                 for task_declaration in TaskDeclaration.enumerate(db=self.db, encryption=self.encryption):
-                    if task_declaration.state in (TaskDeclaration.State.COMPLETED, TaskDeclaration.State.FAILED):
+                    if task_declaration.is_in_finished_state():
                         continue
 
                     self._process_performers(task_declaration)

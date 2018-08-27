@@ -72,7 +72,7 @@ class Worker(Node):
         self._process_task_assignment(task_assignment)
 
     def _process_task_assignment(self, task_assignment):
-        if task_assignment.task_declaration.state in [TaskDeclaration.State.FAILED, TaskDeclaration.State.COMPLETED]:
+        if task_assignment.task_declaration.is_in_finished_state():
             return
 
         logger.debug('{} process {} state:{}'.format(self, task_assignment, task_assignment.state))
