@@ -57,15 +57,21 @@ class Node(TransactionListener):
         self.db.generate_keypair(seed=seed)
 
     def _create_info_asset(self, account_address):
+        normalized_account_address = web3.toChecksumAddress(account_address)
         node_assets = self.asset_class.list(db=self.db, encryption=self.encryption)
         assert len(node_assets) <= 1
 
         if len(node_assets) == 1:
-            return node_assets[0]
+            node_asset = node_assets[0]
+            # update account_address
+            if normalized_account_address != node_asset.account_address:
+                node_asset.account_address = normalized_account_address
+                node_asset.save()
+            return node_asset
         else:
             return self.asset_class.create(
                 enc_key=self.encryption.get_public_key().decode(),
-                account_address=web3.toChecksumAddress(account_address),
+                account_address=normalized_account_address,
                 db=self.db,
                 encryption=self.encryption
             )
