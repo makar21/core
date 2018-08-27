@@ -86,11 +86,14 @@ class Verifier(Node):
         if poa_wrapper.does_job_finished(task_declaration):
             return
 
+        poa_wrapper.finish_job(task_declaration)
+        return
+
         verification_assignments = VerificationAssignment.list(
             db=self.db,
             encryption=self.encryption,
             additional_match={
-                'assets.data.task_declaration_id': task_declaration.id
+                'assets.data.task_declaration_id': task_declaration.asset_id
             },
             created_by_user=True
         )
@@ -103,7 +106,7 @@ class Verifier(Node):
         assert len(verification_assignments) == 1
         verification_assignment = verification_assignments[0]
         distribute_history = verification_assignment.distribute_history
-        if distribute_history.get(str(task_declaration.current_epoch)) is not None:
+        if distribute_history.get(str(task_declaration.current_iteration)) is not None:
             poa_wrapper.finish_job(task_declaration)
             return
 

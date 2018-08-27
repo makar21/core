@@ -45,14 +45,14 @@ def distribute(verification_assignment):
 
     if verification_assignment.distribute_history is not None:
         try:
-            tx_hash_str = verification_assignment.distribute_history[str(task_declaration.current_epoch)]
-            logger.info('Transaction for {} for epoch {} is {}'.format(
-                task_declaration, task_declaration.current_epoch, tx_hash_str))
+            tx_hash_str = verification_assignment.distribute_history[str(task_declaration.current_iteration)]
+            logger.info('Transaction for {} for iteration {} is {}'.format(
+                task_declaration, task_declaration.current_iteration, tx_hash_str))
 
             tx_hash = HexBytes.fromhex(tx_hash_str)
             if NodeContractInfo.get_contract().is_transaction_mined(tx_hash):
-                logger.info('Distribute for {} for epoch {} already mined'.format(
-                    task_declaration, task_declaration.current_epoch))
+                logger.info('Distribute for {} for iteration {} already mined'.format(
+                    task_declaration, task_declaration.current_iteration))
                 return
             else:
                 NodeContractInfo.get_contract().wait_for_transaction_mined(tx_hash)
@@ -83,7 +83,7 @@ def distribute(verification_assignment):
                     producer_id=task_declaration.producer_id,
                     worker_id=task_assignment.worker_id,
                     task_declaration_id=task_declaration.asset_id,
-                    epoch=task_declaration.current_epoch,
+                    train_iteration=task_declaration.current_iteration,
                     tflops=task_assignment.tflops,
                     tokens=pay_amount
                 ))
@@ -107,7 +107,7 @@ def distribute(verification_assignment):
             producer_id=task_declaration.producer_id,
             verifier_id=verification_assignment.verifier_id,
             task_declaration_id=task_declaration.asset_id,
-            epoch=task_declaration.current_epoch,
+            train_iteration=task_declaration.current_iteration,
             tflops=verification_assignment.tflops,
             tokens=pay_amount
         ))
@@ -123,7 +123,7 @@ def distribute(verification_assignment):
         amounts=amounts
     )
 
-    verification_assignment.distribute_history[str(task_declaration.current_epoch)] = ''.join(
+    verification_assignment.distribute_history[str(task_declaration.current_iteration)] = ''.join(
         '{:02x}'.format(x) for x in tx_hash)
     verification_assignment.save()
 

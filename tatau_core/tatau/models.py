@@ -122,7 +122,7 @@ class TaskDeclaration(models.Model):
     estimators_needed = fields.IntegerField()
 
     state = fields.CharField(initial=State.ESTIMATE_IS_REQUIRED)
-    current_epoch = fields.IntegerField(initial=0)
+    current_iteration = fields.IntegerField(initial=0)
     progress = fields.FloatField(initial=0.0)
     tflops = fields.FloatField(initial=0.0)
     estimated_tflops = fields.FloatField(initial=0.0)
@@ -161,7 +161,7 @@ class TaskDeclaration(models.Model):
         return ready
 
     def get_current_cost(self):
-        # calc real epoch cost
+        # calc real iteration cost
         if self.state == TaskDeclaration.State.VERIFY_IN_PROGRESS:
             spent_tflops = 0.0
             for task_assignments in self.get_task_assignments(states=(TaskAssignment.State.FINISHED,)):
@@ -170,26 +170,30 @@ class TaskDeclaration(models.Model):
                     states=(VerificationAssignment.State.VERIFICATION_FINISHED,)):
                 spent_tflops += verification_assignments.tflops
 
-            epoch_cost = spent_tflops * settings.TFLOPS_COST
+            iteration_cost = spent_tflops * settings.TFLOPS_COST
         else:
-            if self.current_epoch == 0:
+            if self.current_iteration == 0:
                 # total cost for all epochs:
-                epoch_cost = self.estimated_tflops * settings.TFLOPS_COST
-            elif self.current_epoch == 1:
-                # estimated cost for epoch
-                epoch_cost = self.estimated_tflops / self.epochs * settings.TFLOPS_COST
+                iteration_cost = self.estimated_tflops * settings.TFLOPS_COST
+            elif self.current_iteration == 1:
+                epochs_in_next_iteration = self.epochs_in_iteration
+                if self.epochs_in_iteration * self.current_iteration > self.epochs:
+                    epochs_in_next_iteration = self.epochs_in_iteration * self.current_iteration - self.epochs
+                # estimated cost for train_iteration
+                iteration_cost = self.estimated_tflops * epochs_in_next_iteration / self.epochs * settings.TFLOPS_COST
             else:
                 # average cost of epochs based on spend tflops and proceeded epochs
-                epoch_cost = self.tflops / (self.current_epoch - 1) * settings.TFLOPS_COST
+                proceeded_epochs = (self.current_iteration - 1) * self.epochs_in_iteration
+                iteration_cost = self.tflops / proceeded_epochs * settings.TFLOPS_COST
 
-        return web3.toWei(str(epoch_cost), 'ether')
+        return web3.toWei(str(iteration_cost), 'ether')
 
     def job_has_enough_balance(self):
         balance = poa_wrapper.get_job_balance(self)
-        if self.current_epoch == 0:
+        if self.current_iteration == 0:
             cost_name = 'train'
         else:
-            cost_name = 'epoch'
+            cost_name = 'iteration'
 
         epoch_cost = self.get_current_cost()
 
@@ -201,7 +205,7 @@ class TaskDeclaration(models.Model):
             return True
         else:
             if poa_wrapper.does_job_exist(self):
-                logger.info('{} balance: {:.5f} ETH, epoch cost: {:.5f} ETH. Deposit is required!!!'.format(
+                logger.info('{} balance: {:.5f} ETH, iteration cost: {:.5f} ETH. Deposit is required!!!'.format(
                     self, balance_eth, epoch_cost_eth))
             else:
                 estimated_cost = self.estimated_tflops * settings.TFLOPS_COST
@@ -245,7 +249,7 @@ class TaskDeclaration(models.Model):
         return self.get_estimation_assignments()
 
     def is_last_epoch(self):
-        return self.current_epoch == self.epochs
+        return self.current_iteration * self.epochs_in_iteration >= self.epochs
 
     @property
     def task_assignments(self):
@@ -359,7 +363,7 @@ class TaskDeclaration(models.Model):
         return True
 
     def all_done(self):
-        return self.epochs == self.current_epoch and self.verification_is_ready()
+        return self.is_last_epoch() and self.verification_is_ready()
 
 
 class EstimationAssignment(models.Model):
@@ -416,7 +420,7 @@ class TaskAssignment(models.Model):
     state = fields.CharField(initial=State.INITIAL)
 
     train_data = fields.EncryptedJsonField(required=False)
-    current_epoch = fields.IntegerField(initial=0)
+    current_iteration = fields.IntegerField(initial=0)
 
     progress = fields.FloatField(initial=0.0)
     tflops = fields.FloatField(initial=0.0)
@@ -472,7 +476,7 @@ class VerificationAssignment(models.Model):
     model_code_ipfs = fields.EncryptedCharField(required=False)
 
     train_results = fields.EncryptedJsonField(required=False)
-    current_epoch = fields.IntegerField(initial=0)
+    current_iteration = fields.IntegerField(initial=0)
 
     progress = fields.FloatField(initial=0.0)
     tflops = fields.FloatField(initial=0.0)
@@ -510,7 +514,7 @@ class WorkerPayment(models.Model):
     producer_id = fields.CharField(immutable=True)
     worker_id = fields.CharField(immutable=True)
     task_declaration_id = fields.CharField(immutable=True)
-    epoch = fields.IntegerField(immutable=True)
+    train_iteration = fields.IntegerField(immutable=True)
     tflops = fields.FloatField(immutable=True)
     tokens = fields.FloatField(immutable=True)
 
@@ -531,7 +535,7 @@ class VerifierPayment(models.Model):
     producer_id = fields.CharField(immutable=True)
     verifier_id = fields.CharField(immutable=True)
     task_declaration_id = fields.CharField(immutable=True)
-    epoch = fields.IntegerField(immutable=True)
+    train_iteration = fields.IntegerField(immutable=True)
     tflops = fields.FloatField(immutable=True)
     tokens = fields.FloatField(immutable=True)
 
