@@ -13,13 +13,14 @@ from tatau_core.nn.keras import model
 
 from keras.callbacks import LearningRateScheduler, ReduceLROnPlateau
 from keras.optimizers import Adam
+from keras import layers
 from keras.layers import Dense, Activation, AveragePooling2D, Flatten, BatchNormalization, Input, Conv2D
 from keras.regularizers import l2
+from keras.models import Model as KerasModel
 from keras.utils import to_categorical
 import keras
 
 import numpy
-
 
 
 # Model parameter
@@ -189,7 +190,7 @@ def resnet_v2(input_shape, depth, num_classes=10):
             else:
                 num_filters_out = num_filters_in * 2
                 if res_block == 0:  # first layer but not first stage
-                    strides = 2    # downsample
+                    strides = 2  # downsample
 
             # bottleneck residual unit
             y = resnet_layer(inputs=x,
@@ -232,5 +233,4 @@ def resnet_v2(input_shape, depth, num_classes=10):
                     kernel_initializer='he_normal')(y)
 
     # Instantiate model.
-    model = KerasNativeModel(inputs=inputs, outputs=outputs)
-    return model
+    return KerasModel(inputs=inputs, outputs=outputs)
