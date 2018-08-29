@@ -55,6 +55,8 @@ def benchmark_train(working_dir, model_file_path, batch_size, epochs, ethalon_tf
             epochs=epochs
         )
 
+    logger.info('Spent TFLOPs {}'.format(metrics.get_tflops()))
+
     logger.info('Estimated TFLOP/S is {}'.format(ethalon_tflops / metrics.total_seconds))
     logger.info('Current TFLOP/S is {}'.format(metrics.get_tflops() / metrics.total_seconds))
 
@@ -92,16 +94,8 @@ class Timer:
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Benchmark')
-    parser.add_argument('-e', '--epochs', default=3, type=int, metavar='EPOCHS', help='epochs')
-    parser.add_argument('-b', '--batch_size', default=128, type=int, metavar='BATCH_SIZE', help='batch size')
-
-    # parser.add_argument('-d', '--dataset', default='benchmark/torch/cifar10', metavar='DATASET', help='dataset dir')
-    # parser.add_argument('-mh', '--multihash',
-    #                     default='QmRBz8W3K4xDBeu6sDn5kqE4ybndh6CEyFUq1gDEXbYR9V',
-    #                     metavar='MULTIHASH', help='default cifar zip multihash')
-
-    args = parser.parse_args()
+    epochs = 10
+    batch_size = 128
 
     torch_cifar_dataset = 'QmRBz8W3K4xDBeu6sDn5kqE4ybndh6CEyFUq1gDEXbYR9V'
     torch_cifar_model_cnn = 'QmfH9CRJtj66rhQ5jznthamDBHJb37He6Hfy8XmVGG23pw'
@@ -135,7 +129,7 @@ def main():
 
         ethalon_tflops = int(ipfs.read(ethalon_tflops_multihash))
 
-        tflops = benchmark_train(target_dir, model_file_path, args.batch_size, args.epochs, ethalon_tflops)
+        tflops = benchmark_train(target_dir, model_file_path, batch_size, epochs, ethalon_tflops)
         logger.info('TFLOPs per seconds: {}'.format(tflops))
     finally:
         shutil.rmtree(target_dir)
