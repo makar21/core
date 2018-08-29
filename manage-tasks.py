@@ -331,7 +331,7 @@ def main():
     parser.add_argument('-v', '--verifiers', default=1, type=int, metavar='VERIFIERS', help='verifiers count')
     parser.add_argument('-b', '--batch', default=128, type=int, metavar='BATCH_SIZE', help='batch size')
     parser.add_argument('-e', '--epochs', default=3, type=int, metavar='EPOCHS', help='epochs')
-    parser.add_argument('-ei', '--epochs_in_iteration', default=3, type=int, metavar='EPOCHS IN ITERATION',
+    parser.add_argument('-ei', '--epochs_in_iteration', default=1, type=int, metavar='EPOCHS IN ITERATION',
                         help='epochs in iteration')
     parser.add_argument('-l', '--local', default=0, type=int, metavar='LOCAL', help='train model local')
     parser.add_argument('-t', '--task', default=None, type=str, metavar='TASK_ID', help='task declaration asset id')

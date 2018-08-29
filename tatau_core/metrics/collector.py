@@ -1,3 +1,4 @@
+import time
 from logging import getLogger
 from multiprocessing import RLock, Event, Value, Process
 
@@ -17,6 +18,8 @@ class MetricsCollector:
         self._tflops_lock = RLock()
         self.interval = interval
         self._process = None
+        self._start_timestamp = None
+        self._end_timestamp = None
 
     def get_tflops(self):
         with self._tflops_lock:
@@ -33,6 +36,7 @@ class MetricsCollector:
         return self._pid.value
 
     def _start_collect_metrics(self):
+        self._start_timestamp = time.time()
         self._event_start_collect_metrics.set()
 
     def wait_for_start_collect_metrics(self):
@@ -44,6 +48,7 @@ class MetricsCollector:
     def _stop_collect_metrics(self):
         self._event_start_collect_metrics.set()
         self._event_stop.set()
+        self._end_timestamp = time.time()
 
     def __enter__(self):
         self._start_collect_metrics()
@@ -75,3 +80,7 @@ class MetricsCollector:
             logger.exception(ex)
 
         logger.info('Stop collect metrics')
+
+    @property
+    def total_seconds(self):
+        return self._end_timestamp - self._start_timestamp
