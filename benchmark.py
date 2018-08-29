@@ -1,4 +1,3 @@
-import argparse
 import os
 import shutil
 import tempfile
@@ -94,7 +93,7 @@ class Timer:
 
 
 def main():
-    epochs = 10
+    epochs = 3
     batch_size = 128
 
     torch_cifar_dataset = 'QmRBz8W3K4xDBeu6sDn5kqE4ybndh6CEyFUq1gDEXbYR9V'
@@ -131,6 +130,7 @@ def main():
 
         tflops = benchmark_train(target_dir, model_file_path, batch_size, epochs, ethalon_tflops)
         logger.info('TFLOPs per seconds: {}'.format(tflops))
+        logger.info('IPFS download speed: {} MB/s'.format(download_speed / 1024 / 1024))
     finally:
         shutil.rmtree(target_dir)
 
