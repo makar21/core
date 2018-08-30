@@ -86,7 +86,7 @@ def main():
     # read this from IPFS
     ipfs.api.repo_gc()
 
-    benchmark_config = json.loads(ipfs.read('QmQ1oUUCqRnUMPFTREBtd8ip8xJ8WwAf2ekB9FveCQrSEY'))
+    benchmark_config = json.loads(ipfs.read('QmPCGNbGF3jdVXghXDj2jR6jgAAtiwjjy6ZAmE1zTPLCMG'))
     target_dir = tempfile.mkdtemp()
     try:
         timer_model = Timer()
