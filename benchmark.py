@@ -41,7 +41,7 @@ def benchmark_train(working_dir, model_file_path, batch_size, epochs, cost_tflop
     x_test_path = os.path.join(working_dir, 'x_test.npy')
     y_test_path = os.path.join(working_dir, 'y_test.npy')
 
-    metrics = MetricsCollector(collect_load=True)
+    metrics = MetricsCollector(collect_load=True, use_thread=True)
     metrics.start_and_wait_signal()
     metrics.set_pid(os.getpid())
 

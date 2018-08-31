@@ -124,7 +124,7 @@ class ProcessSnapshot:
                     self._gpu_percent = sum(g for g in gpu_load) / float(len(gpu_load))
             except Exception as ex:
                 logger.error('Collect gpu metrics error: {}'.format(ex))
-        logger.info('Metrics: cpu: {}% gpu: {}%'.format(self._cpu_percent, self._gpu_percent))
+        logger.info('Metrics: cpu: {:.2f}% gpu: {:.2f}%'.format(self._cpu_percent, self._gpu_percent))
 
     def get_cpu_tflops(self):
         cpu_tflops = settings.CPU_TFLOPS

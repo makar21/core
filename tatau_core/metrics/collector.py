@@ -1,6 +1,7 @@
 import time
 from logging import getLogger
 from multiprocessing import RLock, Event, Value, Process
+from threading import Thread
 
 from psutil import NoSuchProcess
 
@@ -10,7 +11,7 @@ logger = getLogger()
 
 
 class MetricsCollector:
-    def __init__(self, interval=1, collect_load=False):
+    def __init__(self, interval=1, collect_load=False, use_thread=False):
         self._event_start_collect_metrics = Event()
         self._event_stop = Event()
         self._tflops = Value('d', 0.0)
@@ -23,6 +24,7 @@ class MetricsCollector:
         self._start_timestamp = None
         self._end_timestamp = None
         self._collect_load = collect_load
+        self._use_thread = use_thread
         self._cpu_loads = []
         self._gpu_loads = []
 
@@ -40,12 +42,12 @@ class MetricsCollector:
 
     def average_cpu_load(self):
         if len(self._cpu_loads):
-            return sum(self._cpu_loads)/len(self._cpu_loads)
+            return sum(self._cpu_loads)/float(len(self._cpu_loads))
         return 0
 
     def average_gpu_load(self):
         if len(self._gpu_loads):
-            return sum(self._gpu_loads)/len(self._gpu_loads)
+            return sum(self._gpu_loads)/float(len(self._gpu_loads))
         return 0
 
     def add_tflops(self, cpu_tflops, gpu_tflops):
@@ -84,7 +86,10 @@ class MetricsCollector:
     def start_and_wait_signal(self):
         # be sure this instance will not start collect metrics more than once
         assert self._process is None
-        self._process = Process(target=self._collect_metrics)
+        if self._use_thread:
+            self._process = Thread(target=self._collect_metrics)
+        else:
+            self._process = Process(target=self._collect_metrics)
         self._process.start()
 
     def clean(self):
@@ -108,6 +113,8 @@ class MetricsCollector:
                 if self._collect_load:
                     self._cpu_loads.append(snapshot.get_cpu_load())
                     self._gpu_loads.append(snapshot.get_gpu_load())
+                    print(self.average_cpu_load())
+                    print(self.average_gpu_load())
 
         except NoSuchProcess as ex:
             logger.exception(ex)
