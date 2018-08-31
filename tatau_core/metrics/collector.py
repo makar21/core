@@ -10,24 +10,49 @@ logger = getLogger()
 
 
 class MetricsCollector:
-    def __init__(self, interval=1):
+    def __init__(self, interval=1, collect_load=False):
         self._event_start_collect_metrics = Event()
         self._event_stop = Event()
         self._tflops = Value('d', 0.0)
+        self._cpu_tflops = Value('d', 0.0)
+        self._gpu_tflops = Value('d', 0.0)
         self._pid = Value('i', 0)
         self._tflops_lock = RLock()
         self.interval = interval
         self._process = None
         self._start_timestamp = None
         self._end_timestamp = None
+        self._collect_load = collect_load
+        self._cpu_loads = []
+        self._gpu_loads = []
 
     def get_tflops(self):
         with self._tflops_lock:
             return self._tflops.value
 
-    def add_tflops(self, tflops):
+    def get_gpu_tflops(self):
         with self._tflops_lock:
-            self._tflops.value += tflops
+            return self._gpu_tflops.value
+
+    def get_cpu_tflops(self):
+        with self._tflops_lock:
+            return self._cpu_tflops.value
+
+    def average_cpu_load(self):
+        if len(self._cpu_loads):
+            return sum(self._cpu_loads)/len(self._cpu_loads)
+        return 0
+
+    def average_gpu_load(self):
+        if len(self._gpu_loads):
+            return sum(self._gpu_loads)/len(self._gpu_loads)
+        return 0
+
+    def add_tflops(self, cpu_tflops, gpu_tflops):
+        with self._tflops_lock:
+            self._tflops.value += cpu_tflops + gpu_tflops
+            self._gpu_tflops.value += gpu_tflops
+            self._cpu_tflops.value += cpu_tflops
 
     def set_pid(self, pid):
         self._pid.value = pid
@@ -75,7 +100,15 @@ class MetricsCollector:
             snapshot = ProcessSnapshot(self.get_pid())
             while not self.should_stop_collect_metrics(self.interval):
                 snapshot.update()
-                self.add_tflops(snapshot.get_total_tflops() * self.interval)
+                self.add_tflops(
+                    cpu_tflops=snapshot.get_cpu_tflops() * self.interval,
+                    gpu_tflops=snapshot.get_gpu_tflops() * self.interval
+                )
+
+                if self._collect_load:
+                    self._cpu_loads.append(snapshot.get_cpu_load())
+                    self._gpu_loads.append(snapshot.get_gpu_load())
+
         except NoSuchProcess as ex:
             logger.exception(ex)
 

@@ -41,7 +41,7 @@ def benchmark_train(working_dir, model_file_path, batch_size, epochs, cost_tflop
     x_test_path = os.path.join(working_dir, 'x_test.npy')
     y_test_path = os.path.join(working_dir, 'y_test.npy')
 
-    metrics = MetricsCollector()
+    metrics = MetricsCollector(collect_load=True)
     metrics.start_and_wait_signal()
     metrics.set_pid(os.getpid())
 
@@ -56,11 +56,19 @@ def benchmark_train(working_dir, model_file_path, batch_size, epochs, cost_tflop
             epochs=epochs
         )
 
-    logger.info('Spent TFLOPs {}'.format(metrics.get_tflops()))
+    logger.info('Ethalon TFLOPs cost {}'.format(cost_tflops))
+
+    logger.info('Spent hardcoded total TFLOPs {}'.format(metrics.get_tflops()))
     logger.info('Spent time: {} s'.format(metrics.total_seconds))
 
+    logger.info('Av CPU Load: {} %'.format(metrics.average_cpu_load()))
+    logger.info('Spent hardcoded CPU TFLOPs {}'.format(metrics.get_cpu_tflops()))
+
+    logger.info('Av GPU Load: {} %'.format(metrics.average_gpu_load()))
+    logger.info('Spent hardcoded GPU TFLOPs: {}'.format(metrics.get_gpu_tflops()))
+
     logger.info('Estimated TFLOP/s is {}'.format(cost_tflops / metrics.total_seconds))
-    logger.info('Current TFLOP/s is {}'.format(metrics.get_tflops() / metrics.total_seconds))
+    logger.info('Hardcoded TFLOP/s is {}'.format(metrics.get_tflops() / metrics.total_seconds))
 
     return cost_tflops / metrics.total_seconds
 
