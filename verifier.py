@@ -36,16 +36,20 @@ if __name__ == '__main__':
         account_address_var_name='VERIFIER_ACCOUNT_ADDRESS'
     )
 
-    NodeContractInfo.configure(encrypted_key, password)
+    while True:
+        try:
+            NodeContractInfo.configure(encrypted_key, password)
 
-    verifier = VerifierEstimator(
-        account_address=account_address,
-        rsa_pk=rsa_pk
-    )
+            verifier = VerifierEstimator(
+                account_address=account_address,
+                rsa_pk=rsa_pk
+            )
 
-    logger.info('Start {}, address {}'.format(verifier.asset, verifier.asset.account_address))
+            logger.info('Start {}, address {}'.format(verifier.asset, verifier.asset.account_address))
 
-    if os.getenv('USE_SOCKET', False):
-        verifier.run_transaction_listener()
-    else:
-        verifier.search_tasks()
+            if os.getenv('USE_SOCKET', False):
+                verifier.run_transaction_listener()
+            else:
+                verifier.search_tasks()
+        except Exception as ex:
+            logger.info(ex)

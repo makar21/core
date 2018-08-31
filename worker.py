@@ -34,14 +34,19 @@ if __name__ == '__main__':
         account_address_var_name='WORKER_ACCOUNT_ADDRESS{}'.format(index),
     )
 
-    worker = Worker(
-        account_address=account_address,
-        rsa_pk=rsa_pk
-    )
+    while True:
+        try:
+            worker = Worker(
+                account_address=account_address,
+                rsa_pk=rsa_pk
+            )
 
-    logger.info('Start {} address: {}'.format(worker.asset, worker.asset.account_address))
-    if os.getenv('USE_SOCKET', False):
-        worker.run_transaction_listener()
-    else:
-        worker.search_tasks()
+            logger.info('Start {} address: {}'.format(worker.asset, worker.asset.account_address))
+            if os.getenv('USE_SOCKET', False):
+                worker.run_transaction_listener()
+            else:
+                worker.search_tasks()
+        except Exception as ex:
+            logger.info(ex)
+
 

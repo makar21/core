@@ -57,6 +57,8 @@ def distribute(verification_assignment):
             return
         else:
             NodeContractInfo.get_contract().wait_for_transaction_mined(tx_hash)
+            logger.info('Distribute for {} for iteration {} is mined'.format(
+                task_declaration, task_declaration.current_iteration))
             return
     except KeyError:
         pass
@@ -123,6 +125,7 @@ def distribute(verification_assignment):
     if len(amounts) == 0:
         logger.info('No targets for distribute')
         return
+
     tx_hash = NodeContractInfo.get_contract().distribute_async(
         task_declaration_id=task_declaration.asset_id,
         workers=workers,
