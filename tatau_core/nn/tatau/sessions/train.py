@@ -77,12 +77,6 @@ class TrainSession(Session):
 
         logger.info('y_train is downloaded')
 
-        # test_x_path = ipfs.download(assignment.train_data['x_test_ipfs'], target_dir)
-        # logger.info('x_test is downloaded')
-        #
-        # test_y_path = ipfs.download(assignment.train_data['y_test_ipfs'], target_dir)
-        # logger.info('y_test is downloaded')
-
         ipfs.download_to(assignment.train_data['initial_weights'], self.init_weights_path)
         logger.info('initial weights are downloaded')
         x_train, y_train = self.concat_dataset(x_paths=train_x_paths, y_paths=train_y_paths)
@@ -90,13 +84,6 @@ class TrainSession(Session):
         np.save(self.x_train_path, x_train)
         np.save(self.y_train_path, y_train)
         logger.info('Dataset is loaded')
-
-        model = Model.load_model(path=self.model_path)
-        logger.info('Model is loaded')
-
-        model.load_weights(self.init_weights_path)
-
-        logger.info('Initial weights are loaded')
 
         logger.info('Start training')
 
