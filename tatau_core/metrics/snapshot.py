@@ -107,6 +107,8 @@ class ProcessSnapshot:
         self.process = psutil.Process(pid=self._pid)
         self.process.cpu_percent(interval=1)
         self._cpu_count = psutil.cpu_count()
+        self._cpu_percent = 0.0
+        self._gpu_percent = 0.0
 
     def update(self):
         self._cpu_percent = self.process.cpu_percent() / self._cpu_count
@@ -128,9 +130,15 @@ class ProcessSnapshot:
         cpu_tflops = settings.CPU_TFLOPS
         return float(self._cpu_percent / 100.0 * cpu_tflops)
 
+    def get_cpu_load(self):
+        return self._cpu_percent
+
     def get_gpu_tflops(self):
         gpu_tflops = settings.GPU_TFLOPS
         return float(self._gpu_percent / 100.0 * gpu_tflops)
+
+    def get_gpu_load(self):
+        return self._gpu_percent
 
     def get_total_tflops(self):
         return self.get_cpu_tflops() + self.get_gpu_tflops()
