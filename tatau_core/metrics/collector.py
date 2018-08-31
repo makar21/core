@@ -113,8 +113,6 @@ class MetricsCollector:
                 if self._collect_load:
                     self._cpu_loads.append(snapshot.get_cpu_load())
                     self._gpu_loads.append(snapshot.get_gpu_load())
-                    print(self.average_cpu_load())
-                    print(self.average_gpu_load())
 
         except NoSuchProcess as ex:
             logger.exception(ex)
