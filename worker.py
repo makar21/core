@@ -3,7 +3,7 @@ import sys
 from logging import getLogger
 
 from tatau_core import settings
-from tatau_core.tatau.node.worker import Worker
+from tatau_core.node.worker import Worker
 from tatau_core.utils.logging import configure_logging
 
 configure_logging('worker')

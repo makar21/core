@@ -2,9 +2,9 @@ import time
 from logging import getLogger
 
 from tatau_core import settings
-from tatau_core.tatau.models import WorkerNode, TaskDeclaration
-from tatau_core.tatau.node.estimator.estimator_node import Estimator
-from tatau_core.tatau.node.worker.worker_node import Worker
+from tatau_core.models import WorkerNode, TaskDeclaration
+from tatau_core.node.estimator.estimator_node import Estimator
+from tatau_core.node.worker.worker_node import Worker
 
 logger = getLogger()
 

@@ -1,4 +1,4 @@
-from tatau_core.tatau.models import EstimationAssignment
+from tatau_core.models import EstimationAssignment
 from tatau_core.utils.ipfs import Directory
 
 

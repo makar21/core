@@ -4,8 +4,8 @@ from logging import getLogger
 from tatau_core import settings
 from tatau_core.contract import poa_wrapper
 from tatau_core.nn.tatau.sessions.summarize import SummarizeSession
-from tatau_core.tatau.models import VerifierNode, TaskDeclaration, VerificationAssignment, DistributeHistory
-from tatau_core.tatau.node.node import Node
+from tatau_core.models import VerifierNode, TaskDeclaration, VerificationAssignment, DistributeHistory
+from tatau_core.node.node import Node
 
 
 logger = getLogger()

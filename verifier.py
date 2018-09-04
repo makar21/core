@@ -3,7 +3,7 @@ from logging import getLogger
 
 from tatau_core import settings
 from tatau_core.contract import NodeContractInfo
-from tatau_core.tatau.node import VerifierEstimator
+from tatau_core.node import VerifierEstimator
 from tatau_core.utils.logging import configure_logging
 
 configure_logging('verifier')

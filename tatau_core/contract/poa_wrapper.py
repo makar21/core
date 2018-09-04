@@ -37,7 +37,7 @@ def finish_job(task_declaration):
 
 
 def distribute_by_spent_tflops(verification_assignment):
-    from tatau_core.tatau.models import TaskAssignment, VerificationAssignment, WorkerPayment, VerifierPayment
+    from tatau_core.models import TaskAssignment, VerificationAssignment, WorkerPayment, VerifierPayment
 
     task_declaration = verification_assignment.task_declaration
     verification_result = verification_assignment.result
@@ -146,7 +146,7 @@ def distribute_by_spent_tflops(verification_assignment):
 
 
 def distribute(verification_assignment):
-    from tatau_core.tatau.models import TaskAssignment, WorkerPayment
+    from tatau_core.models import TaskAssignment, WorkerPayment
 
     task_declaration = verification_assignment.task_declaration
     verification_result = verification_assignment.result

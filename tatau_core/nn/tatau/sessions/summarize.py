@@ -5,7 +5,7 @@ from logging import getLogger
 import numpy as np
 
 from tatau_core.nn.tatau.model import Model
-from tatau_core.tatau.models import VerificationAssignment
+from tatau_core.models import VerificationAssignment
 from tatau_core.utils.ipfs import IPFS, Downloader
 from .session import Session
 

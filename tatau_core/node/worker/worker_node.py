@@ -5,8 +5,8 @@ from logging import getLogger
 from tatau_core import settings
 from tatau_core.nn import benchmark
 from tatau_core.nn.tatau.sessions.train import TrainSession
-from tatau_core.tatau.models import WorkerNode, TaskDeclaration, TaskAssignment, BenchmarkInfo
-from tatau_core.tatau.node import Node
+from tatau_core.models import WorkerNode, TaskDeclaration, TaskAssignment, BenchmarkInfo
+from tatau_core.node import Node
 
 logger = getLogger()
 

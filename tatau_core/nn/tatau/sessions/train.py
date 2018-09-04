@@ -5,7 +5,7 @@ from logging import getLogger
 import sys
 from tatau_core.nn.tatau.model import Model
 from tatau_core.nn.tatau.progress import TrainProgress
-from tatau_core.tatau.models import TaskAssignment
+from tatau_core.models import TaskAssignment
 from tatau_core.utils.ipfs import IPFS, Downloader
 import numpy as np
 import pickle

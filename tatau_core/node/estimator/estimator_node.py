@@ -4,8 +4,8 @@ from logging import getLogger
 
 from tatau_core import settings
 from tatau_core.nn.tatau.sessions.estimation import EstimationSession
-from tatau_core.tatau.models import TaskDeclaration, EstimationAssignment
-from tatau_core.tatau.node import Node
+from tatau_core.models import TaskDeclaration, EstimationAssignment
+from tatau_core.node import Node
 
 logger = getLogger()
 

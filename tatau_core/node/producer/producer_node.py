@@ -3,11 +3,11 @@ import time
 from logging import getLogger
 
 from tatau_core import settings
-from tatau_core.tatau.models import ProducerNode, TaskDeclaration, TaskAssignment, VerificationAssignment, \
+from tatau_core.models import ProducerNode, TaskDeclaration, TaskAssignment, VerificationAssignment, \
     EstimationAssignment
-from tatau_core.tatau.node.node import Node
-from tatau_core.tatau.node.producer.estimator import Estimator
-from tatau_core.tatau.whitelist import WhiteList
+from tatau_core.node.node import Node
+from tatau_core.node.producer.estimator import Estimator
+from tatau_core.node.producer.whitelist import WhiteList
 from tatau_core.utils.ipfs import Directory
 
 logger = getLogger()

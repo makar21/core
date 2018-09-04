@@ -1,7 +1,7 @@
 from logging import getLogger
 
 from tatau_core.nn.tatau.model import TrainProgress
-from tatau_core.tatau.models import TaskAssignment
+from tatau_core.models import TaskAssignment
 
 logger = getLogger()
 

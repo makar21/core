@@ -2,7 +2,7 @@ import os
 from logging import getLogger
 
 from tatau_core import settings
-from tatau_core.tatau.node.producer import Producer
+from tatau_core.node.producer import Producer
 from tatau_core.utils.logging import configure_logging
 
 configure_logging('producer')
