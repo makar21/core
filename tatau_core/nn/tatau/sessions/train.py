@@ -6,7 +6,7 @@ import sys
 from tatau_core.nn.tatau.model import Model
 from tatau_core.nn.tatau.progress import TrainProgress
 from tatau_core.tatau.models import TaskAssignment
-from tatau_core.utils.ipfs import IPFS
+from tatau_core.utils.ipfs import IPFS, Downloader
 import numpy as np
 import pickle
 
@@ -59,26 +59,34 @@ class TrainSession(Session):
 
         logger.info('Train data: {}'.format(assignment.train_data))
 
-        ipfs.download_to(assignment.train_data['model_code'], self.model_path)
-        logger.info('model code successfully downloaded')
-
         batch_size = assignment.train_data['batch_size']
         epochs = assignment.train_data['epochs']
 
+        list_download_params = [Downloader.DownloadParams(
+            multihash=assignment.train_data['model_code'],
+            target_path=self.model_path)]
+
         train_x_paths = deque()
         for x_train in assignment.train_data['x_train_ipfs']:
-            train_x_paths.append(ipfs.download(x_train, self.base_dir))
-
-        logger.info('x_train is downloaded')
+            target_path = os.path.join(self.base_dir, x_train)
+            list_download_params.append(Downloader.DownloadParams(multihash=x_train, target_path=target_path))
+            train_x_paths.append(target_path)
 
         train_y_paths = deque()
         for y_train in assignment.train_data['y_train_ipfs']:
-            train_y_paths.append(ipfs.download(y_train, self.base_dir))
+            target_path = os.path.join(self.base_dir, y_train)
+            list_download_params.append(Downloader.DownloadParams(multihash=y_train, target_path=target_path))
+            train_y_paths.append(target_path)
 
-        logger.info('y_train is downloaded')
+        list_download_params.append(
+            Downloader.DownloadParams(
+                multihash=assignment.train_data['initial_weights'],
+                target_path=self.init_weights_path
+            )
+        )
 
-        ipfs.download_to(assignment.train_data['initial_weights'], self.init_weights_path)
-        logger.info('initial weights are downloaded')
+        Downloader.download_all(list_download_params)
+
         x_train, y_train = self.concat_dataset(x_paths=train_x_paths, y_paths=train_y_paths)
 
         np.save(self.x_train_path, x_train)

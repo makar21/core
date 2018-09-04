@@ -91,6 +91,14 @@ class VerifierNode(models.Model):
     account_address = fields.CharField(immutable=False)
 
 
+class BenchmarkTest(models.Model):
+    worker_id = fields.CharField(immutable=True)
+    performance = fields.FloatField(immutable=True)
+    ipfs_spped = fields.FloatField(immutable=True)
+    downloaded_size = fields.IntegerField(immutable=True)
+    download_time = fields.IntegerField(immutable=True)
+
+
 class TaskDeclaration(models.Model):
     class State:
         ESTIMATE_IS_REQUIRED = 'estimate is required'
