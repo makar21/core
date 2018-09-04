@@ -1,6 +1,7 @@
 import os
 import tempfile
 from logging import getLogger
+from multiprocessing import Pool
 
 import ipfsapi
 
@@ -128,3 +129,20 @@ class IPFS:
 
     def send_message(self, topic, data):
         self.api.pubsub_pub(topic, data)
+
+
+class Downloader:
+    class DownloadParams:
+        def __init__(self, multihash, target_path):
+            self.multihash = multihash
+            self.target_path = target_path
+
+    @staticmethod
+    def _download(download_params: DownloadParams):
+        ipfs = IPFS()
+        ipfs.download_to(download_params.multihash, download_params.target_path)
+
+    @classmethod
+    def download_all(cls, list_download_params, pool_size=settings.DOWNLOAD_POOL_SIZE):
+        p = Pool(pool_size)
+        return p.map(cls._download, list_download_params)
