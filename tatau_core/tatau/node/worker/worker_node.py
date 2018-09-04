@@ -3,8 +3,9 @@ import time
 from logging import getLogger
 
 from tatau_core import settings
+from tatau_core.nn import benchmark
 from tatau_core.nn.tatau.sessions.train import TrainSession
-from tatau_core.tatau.models import WorkerNode, TaskDeclaration, TaskAssignment
+from tatau_core.tatau.models import WorkerNode, TaskDeclaration, TaskAssignment, BenchmarkInfo
 from tatau_core.tatau.node import Node
 
 logger = getLogger()
@@ -154,3 +155,19 @@ class Worker(Node):
                 time.sleep(settings.WORKER_PROCESS_INTERVAL)
             except Exception as ex:
                 logger.exception(ex)
+
+    def perform_benchmark(self):
+        if not self.asset.benchmark_info:
+            download_benchmark_info, train_benchmark_info = benchmark.run()
+            benchmark_info_asset = BenchmarkInfo.create(
+                worker_id=self.asset_id,
+                info_ipfs=train_benchmark_info.info_ipfs,
+                downloaded_size=download_benchmark_info.downloaded_size,
+                download_time=int(download_benchmark_info.download_time),
+                model_train_tflops=train_benchmark_info.model_train_tflops,
+                train_time=int(train_benchmark_info.train_time),
+                av_cpu_load=train_benchmark_info.av_cpu_load,
+                av_gpu_load=train_benchmark_info.av_gpu_load
+            )
+            self.asset.benchmark_info_id = benchmark_info_asset.asset_id
+            self.asset.save()

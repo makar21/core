@@ -40,11 +40,13 @@ class MetricsCollector:
         with self._tflops_lock:
             return self._cpu_tflops.value
 
+    @property
     def average_cpu_load(self):
         if len(self._cpu_loads):
             return sum(self._cpu_loads)/float(len(self._cpu_loads))
         return 0
 
+    @property
     def average_gpu_load(self):
         if len(self._gpu_loads):
             return sum(self._gpu_loads)/float(len(self._gpu_loads))
