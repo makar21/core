@@ -9,9 +9,8 @@ from termcolor import colored
 from producer import load_producer
 from tatau_core import settings
 from tatau_core.contract import NodeContractInfo, poa_wrapper
+from tatau_core.models import TaskDeclaration, TaskAssignment, VerificationAssignment, TrainModel, Dataset
 from tatau_core.nn.tatau.model import Model, TrainProgress
-from tatau_core.models import TaskDeclaration, TaskAssignment, VerificationAssignment
-from tatau_core.models import TrainModel, Dataset
 from tatau_core.utils.ipfs import IPFS
 from tatau_core.utils.logging import configure_logging
 
