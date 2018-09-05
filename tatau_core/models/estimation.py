@@ -71,16 +71,8 @@ class EstimationData(models.Model):
     initial_weights = fields.EncryptedCharField(immutable=True)
     batch_size = fields.IntegerField(immutable=True)
 
-    @cached_property
-    def estimation_assignment(self) -> EstimationAssignment:
-        return EstimationAssignment.get(self.estimation_assignment_id, db=self.db, encryption=self.encryption)
-
 
 class EstimationResult(models.Model):
     estimation_assignment_id = fields.CharField(immutable=True)
     tflops = fields.FloatField(immutable=True)
     error = fields.EncryptedCharField(immutable=True, null=True)
-
-    @cached_property
-    def estimation_assignment(self) -> EstimationAssignment:
-        return EstimationAssignment.get(self.estimation_assignment_id, db=self.db, encryption=self.encryption)

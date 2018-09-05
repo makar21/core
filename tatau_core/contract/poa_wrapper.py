@@ -208,7 +208,7 @@ def distribute(verification_assignment):
                     worker_id=task_assignment.worker_id,
                     task_declaration_id=task_declaration.asset_id,
                     train_iteration=task_declaration.current_iteration,
-                    tflops=task_assignment.tflops,
+                    tflops=task_assignment.train_result.tflops,
                     tokens=pay_amount
                 ))
 

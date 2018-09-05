@@ -55,7 +55,7 @@ class Session(ABC):
         shutil.rmtree(self.base_dir)
         self._metrics_collector.clean()
 
-    def process_assignment(self, assignment):
+    def process_assignment(self, assignment, *args, **kwargs):
         raise NotImplementedError()
 
     def _run(self, *args, async=False):

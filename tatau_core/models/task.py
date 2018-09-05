@@ -15,6 +15,7 @@ from tatau_core.utils import cached_property
 logger = getLogger()
 
 ListEstimationAssignments = List[EstimationAssignment]
+ListTaskAssignments = List[TaskAssignment]
 
 
 class TaskDeclaration(models.Model):
@@ -54,7 +55,6 @@ class TaskDeclaration(models.Model):
     progress = fields.FloatField(initial=0.0)
     tflops = fields.FloatField(initial=0.0)
     estimated_tflops = fields.FloatField(initial=0.0)
-    results = fields.EncryptedJsonField(initial=[])
 
     @cached_property
     def producer(self):
@@ -82,11 +82,9 @@ class TaskDeclaration(models.Model):
         kwargs['estimators_requested'] = kwargs['estimators_needed']
         return super(TaskDeclaration, cls).create(**kwargs)
 
-    def ready_for_start(self):
-        ready = self.workers_needed == 0 and self.verifiers_needed == 0
-        logger.info('{} ready: {} workers_needed: {} verifiers_needed: {}'.format(
-            self, ready, self.workers_needed, self.verifiers_needed))
-        return ready
+    def is_in_finished_state(self):
+        finish_states = (TaskDeclaration.State.FAILED, TaskDeclaration.State.COMPLETED, TaskDeclaration.State.CANCELED)
+        return self.state in finish_states
 
     def get_current_cost_real(self):
         # calc real iteration cost
@@ -153,7 +151,7 @@ class TaskDeclaration(models.Model):
                 logger.info('{} Issue job is required!!! Estimated cost: {:.5f} ETH'.format(self, estimated_cost))
             return False
 
-    def get_task_assignments(self, states=None):
+    def get_task_assignments(self, states=None) -> ListTaskAssignments:
         task_assignments = TaskAssignment.enumerate(
             additional_match={
                 'assets.data.task_declaration_id': self.asset_id
@@ -216,78 +214,6 @@ class TaskDeclaration(models.Model):
     def verification_assignments(self):
         return self.get_verification_assignments()
 
-    def is_task_assignment_allowed(self, task_assignment):
-        if self.workers_needed == 0:
-            return False
-
-        if task_assignment.state != TaskAssignment.State.INITIAL:
-            return False
-
-        count = TaskAssignment.count(
-            additional_match={
-                'assets.data.worker_id': task_assignment.worker_id,
-                'assets.data.task_declaration_id': self.asset_id
-            },
-            created_by_user=False,
-            db=self.db
-        )
-
-        if count == 1:
-            logger.info('{} allowed for {}'.format(task_assignment, self))
-            return True
-
-        logger.info('{} not allowed for {}, worker created {} assignment for this task'.format(
-            task_assignment, self, count))
-        return False
-
-    def is_verification_assignment_allowed(self, verification_assignment):
-        if self.verifiers_needed == 0:
-            return False
-
-        if verification_assignment.state != VerificationAssignment.State.INITIAL:
-            return False
-
-        count = VerificationAssignment.count(
-            additional_match={
-                'assets.data.verifier_id': verification_assignment.verifier_id,
-                'assets.data.task_declaration_id': self.asset_id
-            },
-            created_by_user=False,
-            db=self.db
-        )
-
-        if count == 1:
-            logger.info('{} allowed for {}'.format(verification_assignment, self))
-            return True
-
-        logger.info('{} not allowed for {}, verifier created {} assignment for this task'.format(
-            verification_assignment, self, count))
-        return False
-
-    def is_estimation_assignment_allowed(self, estimation_assignment):
-        if self.estimators_needed == 0:
-            return False
-
-        if estimation_assignment.state != EstimationAssignment.State.INITIAL:
-            return False
-
-        count = EstimationAssignment.count(
-            additional_match={
-                'assets.data.estimator_id': estimation_assignment.estimator_id,
-                'assets.data.task_declaration_id': self.asset_id
-            },
-            created_by_user=False,
-            db=self.db
-        )
-
-        if count == 1:
-            logger.info('{} allowed for {}'.format(estimation_assignment, self))
-            return True
-
-        logger.info('{} not allowed for {}, verifier created {} assignment for this task'.format(
-            estimation_assignment, self, count))
-        return False
-
     def verification_is_ready(self):
         verification_assignments = self.get_verification_assignments(
             states=(
@@ -306,7 +232,5 @@ class TaskDeclaration(models.Model):
     def all_done(self):
         return self.is_last_epoch() and self.verification_is_ready()
 
-    def is_in_finished_state(self):
-        finish_states = (TaskDeclaration.State.FAILED, TaskDeclaration.State.COMPLETED, TaskDeclaration.State.CANCELED)
-        return self.state in finish_states
+
 

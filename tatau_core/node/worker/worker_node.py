@@ -3,6 +3,7 @@ import time
 from logging import getLogger
 
 from tatau_core import settings
+from tatau_core.models.train import TrainResult
 from tatau_core.nn import benchmark
 from tatau_core.nn.tatau.sessions.train import TrainSession
 from tatau_core.models import WorkerNode, TaskDeclaration, TaskAssignment, BenchmarkInfo
@@ -14,23 +15,6 @@ logger = getLogger()
 class Worker(Node):
 
     asset_class = WorkerNode
-
-    def _get_tx_methods(self):
-        return {
-            TaskDeclaration.get_asset_name(): self._process_task_declaration_transaction,
-            TaskAssignment.get_asset_name(): self._process_task_assignment_transaction
-        }
-
-    def _process_task_declaration_transaction(self, asset_id, transaction):
-        if transaction['operation'] == 'TRANSFER':
-            return
-
-        task_declaration = TaskDeclaration.get(asset_id, db=self.db, encryption=self.encryption)
-        logger.info('Received {}, workers_needed: {}'.format(task_declaration, task_declaration.workers_needed))
-        if task_declaration.workers_needed == 0:
-            return
-
-        self._process_task_declaration(task_declaration)
 
     def _process_task_declaration(self, task_declaration):
         if task_declaration.state == TaskDeclaration.State.DEPLOYMENT \
@@ -60,17 +44,23 @@ class Worker(Node):
 
             logger.info('Added {}'.format(task_assignment))
 
-    def _process_task_assignment_transaction(self, asset_id, transaction):
-        if transaction['operation'] == 'CREATE':
-            return
+    def _get_train_result(self, task_assignment: TaskAssignment) -> TrainResult:
+        for tr in TrainResult.enumerate(
+            additional_match={
+                'assets.data.task_assignment_id': task_assignment.asset_id
+            },
+            created_by_user=True,
+            db=self.db,
+            encryption=self.encryption
+        ):
+            return tr
 
-        task_assignment = TaskAssignment.get(asset_id, db=self.db, encryption=self.encryption)
-
-        # skip another assignment
-        if task_assignment.worker_id != self.asset_id:
-            return
-
-        self._process_task_assignment(task_assignment)
+        return TrainResult.create(
+            task_assignment_id=task_assignment.asset_id,
+            public_key=task_assignment.producer.enc_key,
+            db=self.db,
+            encryption=self.encryption
+        )
 
     def _process_task_assignment(self, task_assignment):
         if task_assignment.task_declaration.is_in_finished_state():
@@ -78,56 +68,40 @@ class Worker(Node):
 
         logger.debug('{} process {} state:{}'.format(self, task_assignment, task_assignment.state))
 
-        if task_assignment.state == TaskAssignment.State.IN_PROGRESS:
-            if task_assignment.task_declaration.state == TaskDeclaration.State.EPOCH_IN_PROGRESS:
-                task_assignment.state = TaskAssignment.State.DATA_IS_READY
-
         if task_assignment.state == TaskAssignment.State.RETRY:
             task_assignment.state = TaskAssignment.State.INITIAL
             task_assignment.save(recipients=task_assignment.producer.address)
             return
 
         if task_assignment.state == TaskAssignment.State.DATA_IS_READY:
-            if not task_assignment.task_declaration.job_has_enough_balance():
-                return
+            train_result = self._get_train_result(task_assignment)
+            if not train_result.finished:
+                self._train(task_assignment, train_result)
 
-            task_assignment.state = TaskAssignment.State.IN_PROGRESS
-            task_assignment.save()
-            self._train(task_assignment.asset_id)
-
-    def _train(self, asset_id):
-        logger.info('Start work process'.format(asset_id))
-        task_assignment = TaskAssignment.get(asset_id, db=self.db, encryption=self.encryption)
-        logger.info("Train Task: {}".format(task_assignment))
+    def _train(self, task_assignment: TaskAssignment, train_result: TrainResult):
+        logger.info('{} is starting train: {}'.format(self, task_assignment))
         session = TrainSession()
 
         try:
-
-            # progress = TaskProgress(self, asset_id, collect_metrics)
-
-            # reset data from previous iteration
-            task_assignment.result = None
-            task_assignment.error = None
+            train_result.clean()
 
             try:
-                session.process_assignment(assignment=task_assignment)
+                session.process_assignment(assignment=task_assignment, train_result=train_result)
             except Exception as e:
                 error_dict = {'exception': type(e).__name__}
                 msg = str(e)
                 if msg:
                     error_dict['message'] = msg
 
-                task_assignment.error = json.dumps(error_dict)
+                train_result.error = json.dumps(error_dict)
                 logger.exception(e)
 
-            task_assignment.tflops = session.get_tflops()
-            task_assignment.progress = 100
-            task_assignment.state = TaskAssignment.State.FINISHED
-            task_assignment.set_encryption_key(task_assignment.producer.enc_key)
-            task_assignment.save(recipients=task_assignment.producer.address)
+            train_result.tflops = session.get_tflops()
+            train_result.progress = 100
+            train_result.save()
 
             logger.info('Finished {}, tflops: {}, result: {}, error: {}'.format(
-                task_assignment, task_assignment.tflops, task_assignment.result, task_assignment.error
+                task_assignment, train_result.tflops, train_result.weights, train_result.error
             ))
         finally:
             session.clean()

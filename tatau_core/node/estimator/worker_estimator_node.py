@@ -13,22 +13,6 @@ class WorkerEstimator(Worker, Estimator):
 
     asset_class = WorkerNode
 
-    def _get_tx_methods(self):
-        methods = Worker._get_tx_methods(self)
-        methods.update(Estimator._get_tx_methods(self))
-        return methods
-    
-    def _process_task_declaration_transaction(self, asset_id, transaction):
-        try:
-            Estimator._process_task_declaration_transaction(self, asset_id, transaction)
-        except Exception as ex:
-            logger.exception(ex)
-
-        try:
-            Worker._process_task_declaration_transaction(self, asset_id, transaction)
-        except Exception as ex:
-            logger.exception(ex)
-
     def _process_task_declaration(self, task_declaration):
         try:
             Estimator._process_task_declaration(self, task_declaration)
