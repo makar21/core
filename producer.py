@@ -38,13 +38,5 @@ def load_producer():
 
 
 if __name__ == '__main__':
-    while True:
-        try:
-            producer = load_producer()
-
-            if os.getenv('USE_SOCKET', False):
-                producer.run_transaction_listener()
-            else:
-                producer.process_tasks()
-        except Exception as ex:
-            logger.info(ex)
+    producer = load_producer()
+    producer.process_tasks()

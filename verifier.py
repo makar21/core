@@ -1,4 +1,5 @@
 import os
+import sys
 from logging import getLogger
 
 from tatau_core import settings
@@ -31,9 +32,13 @@ def load_credentials(account_address_var_name):
 
 
 if __name__ == '__main__':
+    try:
+        index = '_{}'.format(sys.argv[1])
+    except IndexError:
+        index = ''
 
     account_address, encrypted_key, password, rsa_pk = load_credentials(
-        account_address_var_name='VERIFIER_ACCOUNT_ADDRESS'
+        account_address_var_name='VERIFIER_ACCOUNT_ADDRESS{}'.format(index)
     )
 
     while True:
@@ -46,10 +51,6 @@ if __name__ == '__main__':
             )
 
             logger.info('Start {}, address {}'.format(verifier.asset, verifier.asset.account_address))
-
-            if os.getenv('USE_SOCKET', False):
-                verifier.run_transaction_listener()
-            else:
-                verifier.search_tasks()
+            verifier.search_tasks()
         except Exception as ex:
             logger.info(ex)

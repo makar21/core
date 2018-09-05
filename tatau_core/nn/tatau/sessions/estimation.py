@@ -19,26 +19,26 @@ class EstimationSession(Session):
     def process_assignment(self, assignment: EstimationAssignment):
         list_download_params = [
             Downloader.DownloadParams(
-                multihash=assignment.estimation_data['model_code'],
+                multihash=assignment.estimation_data.model_code,
                 target_path=self.model_path
             ),
             Downloader.DownloadParams(
-                multihash=assignment.estimation_data['x_train'],
+                multihash=assignment.estimation_data.x_train,
                 target_path=self.x_train_path
             ),
             Downloader.DownloadParams(
-                multihash=assignment.estimation_data['y_train'],
+                multihash=assignment.estimation_data.y_train,
                 target_path=self.y_train_path
             ),
             Downloader.DownloadParams(
-                multihash=assignment.estimation_data['initial_weights'],
+                multihash=assignment.estimation_data.initial_weights,
                 target_path=self.init_weights_path
             )
         ]
 
         Downloader.download_all(list_download_params)
 
-        self._run(assignment.estimation_data['batch_size'], 1)
+        self._run(assignment.estimation_data.batch_size, 1)
 
     def main(self):
         logger.info("Start estimation")

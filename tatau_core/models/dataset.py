@@ -12,10 +12,10 @@ logger = getLogger()
 
 
 class Dataset(models.Model):
-    name = fields.CharField()
-    train_dir_ipfs = fields.EncryptedCharField()
-    x_test_ipfs = fields.EncryptedCharField()
-    y_test_ipfs = fields.EncryptedCharField()
+    name = fields.CharField(immutable=True)
+    train_dir_ipfs = fields.EncryptedCharField(immutable=True)
+    x_test_ipfs = fields.EncryptedCharField(immutable=True)
+    y_test_ipfs = fields.EncryptedCharField(immutable=True)
 
     @classmethod
     def upload_and_create(cls, x_train_path, y_train_path, x_test_path, y_test_path, minibatch_size, **kwargs):

@@ -1,4 +1,5 @@
 from logging import getLogger
+from typing import List
 
 from tatau_core import settings, web3
 from tatau_core.contract import poa_wrapper
@@ -13,22 +14,25 @@ from tatau_core.utils import cached_property
 
 logger = getLogger()
 
+ListEstimationAssignments = List[EstimationAssignment]
+
 
 class TaskDeclaration(models.Model):
     class State:
         ESTIMATE_IS_REQUIRED = 'estimate is required'
-        ESTIMATE_IN_PROGRESS = 'estimate in progress'
+        ESTIMATE_IS_IN_PROGRESS = 'estimate is in progress'
         ESTIMATED = 'estimated'
         DEPLOYMENT = 'deployment'
         EPOCH_IN_PROGRESS = 'training'
         VERIFY_IN_PROGRESS = 'verifying'
         COMPLETED = 'completed'
         FAILED = 'failed'
+        CANCELED = 'canceled'
 
     producer_id = fields.CharField(immutable=True)
-    # TODO: make copy of dataset and train model data instead reference on assets
     dataset_id = fields.CharField(immutable=True)
     train_model_id = fields.CharField(immutable=True)
+
     weights = fields.EncryptedCharField(required=False)
     loss = fields.FloatField(required=False)
     accuracy = fields.FloatField(required=False)
@@ -165,7 +169,7 @@ class TaskDeclaration(models.Model):
                 ret.append(task_assignment)
         return ret
 
-    def get_estimation_assignments(self, states=None):
+    def get_estimation_assignments(self, states=None) -> ListEstimationAssignments:
         estimation_assignments = EstimationAssignment.enumerate(
             additional_match={
                 'assets.data.task_declaration_id': self.asset_id
@@ -303,5 +307,6 @@ class TaskDeclaration(models.Model):
         return self.is_last_epoch() and self.verification_is_ready()
 
     def is_in_finished_state(self):
-        return self.state in (TaskDeclaration.State.FAILED, TaskDeclaration.State.COMPLETED)
+        finish_states = (TaskDeclaration.State.FAILED, TaskDeclaration.State.COMPLETED, TaskDeclaration.State.CANCELED)
+        return self.state in finish_states
 

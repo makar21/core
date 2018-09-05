@@ -3,8 +3,9 @@ import time
 from logging import getLogger
 
 from tatau_core import settings
-from tatau_core.nn.tatau.sessions.estimation import EstimationSession
 from tatau_core.models import TaskDeclaration, EstimationAssignment
+from tatau_core.models.estimation import EstimationResult
+from tatau_core.nn.tatau.sessions.estimation import EstimationSession
 from tatau_core.node import Node
 
 logger = getLogger()
@@ -14,24 +15,7 @@ class Estimator(Node):
     # estimator is not stand alone role
     asset_class = Node
 
-    def _get_tx_methods(self):
-        return {
-            TaskDeclaration.get_asset_name(): self._process_task_declaration_transaction,
-            EstimationAssignment.get_asset_name(): self._process_estimation_assignment_transaction,
-        }
-
-    def _process_task_declaration_transaction(self, asset_id, transaction):
-        if transaction['operation'] == 'TRANSFER':
-            return
-
-        task_declaration = TaskDeclaration.get(asset_id, db=self.db, encryption=self.encryption)
-        logger.info('Received {}, estimators_needed: {}'.format(task_declaration, task_declaration.estimators_needed))
-        if task_declaration.estimators_needed == 0:
-            return
-
-        self._process_task_declaration(task_declaration)
-
-    def _process_task_declaration(self, task_declaration):
+    def _process_task_declaration(self, task_declaration: TaskDeclaration):
         if task_declaration.state == TaskDeclaration.State.ESTIMATE_IS_REQUIRED \
                 and task_declaration.estimators_needed > 0:
             logger.info('Process {}'.format(task_declaration))
@@ -59,47 +43,38 @@ class Estimator(Node):
 
             logger.info('Added {}'.format(estimation_assignment))
 
-    def _process_estimation_assignment_transaction(self, asset_id, transaction):
-        if transaction['operation'] == 'CREATE':
-            return
-
-        estimation_assignment = EstimationAssignment.get(asset_id, db=self.db, encryption=self.encryption)
-
-        # skip another assignment
-        if estimation_assignment.estimator_id != self.asset_id:
-            return
-
-        self._process_estimation_assignment(estimation_assignment)
-
-    def _process_estimation_assignment(self, estimation_assignment):
+    def _process_estimation_assignment(self, estimation_assignment: EstimationAssignment):
         if estimation_assignment.task_declaration.is_in_finished_state():
             return
 
         logger.debug('{} process {} state:{}'.format(self, estimation_assignment, estimation_assignment.state))
 
-        if estimation_assignment.state == EstimationAssignment.State.IN_PROGRESS:
-            if estimation_assignment.task_declaration.state == TaskDeclaration.State.ESTIMATE_IN_PROGRESS:
-                estimation_assignment.state = EstimationAssignment.State.DATA_IS_READY
+        if estimation_assignment.state == EstimationAssignment.State.DATA_IS_READY:
+            done = EstimationResult.exists(
+                additional_match={
+                    'assets.data.estimation_assignment_id': estimation_assignment.asset_id
+                },
+                created_by_user=True,
+                db=self.db
+            )
 
-        if estimation_assignment.state == EstimationAssignment.State.RETRY:
-            estimation_assignment.state = EstimationAssignment.State.INITIAL
-            estimation_assignment.save(recipients=estimation_assignment.producer.address)
+            if not done:
+                self._estimate(estimation_assignment)
+
             return
 
-        if estimation_assignment.state == EstimationAssignment.State.DATA_IS_READY:
-            estimation_assignment.state = EstimationAssignment.State.IN_PROGRESS
-            estimation_assignment.save()
+        if estimation_assignment.state == EstimationAssignment.State.REASSIGN:
+            estimation_assignment.state = EstimationAssignment.State.INITIAL
+            estimation_assignment.save(recipients=estimation_assignment.task_declaration.producer.address)
+            return
 
-            self._estimate(estimation_assignment.asset_id)
-
-    # noinspection PyMethodMayBeStatic
-    def _estimate(self, asset_id):
+    def _estimate(self, estimation_assignment: EstimationAssignment):
         logger.info('Start estimate process')
-        estimation_assignment = EstimationAssignment.get(asset_id, db=self.db, encryption=self.encryption)
 
         session = EstimationSession()
 
         try:
+            error_text = None
             try:
                 session.process_assignment(assignment=estimation_assignment)
             except Exception as e:
@@ -108,16 +83,20 @@ class Estimator(Node):
                 if msg:
                     error_dict['message'] = msg
 
-                estimation_assignment.error = json.dumps(error_dict)
+                error_text = json.dumps(error_dict)
                 logger.exception(e)
 
-            estimation_assignment.tflops = session.get_tflops()
-            estimation_assignment.state = EstimationAssignment.State.FINISHED
-            estimation_assignment.set_encryption_key(estimation_assignment.producer.enc_key)
-            estimation_assignment.save(recipients=estimation_assignment.producer.address)
+            estimation_result = EstimationResult.create(
+                estimation_assignment_id=estimation_assignment.asset_id,
+                tflops=session.get_tflops(),
+                error=error_text,
+                public_key=estimation_assignment.producer.enc_key,
+                db=self.db,
+                encryption=self.encryption
+            )
 
             logger.info('Finished estimation {}, tflops: {}, error: {}'.format(
-                estimation_assignment, estimation_assignment.tflops, estimation_assignment.error))
+                estimation_assignment, estimation_result.tflops, estimation_result.error))
         finally:
             session.clean()
 

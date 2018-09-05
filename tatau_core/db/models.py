@@ -1,7 +1,7 @@
 import json
 
 from tatau_core import settings
-from tatau_core.db import exceptions, NodeDBInfo
+from tatau_core.db import exceptions
 from tatau_core.db.fields import Field, JsonField, EncryptedJsonField
 
 
@@ -24,16 +24,16 @@ class ModelBase(type):
 
 
 class Model(metaclass=ModelBase):
-    def __init__(self, db=None, encryption=None, asset_id=None, _address=None, _decrypt_values=False,
-                 created_at=None, modified_at=None, **kwargs):
+    def __init__(self, db, encryption, asset_id=None, _address=None, _decrypt_values=False,
+                 created_at=None, modified_at=None, public_key=None, **kwargs):
         # param "_decrypt_values" was added for using in methods get, history, because when data loads from db,
         # then data should be decrypted, but when new instance is creating, then data which passed to constructor
         # is not encrypted
-        self.db = db or NodeDBInfo.get_db()
-        self.encryption = encryption or NodeDBInfo.get_encryption()
+        self.db = db
+        self.encryption = encryption
         self.asset_id = asset_id
         self._address = _address
-        self._public_key = None
+        self._public_key = public_key
         self._created_at = created_at
         self._modified_at = modified_at
 
@@ -123,10 +123,7 @@ class Model(metaclass=ModelBase):
         return metadata or None
 
     @classmethod
-    def get(cls, asset_id, db=None, encryption=None):
-        db = db or NodeDBInfo.get_db()
-        encryption = encryption or NodeDBInfo.get_encryption()
-
+    def get(cls, asset_id, db, encryption):
         asset = db.retrieve_asset(asset_id)
         address = asset.last_tx['outputs'][0]['public_keys'][0]
 
@@ -162,10 +159,7 @@ class Model(metaclass=ModelBase):
             )
 
     @classmethod
-    def enumerate(cls, db=None, encryption=None, additional_match=None, created_by_user=True, limit=None, skip=None):
-        db = db or NodeDBInfo.get_db()
-        encryption = encryption or NodeDBInfo.get_encryption()
-
+    def enumerate(cls, db, encryption, additional_match=None, created_by_user=True, limit=None, skip=None):
         db.connect_to_mongodb()
         match = {
             'assets.data.asset_name': cls.get_asset_name(),
@@ -179,17 +173,15 @@ class Model(metaclass=ModelBase):
         )
 
     @classmethod
-    def list(cls, db=None, encryption=None, additional_match=None, created_by_user=True, limit=None, skip=None):
+    def list(cls, db, encryption, additional_match=None, created_by_user=True, limit=None, skip=None):
         return list(cls.enumerate(db, encryption, additional_match, created_by_user, limit, skip))
 
     @classmethod
-    def exists(cls, db=None, additional_match=None, created_by_user=True):
+    def exists(cls, db, additional_match=None, created_by_user=True):
         return cls.count(db, additional_match, created_by_user) > 0
 
     @classmethod
-    def count(cls, db=None, additional_match=None, created_by_user=True):
-        db = db or NodeDBInfo.get_db()
-
+    def count(cls, db, additional_match=None, created_by_user=True):
         db.connect_to_mongodb()
         match = {
             'assets.data.asset_name': cls.get_asset_name(),
@@ -201,10 +193,7 @@ class Model(metaclass=ModelBase):
         return db.retrieve_asset_count(match=match, created_by_user=created_by_user)
 
     @classmethod
-    def get_history(cls, asset_id, db=None, encryption=None):
-        db = db or NodeDBInfo.get_db()
-        encryption = encryption or NodeDBInfo.get_encryption()
-
+    def get_history(cls, asset_id, db, encryption):
         data = None
         created_at = None
         for transaction in db.retrieve_asset_transactions(asset_id):

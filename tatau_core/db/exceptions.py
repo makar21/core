@@ -8,7 +8,3 @@ class Asset:
 
     class NotFound(Exception):
         pass
-
-
-class NodeNotConfigured(Exception):
-    pass
