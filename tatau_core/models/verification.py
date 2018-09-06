@@ -1,7 +1,5 @@
 from logging import getLogger
 
-from bigchaindb_driver.exceptions import MissingPrivateKeyError
-
 from tatau_core.db import models, fields
 from tatau_core.models.nodes import ProducerNode, VerifierNode
 from tatau_core.utils import cached_property
@@ -9,32 +7,32 @@ from tatau_core.utils import cached_property
 logger = getLogger()
 
 
-class VerificationAssignment(models.Model):
+class VerificationData(models.Model):
+    # owner only producer, share data with verifier
+    x_test = fields.EncryptedCharField(immutable=True)
+    y_test = fields.EncryptedCharField(immutable=True)
+    model_code = fields.EncryptedCharField(immutable=True)
+
+    verification_assignment_id = fields.CharField()
+    train_results = fields.EncryptedJsonField()
+    # verification data will be always created for 1st iteration
+    current_iteration = fields.IntegerField(initial=1)
+
+
+class VerificationResult(models.Model):
+    # owner only verifier, share data with producer
     class State:
         INITIAL = 'initial'
-        REJECTED = 'rejected'
-        ACCEPTED = 'accepted'
-        PARTIAL_DATA_IS_READY = 'partial data is ready'
-        PARTIAL_DATA_IS_DOWNLOADED = 'partial data is downloaded'
-        DATA_IS_READY = 'data is ready'
         IN_PROGRESS = 'in progress'
         VERIFICATION_FINISHED = 'verification is finished'
         FINISHED = 'finished'
 
-    producer_id = fields.CharField(immutable=True)
-    verifier_id = fields.CharField(immutable=True)
-    task_declaration_id = fields.CharField(immutable=True)
+    verification_assignment_id = fields.CharField(immutable=True)
 
     state = fields.CharField(initial=State.INITIAL)
-    x_test_ipfs = fields.EncryptedCharField(required=False)
-    y_test_ipfs = fields.EncryptedCharField(required=False)
-    model_code_ipfs = fields.EncryptedCharField(required=False)
-
-    train_results = fields.EncryptedJsonField(required=False)
-    current_iteration = fields.IntegerField(initial=0)
-
     progress = fields.FloatField(initial=0.0)
     tflops = fields.FloatField(initial=0.0)
+    current_iteration = fields.IntegerField(initial=0)
     result = fields.EncryptedJsonField(required=False)
 
     weights = fields.EncryptedCharField(required=False)
@@ -42,7 +40,6 @@ class VerificationAssignment(models.Model):
     accuracy = fields.FloatField(required=False)
 
     error = fields.EncryptedCharField(required=False)
-    distribute_history_id = fields.CharField(null=True, initial=None)
 
     def clean(self):
         self.progress = 0.0
@@ -53,63 +50,14 @@ class VerificationAssignment(models.Model):
         self.accuracy = 0.0
 
     @cached_property
-    def producer(self):
-        return ProducerNode.get(self.producer_id, db=self.db, encryption=self.encryption)
-
-    @cached_property
-    def verifier(self):
-        return VerifierNode.get(self.verifier_id, db=self.db, encryption=self.encryption)
-
-    @cached_property
-    def task_declaration(self):
-        from tatau_core.models import TaskDeclaration
-        return TaskDeclaration.get(self.task_declaration_id, db=self.db, encryption=self.encryption)
-
-    @cached_property
-    def distribute_history(self):
-        if self.distribute_history_id:
-            return DistributeHistory.get(self.distribute_history_id, db=self.db, encryption=self.encryption)
-
-        # try to load exist if it present
-        distribute_histories = DistributeHistory.list(
-            additional_match={
-                'assets.data.task_declaration_id': self.task_declaration_id
-            },
-            created_by_user=True,
-            db=self.db,
-            encryption=self.encryption
-        )
-
-        distribute_history = None
-        if len(distribute_histories):
-            for dh in distribute_histories:
-                if dh.verification_assignment_id == self.asset_id:
-                    distribute_history = dh
-                    break
-
-        if not distribute_history:
-            distribute_history = DistributeHistory(
-                task_declaration_id=self.task_declaration_id,
-                verification_assignment_id=self.asset_id,
-                distribute_transactions={},
-                db=self.db,
-                encryption=self.encryption
-            )
-            distribute_history.save()
-
-        try:
-            self.distribute_history_id = distribute_history.asset_id
-            self.save()
-        except MissingPrivateKeyError:
-            pass
-
-        return distribute_history
+    def verification_assignment(self):
+        return VerificationAssignment.get(self.verification_assignment_id, db=self.db, encryption=self.encryption)
 
 
 class DistributeHistory(models.Model):
     task_declaration_id = fields.CharField(immutable=True)
     verification_assignment_id = fields.CharField(immutable=True)
-    distribute_transactions = fields.EncryptedJsonField()
+    distribute_transactions = fields.JsonField(initial={})
 
     @cached_property
     def task_declaration(self):
@@ -120,3 +68,60 @@ class DistributeHistory(models.Model):
     def verification_assignment(self):
         return VerificationAssignment.get(self.verification_assignment_id, db=self.db, encryption=self.encryption)
 
+
+class VerificationAssignment(models.Model):
+    class State:
+        INITIAL = 'initial'
+        READY = 'ready'
+        REJECTED = 'rejected'
+        RETRY = 'retry'
+        ACCEPTED = 'accepted'
+        DATA_IS_READY = 'data is ready'
+        VERIFYING = 'verifying'
+        FINISHED = 'finished'
+
+    producer_id = fields.CharField(immutable=True)
+    verifier_id = fields.CharField(immutable=True)
+    task_declaration_id = fields.CharField(immutable=True)
+
+    state = fields.CharField(initial=State.INITIAL)
+
+    verification_data_id = fields.CharField(null=True, initial=None)
+    verification_result_id = fields.CharField(null=True, initial=None)
+    distribute_history_id = fields.CharField(null=True, initial=None)
+
+    @cached_property
+    def producer(self) -> ProducerNode:
+        return ProducerNode.get(self.producer_id, db=self.db, encryption=self.encryption)
+
+    @cached_property
+    def verifier(self) -> VerifierNode:
+        return VerifierNode.get(self.verifier_id, db=self.db, encryption=self.encryption)
+
+    @cached_property
+    def task_declaration(self):
+        from tatau_core.models import TaskDeclaration
+        return TaskDeclaration.get(self.task_declaration_id, db=self.db, encryption=self.encryption)
+    
+    @cached_property
+    def verification_data(self) -> VerificationData:
+        vd = VerificationData.get(self.verification_data_id, db=self.db, encryption=self.encryption)
+        # creator and owner must be producer, so share data to verifier
+        vd.set_encryption_key(self.verifier.enc_key)
+        return vd
+
+    @cached_property
+    def verification_result(self) -> VerificationResult:
+        vr = VerificationResult.get(self.verification_result_id, db=self.db, encryption=self.encryption)
+        # creator and owner must be verifier, so share data to producer
+        vr.set_encryption_key(self.producer.enc_key)
+        return vr
+
+    @cached_property
+    def distribute_history(self) -> DistributeHistory:
+        return DistributeHistory.get(self.distribute_history_id, db=self.db, encryption=self.encryption)
+
+    @property
+    def iteration_is_finished(self):
+        return self.verification_data.current_iteration == self.verification_result.current_iteration \
+               and self.verification_result.state == VerificationResult.State.FINISHED

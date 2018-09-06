@@ -30,37 +30,29 @@ class Worker(Node):
             )
 
             if exists:
-                logger.info('{} has already created task assignment for {}'.format(self, task_declaration))
+                logger.debug('{} has already created task assignment for {}'.format(self, task_declaration))
                 return
 
             task_assignment = TaskAssignment.create(
                 worker_id=self.asset_id,
                 producer_id=task_declaration.producer_id,
                 task_declaration_id=task_declaration.asset_id,
-                recipients=task_declaration.producer.address,
                 db=self.db,
                 encryption=self.encryption
             )
 
+            train_result = TrainResult.create(
+                task_assignment_id=task_assignment.asset_id,
+                public_key=task_assignment.producer.enc_key,
+                db=self.db,
+                encryption=self.encryption
+            )
+
+            task_assignment.train_result_id = train_result.asset_id
+            task_assignment.state = TaskAssignment.State.READY
+            task_assignment.save(recipients=task_declaration.producer.address)
+
             logger.info('Added {}'.format(task_assignment))
-
-    def _get_train_result(self, task_assignment: TaskAssignment) -> TrainResult:
-        for tr in TrainResult.enumerate(
-            additional_match={
-                'assets.data.task_assignment_id': task_assignment.asset_id
-            },
-            created_by_user=True,
-            db=self.db,
-            encryption=self.encryption
-        ):
-            return tr
-
-        return TrainResult.create(
-            task_assignment_id=task_assignment.asset_id,
-            public_key=task_assignment.producer.enc_key,
-            db=self.db,
-            encryption=self.encryption
-        )
 
     def _process_task_assignment(self, task_assignment):
         if task_assignment.task_declaration.is_in_finished_state():
@@ -70,38 +62,43 @@ class Worker(Node):
 
         if task_assignment.state == TaskAssignment.State.RETRY:
             task_assignment.state = TaskAssignment.State.INITIAL
+            # give ownership to producer
             task_assignment.save(recipients=task_assignment.producer.address)
             return
 
-        if task_assignment.state == TaskAssignment.State.DATA_IS_READY:
-            train_result = self._get_train_result(task_assignment)
-            if not train_result.finished:
-                self._train(task_assignment, train_result)
+        if task_assignment.state == TaskAssignment.State.TRAINING:
+            if not task_assignment.iteration_is_finished:
+                self._train(task_assignment)
 
-    def _train(self, task_assignment: TaskAssignment, train_result: TrainResult):
-        logger.info('{} is starting train: {}'.format(self, task_assignment))
+    def _train(self, task_assignment: TaskAssignment):
+        logger.info('Start of training for {}'.format(self, task_assignment.task_declaration))
+
         session = TrainSession()
-
         try:
-            train_result.clean()
+            task_assignment.train_result.clean()
+            task_assignment.train_result.state = TrainResult.State.IN_PROGRESS
+            task_assignment.train_result.current_iteration = task_assignment.train_data.current_iteration
+            task_assignment.train_result.save()
 
             try:
-                session.process_assignment(assignment=task_assignment, train_result=train_result)
+                session.process_assignment(assignment=task_assignment)
             except Exception as e:
                 error_dict = {'exception': type(e).__name__}
                 msg = str(e)
                 if msg:
                     error_dict['message'] = msg
 
-                train_result.error = json.dumps(error_dict)
+                task_assignment.train_result.error = json.dumps(error_dict)
                 logger.exception(e)
 
-            train_result.tflops = session.get_tflops()
-            train_result.progress = 100
-            train_result.save()
+            task_assignment.train_result.tflops = session.get_tflops()
+            task_assignment.train_result.progress = 100.0
+            task_assignment.train_result.state = TrainResult.State.FINISHED
+            task_assignment.train_result.save()
 
-            logger.info('Finished {}, tflops: {}, result: {}, error: {}'.format(
-                task_assignment, train_result.tflops, train_result.weights, train_result.error
+            logger.info('End of training for {}, tflops: {}, result: {}, error: {}'.format(
+                task_assignment.task_declaration, task_assignment.train_result.tflops,
+                task_assignment.train_result.weights, task_assignment.train_result.error
             ))
         finally:
             session.clean()

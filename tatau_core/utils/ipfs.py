@@ -144,5 +144,5 @@ class Downloader:
 
     @classmethod
     def download_all(cls, list_download_params, pool_size=settings.DOWNLOAD_POOL_SIZE):
-        p = Pool(pool_size)
-        return p.map(cls._download, list_download_params)
+        with Pool(pool_size) as p:
+            return p.map(cls._download, list_download_params)

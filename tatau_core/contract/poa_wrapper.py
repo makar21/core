@@ -149,11 +149,14 @@ def distribute(verification_assignment):
     from tatau_core.models import TaskAssignment, WorkerPayment
 
     task_declaration = verification_assignment.task_declaration
-    verification_result = verification_assignment.result
+    if not verification_assignment.verification_result_id:
+        return
+
+    verification_results = verification_assignment.verification_result.result
 
     logger.info('Distribute job {}'.format(task_declaration))
 
-    distribute_history = verification_assignment.distribute_history
+    distribute_history = verification_assignment.verification_result.distribute_history
     try:
         tx_hash_str = distribute_history.distribute_transactions[str(task_declaration.current_iteration)]
         logger.info('Transaction for {} for iteration {} is {}'.format(
@@ -182,10 +185,10 @@ def distribute(verification_assignment):
     count_workers = 0
 
     # task was canceled before verification was start or verification is failed
-    if not verification_result:
-        verification_result = [{'worker_id': ta.worker_id, 'is_fake': False} for ta in task_assignments]
+    if not verification_results:
+        verification_results = [{'worker_id': ta.worker_id, 'is_fake': False} for ta in task_assignments]
 
-    for vr in verification_result:
+    for vr in verification_results:
         if not vr['is_fake']:
             count_workers += 1
 
@@ -194,7 +197,7 @@ def distribute(verification_assignment):
         return
 
     for task_assignment in task_assignments:
-        for vr in verification_result:
+        for vr in verification_results:
             if vr['worker_id'] == task_assignment.worker_id and not vr['is_fake']:
                 workers.append(web3.toChecksumAddress(task_assignment.worker.account_address))
                 pay_amount = float(iteration_cost / count_workers)

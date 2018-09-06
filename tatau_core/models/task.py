@@ -91,7 +91,7 @@ class TaskDeclaration(models.Model):
         if self.state == TaskDeclaration.State.VERIFY_IN_PROGRESS:
             spent_tflops = 0.0
             for task_assignments in self.get_task_assignments(states=(TaskAssignment.State.FINISHED,)):
-                spent_tflops += task_assignments.tflops
+                spent_tflops += task_assignments.train_result.tflops
             for verification_assignments in self.get_verification_assignments(
                     states=(VerificationAssignment.State.VERIFICATION_FINISHED,)):
                 spent_tflops += verification_assignments.tflops
@@ -102,8 +102,8 @@ class TaskDeclaration(models.Model):
                 # total cost for all epochs:
                 iteration_cost = self.estimated_tflops * settings.TFLOPS_COST
             elif self.current_iteration == 1:
-                # estimated cost for train_iteration
-                iteration_cost = self.epoch_cost() * self.epochs_in_current_iteration()
+                # estimated cost for current_iteration
+                iteration_cost = self.epoch_cost* self.epochs_in_current_iteration
             else:
                 # average cost of epochs based on spend tflops and proceeded epochs
                 proceeded_epochs = (self.current_iteration - 1) * self.epochs_in_iteration
@@ -117,13 +117,15 @@ class TaskDeclaration(models.Model):
             # total cost for all epochs:
             iteration_cost = total_cost
         else:
-            iteration_cost = self.epoch_cost() * self.epochs_in_current_iteration()
+            iteration_cost = self.epoch_cost * self.epochs_in_current_iteration
 
         return web3.toWei(str(iteration_cost), 'ether')
 
+    @property
     def epoch_cost(self):
         return self.estimated_tflops / self.epochs * settings.TFLOPS_COST
 
+    @property
     def epochs_in_current_iteration(self):
         return min(self.epochs_in_iteration, abs(self.epochs - self.epochs_in_iteration * (self.current_iteration - 1)))
 
@@ -213,24 +215,5 @@ class TaskDeclaration(models.Model):
     @property
     def verification_assignments(self):
         return self.get_verification_assignments()
-
-    def verification_is_ready(self):
-        verification_assignments = self.get_verification_assignments(
-            states=(
-                VerificationAssignment.State.DATA_IS_READY,
-                VerificationAssignment.State.IN_PROGRESS,
-                VerificationAssignment.State.VERIFICATION_FINISHED,
-                VerificationAssignment.State.FINISHED
-            )
-        )
-
-        for va in verification_assignments:
-            if va.state != VerificationAssignment.State.FINISHED:
-                return False
-        return True
-
-    def all_done(self):
-        return self.is_last_epoch() and self.verification_is_ready()
-
 
 

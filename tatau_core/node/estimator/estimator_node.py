@@ -11,6 +11,7 @@ from tatau_core.node import Node
 logger = getLogger()
 
 
+# noinspection PyMethodMayBeStatic
 class Estimator(Node):
     # estimator is not stand alone role
     asset_class = Node
@@ -18,6 +19,7 @@ class Estimator(Node):
     def _process_task_declaration(self, task_declaration: TaskDeclaration):
         if task_declaration.state == TaskDeclaration.State.ESTIMATE_IS_REQUIRED \
                 and task_declaration.estimators_needed > 0:
+
             logger.info('Process {}'.format(task_declaration))
             exists = EstimationAssignment.exists(
                 additional_match={
@@ -29,17 +31,29 @@ class Estimator(Node):
             )
 
             if exists:
-                logger.info('{} has already created estimation assignment for {}'.format(self, task_declaration))
+                logger.debug('{} has already created estimation assignment for {}'.format(self, task_declaration))
                 return
 
             estimation_assignment = EstimationAssignment.create(
                 estimator_id=self.asset_id,
                 producer_id=task_declaration.producer_id,
                 task_declaration_id=task_declaration.asset_id,
-                recipients=task_declaration.producer.address,
                 db=self.db,
                 encryption=self.encryption
             )
+
+            estimation_result = EstimationResult.create(
+                estimation_assignment_id=estimation_assignment.asset_id,
+                # share data with producer
+                public_key=estimation_assignment.producer.enc_key,
+                db=self.db,
+                encryption=self.encryption
+            )
+
+            estimation_assignment.estimation_result_id = estimation_result.asset_id
+            estimation_assignment.state = EstimationAssignment.State.READY
+            # give ownership to producer
+            estimation_assignment.save(recipients=task_declaration.producer.address)
 
             logger.info('Added {}'.format(estimation_assignment))
 
@@ -49,18 +63,9 @@ class Estimator(Node):
 
         logger.debug('{} process {} state:{}'.format(self, estimation_assignment, estimation_assignment.state))
 
-        if estimation_assignment.state == EstimationAssignment.State.DATA_IS_READY:
-            done = EstimationResult.exists(
-                additional_match={
-                    'assets.data.estimation_assignment_id': estimation_assignment.asset_id
-                },
-                created_by_user=True,
-                db=self.db
-            )
-
-            if not done:
+        if estimation_assignment.state == EstimationAssignment.State.ESTIMATING:
+            if estimation_assignment.estimation_result.state != EstimationResult.State.FINISHED:
                 self._estimate(estimation_assignment)
-
             return
 
         if estimation_assignment.state == EstimationAssignment.State.REASSIGN:
@@ -69,12 +74,11 @@ class Estimator(Node):
             return
 
     def _estimate(self, estimation_assignment: EstimationAssignment):
-        logger.info('Start estimate process')
+        logger.info('Start of estimation for {}'.format(estimation_assignment.task_declaration))
 
         session = EstimationSession()
 
         try:
-            error_text = None
             try:
                 session.process_assignment(assignment=estimation_assignment)
             except Exception as e:
@@ -83,20 +87,19 @@ class Estimator(Node):
                 if msg:
                     error_dict['message'] = msg
 
-                error_text = json.dumps(error_dict)
+                estimation_assignment.estimation_result.error = json.dumps(error_dict)
                 logger.exception(e)
 
-            estimation_result = EstimationResult.create(
-                estimation_assignment_id=estimation_assignment.asset_id,
-                tflops=session.get_tflops(),
-                error=error_text,
-                public_key=estimation_assignment.producer.enc_key,
-                db=self.db,
-                encryption=self.encryption
-            )
+            estimation_assignment.estimation_result.tflops = session.get_tflops()
+            estimation_assignment.estimation_result.progress = 100.0
+            estimation_assignment.estimation_result.state = EstimationResult.State.FINISHED
+            estimation_assignment.estimation_result.save()
 
-            logger.info('Finished estimation {}, tflops: {}, error: {}'.format(
-                estimation_assignment, estimation_result.tflops, estimation_result.error))
+            logger.info('End of estimation for {}, tflops: {}, error: {}'.format(
+                estimation_assignment.task_declaration,
+                estimation_assignment.estimation_result.tflops,
+                estimation_assignment.estimation_result.error))
+
         finally:
             session.clean()
 

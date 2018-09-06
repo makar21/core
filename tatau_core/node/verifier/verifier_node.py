@@ -1,35 +1,22 @@
 import json
 import time
 from logging import getLogger
+
 from tatau_core import settings
 from tatau_core.contract import poa_wrapper
+from tatau_core.models import VerifierNode, TaskDeclaration, VerificationAssignment
+from tatau_core.models.verification import VerificationResult, DistributeHistory
 from tatau_core.nn.tatau.sessions.summarize import SummarizeSession
-from tatau_core.models import VerifierNode, TaskDeclaration, VerificationAssignment, DistributeHistory
 from tatau_core.node.node import Node
-
+from verifier.session import VerifySession
 
 logger = getLogger()
 
 
+# noinspection PyMethodMayBeStatic
 class Verifier(Node):
 
     asset_class = VerifierNode
-
-    def _get_tx_methods(self):
-        return {
-            TaskDeclaration.get_asset_name(): self._process_task_declaration_transaction,
-            VerificationAssignment.get_asset_name(): self._process_verification_assignment_transaction,
-        }
-
-    def _process_task_declaration_transaction(self, asset_id, transaction):
-        if transaction['operation'] == 'TRANSFER':
-            return
-
-        task_declaration = TaskDeclaration.get(asset_id, db=self.db, encryption=self.encryption)
-        if task_declaration.verifiers_needed == 0:
-            return
-
-        self._process_task_declaration(task_declaration)
 
     def _process_task_declaration(self, task_declaration):
         if task_declaration.is_in_finished_state():
@@ -44,7 +31,7 @@ class Verifier(Node):
                     'assets.data.verifier_id': self.asset_id,
                     'assets.data.task_declaration_id': task_declaration.asset_id,
                 },
-                created_by_user=False,
+                created_by_user=True,
                 db=self.db
             )
 
@@ -56,28 +43,54 @@ class Verifier(Node):
                 producer_id=task_declaration.producer_id,
                 verifier_id=self.asset_id,
                 task_declaration_id=task_declaration.asset_id,
-                recipients=task_declaration.producer.address,
                 db=self.db,
                 encryption=self.encryption
             )
-            logger.info('{} added {}'.format(self, verification_assignment))
 
-    def _process_verification_assignment_transaction(self, asset_id, transaction):
-        if transaction['operation'] == 'CREATE':
+            distribute_history = DistributeHistory.create(
+                task_declaration_id=task_declaration.asset_id,
+                verification_assignment_id=verification_assignment.asset_id,
+                db=self.db,
+                encryption=self.encryption
+            )
+
+            verification_result = VerificationResult.create(
+                verification_assignment_id=verification_assignment.asset_id,
+                public_key=verification_assignment.producer.enc_key,
+                db=self.db,
+                encryption=self.encryption
+            )
+
+            verification_assignment.verification_result_id = verification_result.asset_id
+            verification_assignment.distribute_history_id = distribute_history.asset_id
+            verification_assignment.state = VerificationAssignment.State.READY
+            verification_assignment.save(recipients=task_declaration.producer.address)
+
+            logger.info('Added {}'.format(verification_assignment))
+
+    def _process_verification_assignment(self, verification_assignment):
+        if verification_assignment.task_declaration.is_in_finished_state():
             return
 
-        # skip another assignment
-        verification_assignment = VerificationAssignment.get(asset_id, db=self.db, encryption=self.encryption)
-        if verification_assignment.verifier_id != self.asset_id:
-            return
+        if verification_assignment.state == VerificationAssignment.State.VERIFYING:
+            if verification_assignment.verification_result.state == VerificationResult.State.VERIFICATION_FINISHED:
+                self._distribute(verification_assignment)
+                return
 
-        self._process_verification_assignment(verification_assignment)
+            if not verification_assignment.iteration_is_finished:
+                self._verify(verification_assignment)
+                return
 
     def _distribute(self, verification_assignment):
-        poa_wrapper.distribute(verification_assignment)
-        verification_assignment.state = VerificationAssignment.State.FINISHED
-        verification_assignment.set_encryption_key(verification_assignment.producer.enc_key)
-        verification_assignment.save(recipients=verification_assignment.producer.address)
+        if not verification_assignment.task_declaration.job_has_enough_balance():
+            return
+
+        # poa_wrapper.distribute(verification_assignment)
+        # if verification_assignment.task_declaration.is_last_epoch():
+        #     poa_wrapper.finish_job(verification_assignment.task_declaration)
+
+        verification_assignment.verification_result.state = VerificationResult.State.FINISHED
+        verification_assignment.verification_result.save()
 
     def _finish_job(self, task_declaration):
         if not poa_wrapper.does_job_exist(task_declaration):
@@ -86,13 +99,14 @@ class Verifier(Node):
         if poa_wrapper.does_job_finished(task_declaration):
             return
 
+        # TODO: support multiple verification
         verification_assignments = VerificationAssignment.list(
-            db=self.db,
-            encryption=self.encryption,
             additional_match={
                 'assets.data.task_declaration_id': task_declaration.asset_id
             },
-            created_by_user=True
+            created_by_user=False,
+            db=self.db,
+            encryption=self.encryption
         )
 
         # task canceled before train
@@ -107,90 +121,88 @@ class Verifier(Node):
         poa_wrapper.distribute(verification_assignment)
         poa_wrapper.finish_job(task_declaration)
 
-    def _process_verification_assignment(self, verification_assignment):
-        if verification_assignment.task_declaration.is_in_finished_state():
+    def _run_verification_session(self, verification_assignment: VerificationAssignment):
+        failed = False
+
+        session = VerifySession()
+        try:
+            session.process_assignment(assignment=verification_assignment)
+        except Exception as e:
+            error_dict = {'step': 'verification', 'exception': type(e).__name__}
+            msg = str(e)
+            if msg:
+                error_dict['message'] = msg
+
+            verification_assignment.verification_result.error = json.dumps(error_dict)
+            verification_assignment.verification_result.state = VerificationResult.State.FINISHED
+            verification_assignment.verification_result.save()
+            logger.exception(e)
+            failed = True
+        finally:
+            session.clean()
+
+        return failed, session.get_tflops()
+
+    def _run_summarize_session(self, verification_assignment: VerificationAssignment):
+        failed = False
+
+        session = SummarizeSession()
+        try:
+            session.process_assignment(assignment=verification_assignment)
+        except Exception as e:
+            error_dict = {'step': 'summarization', 'exception': type(e).__name__}
+            msg = str(e)
+            if msg:
+                error_dict['message'] = msg
+
+            verification_assignment.verification_result.error = json.dumps(error_dict)
+            verification_assignment.verification_result.state = VerificationResult.State.FINISHED
+            verification_assignment.verification_result.save()
+            logger.exception(e)
+            failed = True
+        finally:
+            session.clean()
+
+        return failed, session.get_tflops()
+
+    def _is_fake_worker_present(self, verification_assignment):
+        for result in verification_assignment.verification_result.result:
+            if result['is_fake']:
+                return True
+        return False
+
+    def _verify(self, verification_assignment: VerificationAssignment):
+        verification_assignment.verification_result.clean()
+        verification_assignment.verification_result.current_iteration = \
+            verification_assignment.verification_data.current_iteration
+        verification_assignment.verification_result.state = VerificationResult.State.IN_PROGRESS
+        verification_assignment.verification_result.save()
+
+        logger.info('Start of verification for {}'.format(verification_assignment.task_declaration))
+        if not verification_assignment.task_declaration.job_has_enough_balance():
             return
 
-        if verification_assignment.state == VerificationAssignment.State.PARTIAL_DATA_IS_READY:
-            logger.info('{} start process partial data: {}'.format(self, verification_assignment))
-
-            for worker_result in verification_assignment.train_results:
-                if worker_result['result'] is not None:
-                    self._ipfs_prefetch_async(worker_result['result'])
-
-            verification_assignment.state = VerificationAssignment.State.PARTIAL_DATA_IS_DOWNLOADED
-            verification_assignment.set_encryption_key(verification_assignment.producer.enc_key)
-            verification_assignment.save(recipients=verification_assignment.producer.address)
+        failed, verify_tflops = self._run_verification_session(verification_assignment)
+        if failed:
             return
 
-        if verification_assignment.state == VerificationAssignment.State.VERIFICATION_FINISHED:
-            if verification_assignment.task_declaration.job_has_enough_balance():
-                self._distribute(verification_assignment)
-                if verification_assignment.task_declaration.is_last_epoch():
-                    poa_wrapper.finish_job(verification_assignment.task_declaration)
-            return
-
-        if verification_assignment.state == VerificationAssignment.State.DATA_IS_READY:
-            logger.info('{} start verify {}'.format(self, verification_assignment))
-            if not verification_assignment.task_declaration.job_has_enough_balance():
+        summarize_tflops = 0.0
+        if not self._is_fake_worker_present(verification_assignment):
+            failed, summarize_tflops = self._run_summarize_session(verification_assignment)
+            if failed:
                 return
 
-            from verifier.session import VerifySession
+        verification_assignment.verification_result.progress = 100.0
+        verification_assignment.verification_result.tflops = verify_tflops + summarize_tflops
+        verification_assignment.verification_result.state = VerificationResult.State.VERIFICATION_FINISHED
+        current_iteration = verification_assignment.verification_data.current_iteration
+        verification_assignment.verification_result.current_iteration = current_iteration
+        verification_assignment.verification_result.save()
 
-            session_verify = VerifySession()
-            try:
-                session_verify.process_assignment(assignment=verification_assignment)
-            except Exception as e:
-                error_dict = {'step': 'verification', 'exception': type(e).__name__}
-                msg = str(e)
-                if msg:
-                    error_dict['message'] = msg
+        logger.info('End of verification for {} results: {}'.format(
+            verification_assignment.task_declaration, verification_assignment.verification_result.result))
 
-                verification_assignment.error = json.dumps(error_dict)
-                verification_assignment.state = VerificationAssignment.State.FINISHED
-                verification_assignment.save()
-                logger.exception(e)
-                return
-            finally:
-                session_verify.clean()
-
-            # check is all workers are not fake
-            found_fake_workers = False
-            for result in verification_assignment.result:
-                if result['is_fake']:
-                    found_fake_workers = True
-
-            session_summarize_tflops = 0.0
-            if not found_fake_workers:
-                session_summarize = SummarizeSession()
-                try:
-                    session_summarize.process_assignment(assignment=verification_assignment)
-                    session_summarize_tflops = session_summarize.get_tflops()
-                except Exception as e:
-                    error_dict = {'step': 'summarization', 'exception': type(e).__name__}
-                    msg = str(e)
-                    if msg:
-                        error_dict['message'] = msg
-
-                    verification_assignment.error = json.dumps(error_dict)
-                    verification_assignment.state = VerificationAssignment.State.FINISHED
-                    verification_assignment.save()
-                    logger.exception(e)
-                    return
-                finally:
-                    session_summarize.clean()
-
-            verification_assignment.progress = 100
-            verification_assignment.tflops = session_verify.get_tflops() + session_summarize_tflops
-            verification_assignment.state = VerificationAssignment.State.VERIFICATION_FINISHED
-            verification_assignment.save()
-            self._distribute(verification_assignment)
-
-            logger.info('{} finish verify {} results: {}'.format(
-                self, verification_assignment, verification_assignment.result))
-
-            if verification_assignment.task_declaration.is_last_epoch():
-                poa_wrapper.finish_job(verification_assignment.task_declaration)
+        self._distribute(verification_assignment)
 
     def _process_task_declarations(self):
         task_declarations = TaskDeclaration.enumerate(created_by_user=False, db=self.db, encryption=self.encryption)

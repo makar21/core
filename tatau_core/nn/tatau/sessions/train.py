@@ -42,11 +42,11 @@ class TrainSession(Session):
 
     @property
     def train_history_path(self):
-        return os.path.join(self.base_dir, "train_history.pkl")
+        return os.path.join(self.base_dir, 'train_history.pkl')
 
     @property
     def train_weights_path(self):
-        return os.path.join(self.base_dir, "train_weights.pkl")
+        return os.path.join(self.base_dir, 'train_weights.pkl')
 
     def save_train_history(self, train_history):
         self.save_object(path=self.train_history_path, obj=train_history)
@@ -55,9 +55,9 @@ class TrainSession(Session):
         return self.load_object(self.train_history_path)
 
     def process_assignment(self, assignment: TaskAssignment, *args, **kwargs):
-        logger.info("Train Task: {}".format(assignment))
+        logger.info('Train Task: {}'.format(assignment))
 
-        train_result = kwargs.get('train_result')
+        train_result = assignment.train_result
         assert train_result
 
         ipfs = IPFS()
@@ -116,7 +116,7 @@ class TrainSession(Session):
         train_result.weights = ipfs_file.multihash
 
     def main(self):
-        logger.info("Start training")
+        logger.info('Start training')
         batch_size = int(sys.argv[2])
         nb_epochs = int(sys.argv[3])
 

@@ -7,14 +7,65 @@ from tatau_core.utils import cached_property
 logger = getLogger()
 
 
+class TrainData(models.Model):
+    # owner only producer, share data with worker
+    model_code = fields.EncryptedCharField(immutable=True)
+    x_train = fields.EncryptedJsonField(immutable=True)
+    y_train = fields.EncryptedJsonField(immutable=True)
+    data_index = fields.IntegerField(immutable=True)
+    batch_size = fields.IntegerField(immutable=True)
+
+    task_assignment_id = fields.CharField()
+    initial_weights = fields.EncryptedCharField()
+    epochs = fields.IntegerField()
+    # train data will be always created for 1st iteration
+    current_iteration = fields.IntegerField(initial=1)
+
+
+class TrainResult(models.Model):
+    # owner only worker, share data with producer
+    class State:
+        INITIAL = 'initial'
+        IN_PROGRESS = 'in progress'
+        FINISHED = 'finished'
+
+    task_assignment_id = fields.CharField(immutable=True)
+    state = fields.CharField(initial=State.INITIAL)
+
+    progress = fields.FloatField(initial=0.0)
+    tflops = fields.FloatField(initial=0.0)
+    current_iteration = fields.IntegerField(initial=0)
+
+    weights = fields.EncryptedCharField(required=False)
+    error = fields.EncryptedCharField(required=False)
+
+    loss = fields.FloatField(required=False)
+    accuracy = fields.FloatField(required=False)
+    train_history = fields.JsonField(required=False)
+
+    @cached_property
+    def task_assignment(self):
+        return TaskAssignment.get(self.task_assignment_id, db=self.db, encryption=self.encryption)
+
+    def clean(self):
+        self.progress = 0.0
+        self.tflops = 0.0
+        self.weights = None
+        self.error = None
+        self.loss = 0.0
+        self.accuracy = 0.0
+        self.train_history = None
+
+
 class TaskAssignment(models.Model):
     class State:
         INITIAL = 'initial'
+        READY = 'ready'
         RETRY = 'retry'
         REJECTED = 'rejected'
         ACCEPTED = 'accepted'
         DATA_IS_READY = 'data is ready'
-        IN_PROGRESS = 'in progress'
+        TRAINING = 'training'
         FINISHED = 'finished'
         FAKE_RESULTS = 'fake results'
         TIMEOUT = 'timeout'
@@ -26,15 +77,14 @@ class TaskAssignment(models.Model):
     state = fields.CharField(initial=State.INITIAL)
 
     train_data_id = fields.CharField(null=True, initial=None)
-    train_progress_id = fields.CharField(null=True, initial=None)
     train_result_id = fields.CharField(null=True, initial=None)
 
     @cached_property
-    def producer(self):
+    def producer(self) -> ProducerNode:
         return ProducerNode.get(self.producer_id, db=self.db, encryption=self.encryption)
 
     @cached_property
-    def worker(self):
+    def worker(self) -> WorkerNode:
         return WorkerNode.get(self.worker_id, db=self.db, encryption=self.encryption)
 
     @cached_property
@@ -43,62 +93,20 @@ class TaskAssignment(models.Model):
         return TaskDeclaration.get(self.task_declaration_id, db=self.db, encryption=self.encryption)
 
     @cached_property
-    def train_data(self):
-        return TrainData.get(self.train_data_id, db=self.db, encryption=self.encryption)
+    def train_data(self) -> TrainData:
+        td = TrainData.get(self.train_data_id, db=self.db, encryption=self.encryption)
+        # creator and owner must be producer, share data with worker
+        td.set_encryption_key(self.worker.enc_key)
+        return td
 
     @cached_property
-    def train_result(self):
-        if self.train_result_id:
-            return TrainResult.get(self.train_result_id, db=self.db, encryption=self.encryption)
-
-        for train_result in TrainResult.enumerate(
-                additional_match={
-                    'assets.data.task_assignment_id': self.asset_id
-                },
-                created_by_user=False,
-                db=self.db,
-                encryption=self.encryption
-        ):
-            self.train_result_id = train_result.asset_id
-            self.save()
-            return train_result
-
-
-class TrainData(models.Model):
-    model_code = fields.EncryptedCharField(immutable=True)
-    x_train = fields.EncryptedJsonField(immutable=True)
-    y_train = fields.EncryptedJsonField(immutable=True)
-    data_index = fields.IntegerField(immutable=True)
-    batch_size = fields.IntegerField(immutable=True)
-
-    task_assignment_id = fields.CharField()
-    initial_weights = fields.EncryptedCharField()
-    epochs = fields.IntegerField()
-    train_iteration = fields.IntegerField()
-
-
-class TrainResult(models.Model):
-    task_assignment_id = fields.CharField(immutable=True)
-
-    progress = fields.FloatField(initial=0.0)
-    tflops = fields.FloatField(initial=0.0)
-
-    weights = fields.EncryptedCharField(required=False)
-    error = fields.EncryptedCharField(required=False)
-
-    loss = fields.FloatField(required=False)
-    accuracy = fields.FloatField(required=False)
-    train_history = fields.JsonField(required=False)
-
-    def clean(self):
-        self.progress = 0.0
-        self.tflops = 0.0
-        self.weights = None
-        self.error = None
-        self.loss = 0.0
-        self.accuracy = 0.0
-        self.train_history = None
+    def train_result(self) -> TrainResult:
+        tr = TrainResult.get(self.train_result_id, db=self.db, encryption=self.encryption)
+        # creator and owner must be worker, share data with producer
+        tr.set_encryption_key(self.producer.enc_key)
+        return tr
 
     @property
-    def finished(self):
-        return self.progress == 100.0
+    def iteration_is_finished(self):
+        return self.train_result.current_iteration == self.train_data.current_iteration \
+               and self.train_result.state == TrainResult.State.FINISHED

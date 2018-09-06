@@ -7,13 +7,40 @@ from tatau_core.utils import cached_property
 logger = getLogger()
 
 
+class EstimationData(models.Model):
+    # owner only producer, share data with estimator
+    x_train = fields.EncryptedCharField(immutable=True)
+    y_train = fields.EncryptedCharField(immutable=True)
+    model_code = fields.EncryptedCharField(immutable=True)
+    initial_weights = fields.EncryptedCharField(immutable=True)
+    batch_size = fields.IntegerField(immutable=True)
+
+    estimation_assignment_id = fields.CharField()
+
+
+class EstimationResult(models.Model):
+    # owner only estimator, share data with producer
+    class State:
+        INITIAL = 'initial'
+        IN_PROGRESS = 'in progress'
+        FINISHED = 'finished'
+
+    estimation_assignment_id = fields.CharField(immutable=True)
+
+    state = fields.CharField(initial=State.INITIAL)
+    tflops = fields.FloatField(initial=0.0)
+    progress = fields.FloatField(initial=0.0)
+    error = fields.EncryptedCharField(null=True, initial=None)
+
+
 class EstimationAssignment(models.Model):
     class State:
         INITIAL = 'initial'
+        READY = 'ready'
         REASSIGN = 'reassign'
         REJECTED = 'rejected'
         ACCEPTED = 'accepted'
-        DATA_IS_READY = 'data is ready'
+        ESTIMATING = 'estimating'
         FINISHED = 'finished'
         TIMEOUT = 'timeout'
 
@@ -42,37 +69,16 @@ class EstimationAssignment(models.Model):
         return TaskDeclaration.get(self.task_declaration_id, db=self.db, encryption=self.encryption)
 
     @cached_property
-    def estimation_data(self):
-        return EstimationData.get(self.estimation_data_id, db=self.db, encryption=self.encryption)
+    def estimation_data(self) -> EstimationData:
+        ed = EstimationData.get(self.estimation_data_id, db=self.db, encryption=self.encryption)
+        # creator and owner must be producer, share data with estimator
+        ed.set_encryption_key(self.estimator.enc_key)
+        return ed
 
     @cached_property
-    def estimation_result(self):
-        if self.estimation_result_id:
-            return EstimationResult.get(self.estimation_result_id, db=self.db, encryption=self.encryption)
+    def estimation_result(self) -> EstimationResult:
+        er = EstimationResult.get(self.estimation_result_id, db=self.db, encryption=self.encryption)
+        # creator and owner must be estimator, share data with producer
+        er.set_encryption_key(self.producer.enc_key)
+        return er
 
-        for estimation_result in EstimationResult.enumerate(
-            additional_match={
-                'assets.data.estimation_assignment_id': self.asset_id
-            },
-            created_by_user=False,
-            db=self.db,
-            encryption=self.encryption
-        ):
-            self.estimation_result_id = estimation_result.asset_id
-            self.save()
-            return estimation_result
-
-
-class EstimationData(models.Model):
-    estimation_assignment_id = fields.CharField(immutable=True)
-    x_train = fields.EncryptedCharField(immutable=True)
-    y_train = fields.EncryptedCharField(immutable=True)
-    model_code = fields.EncryptedCharField(immutable=True)
-    initial_weights = fields.EncryptedCharField(immutable=True)
-    batch_size = fields.IntegerField(immutable=True)
-
-
-class EstimationResult(models.Model):
-    estimation_assignment_id = fields.CharField(immutable=True)
-    tflops = fields.FloatField(immutable=True)
-    error = fields.EncryptedCharField(immutable=True, null=True)
