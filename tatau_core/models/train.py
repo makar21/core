@@ -8,14 +8,16 @@ logger = getLogger()
 
 
 class TrainData(models.Model):
-    # owner only producer, share data with worker
-    model_code = fields.EncryptedCharField(immutable=True)
-    x_train = fields.EncryptedJsonField(immutable=True)
-    y_train = fields.EncryptedJsonField(immutable=True)
+    # owner only producer, share data with workers
     data_index = fields.IntegerField(immutable=True)
     batch_size = fields.IntegerField(immutable=True)
 
-    task_assignment_id = fields.CharField()
+    # this data may be encrypted for different workers
+    model_code = fields.EncryptedCharField()
+    x_train = fields.EncryptedJsonField()
+    y_train = fields.EncryptedJsonField()
+
+    task_assignment_id = fields.CharField(null=True, initial=None)
     initial_weights = fields.EncryptedCharField()
     epochs = fields.IntegerField()
     # train data will be always created for 1st iteration
@@ -61,14 +63,14 @@ class TaskAssignment(models.Model):
     class State:
         INITIAL = 'initial'
         READY = 'ready'
-        RETRY = 'retry'
+        REASSIGN = 'reassign'
         REJECTED = 'rejected'
         ACCEPTED = 'accepted'
-        DATA_IS_READY = 'data is ready'
         TRAINING = 'training'
         FINISHED = 'finished'
         FAKE_RESULTS = 'fake results'
         TIMEOUT = 'timeout'
+        FORGOTTEN = 'forgotten'
 
     producer_id = fields.CharField(immutable=True)
     worker_id = fields.CharField(immutable=True)

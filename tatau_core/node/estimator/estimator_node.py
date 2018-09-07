@@ -58,7 +58,7 @@ class Estimator(Node):
             logger.info('Added {}'.format(estimation_assignment))
 
     def _process_estimation_assignment(self, estimation_assignment: EstimationAssignment):
-        if estimation_assignment.task_declaration.is_in_finished_state():
+        if estimation_assignment.task_declaration.in_finished_state:
             return
 
         logger.debug('{} process {} state:{}'.format(self, estimation_assignment, estimation_assignment.state))

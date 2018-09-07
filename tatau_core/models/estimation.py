@@ -9,13 +9,15 @@ logger = getLogger()
 
 class EstimationData(models.Model):
     # owner only producer, share data with estimator
-    x_train = fields.EncryptedCharField(immutable=True)
-    y_train = fields.EncryptedCharField(immutable=True)
-    model_code = fields.EncryptedCharField(immutable=True)
-    initial_weights = fields.EncryptedCharField(immutable=True)
     batch_size = fields.IntegerField(immutable=True)
 
-    estimation_assignment_id = fields.CharField()
+    # this data may be encrypted for different estimators
+    x_train = fields.EncryptedCharField()
+    y_train = fields.EncryptedCharField()
+    model_code = fields.EncryptedCharField()
+    initial_weights = fields.EncryptedCharField()
+
+    estimation_assignment_id = fields.CharField(null=True, initial=None)
 
 
 class EstimationResult(models.Model):
@@ -43,6 +45,7 @@ class EstimationAssignment(models.Model):
         ESTIMATING = 'estimating'
         FINISHED = 'finished'
         TIMEOUT = 'timeout'
+        FORGOTTEN = 'forgotten'
 
     producer_id = fields.CharField(immutable=True)
     estimator_id = fields.CharField(immutable=True)

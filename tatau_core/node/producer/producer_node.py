@@ -5,11 +5,9 @@ from logging import getLogger
 
 from tatau_core import settings
 from tatau_core.models import ProducerNode, TaskDeclaration, TaskAssignment, VerificationAssignment, \
-    EstimationAssignment
+    EstimationAssignment, TrainData, VerificationData
 from tatau_core.models.estimation import EstimationData, EstimationResult
-from tatau_core.models.task import ListTaskAssignments
-from tatau_core.models.train import TrainData, TrainResult
-from tatau_core.models.verification import VerificationData, VerificationResult
+from tatau_core.models.task import ListTaskAssignments, ListVerificationAssignments
 from tatau_core.node.node import Node
 from tatau_core.node.producer.estimator import Estimator
 from tatau_core.node.producer.whitelist import WhiteList
@@ -63,15 +61,19 @@ class Producer(Node):
 
             assert False and 'Check query!'
 
-        assert len(accepted_estimation_assignments) != 0
-
         if len(timeout_estimation_assignments):
             # its reassign
-            for ea in accepted_estimation_assignments:
-                # if pop will throw exception, then something went wrong
-                timeout_ea = timeout_estimation_assignments.pop(-1)
+            assert len(timeout_estimation_assignments) == len(accepted_estimation_assignments)
+            for index, ea in enumerate(accepted_estimation_assignments):
+                timeout_ea = timeout_estimation_assignments[index]
                 # reassign estimation data
-                estimation_data = timeout_ea.estimation_data
+                # retrieve data which producer is able to encrypt
+                estimation_data = EstimationData.get_with_initial_data(
+                    asset_id=timeout_ea.estimation_data_id,
+                    db=self.db,
+                    encryption=self.encryption
+                )
+
                 estimation_data.estimation_assignment_id = ea.asset_id
                 # share data with new estimator
                 estimation_data.set_encryption_key(ea.estimator.enc_key)
@@ -80,17 +82,24 @@ class Producer(Node):
                 ea.estimation_data_id = estimation_data.asset_id
                 ea.state = EstimationAssignment.State.ESTIMATING
                 ea.save()
+
+                timeout_ea.state = EstimationAssignment.State.FORGOTTEN
+                timeout_ea.save()
         else:
             estimation_data_params = Estimator.get_data_for_estimate(task_declaration)
             for ea in accepted_estimation_assignments:
+                # create initial state with encrypted data which producer will be able to decrypt
                 estimation_data = EstimationData.create(
-                    estimation_assignment_id=ea.asset_id,
-                    # share data with estimator
-                    public_key=ea.estimator.enc_key,
                     db=self.db,
                     encryption=self.encryption,
                     **estimation_data_params
                 )
+
+                # share data with estimator
+                estimation_data.estimation_assignment_id = ea.asset_id
+                estimation_data.set_encryption_key(ea.estimator.enc_key)
+                estimation_data.save()
+
                 ea.estimation_data_id = estimation_data.asset_id
                 ea.state = EstimationAssignment.State.ESTIMATING
                 ea.save()
@@ -171,15 +180,28 @@ class Producer(Node):
             task_declaration.state = TaskDeclaration.State.ESTIMATED
             task_declaration.estimated_tflops, failed = Estimator.estimate(task_declaration, finished_assignments)
             if failed:
+                logger.info('{} is failed'.format(task_declaration))
                 task_declaration.state = TaskDeclaration.State.FAILED
             task_declaration.save()
+            return
+
+        logger.info('Wait of finish for estimation {}, finished: {}, requested: {}'.format(
+            task_declaration, len(finished_assignments), task_declaration.estimators_requested
+        ))
 
     def _process_estimated(self, task_declaration: TaskDeclaration):
         assert task_declaration.state == TaskDeclaration.State.ESTIMATED
-        # wait while job will be issued
-        if task_declaration.job_has_enough_balance():
+        # wait while job will be issued and will have enough balance
+        if task_declaration.balance_in_wei >= task_declaration.train_cost_in_wei:
             task_declaration.state = TaskDeclaration.State.DEPLOYMENT
             task_declaration.save()
+        else:
+            if task_declaration.issued:
+                logger.info('Deposit for {} is required, balance: {:.5f} train cost: {:.5f}'.format(
+                    task_declaration, task_declaration.balance, task_declaration.train_cost))
+            else:
+                logger.info('Issue for {} is required, train cost: {:.5f}'.format(
+                    task_declaration, task_declaration.train_cost))
 
     def _is_task_assignment_allowed(self, task_declaration: TaskDeclaration, task_assignment: TaskAssignment):
         logger.info('{} requested {}'.format(task_assignment.worker, task_assignment))
@@ -253,7 +275,8 @@ class Producer(Node):
                 elif ipfs_file.name[0] == 'y':
                     y_train_ipfs.append(ipfs_file.multihash)
 
-        return TrainData.create(
+        # create initial state with encrypted data which producer will be able to decrypt
+        td = TrainData.create(
             model_code=task_declaration.train_model.code_ipfs,
             x_train=x_train_ipfs,
             y_train=y_train_ipfs,
@@ -263,12 +286,16 @@ class Producer(Node):
             batch_size=task_declaration.batch_size,
             initial_weights=task_declaration.weights,
             epochs=task_declaration.epochs_in_current_iteration,
-            task_assignment_id=task_declaration.asset_id,
-            # share with worker
-            public_key=task_assignment.worker.enc_key,
             db=self.db,
             encryption=self.encryption
         )
+
+        # share to worker
+        td.task_assignment_id = task_declaration.asset_id
+        td.set_encryption_key(task_assignment.worker.enc_key)
+        td.save()
+
+        return td
 
     def _assign_train_data_to_worker(self, task_assignment, worker_index, ipfs_files):
         train_data = self._create_train_data(
@@ -281,34 +308,110 @@ class Producer(Node):
         task_assignment.state = TaskAssignment.State.TRAINING
         task_assignment.save()
 
-    def _assign_train_data(self, task_declaration: TaskDeclaration):
+    def _assign_initial_train_data(self, task_declaration: TaskDeclaration):
+        assert task_declaration.state == TaskDeclaration.State.DEPLOYMENT
+        # start of train
+        task_declaration.current_iteration += 1
+        task_declaration.current_iteration_retry = 0
+
+        accepted_task_assignment = task_declaration.get_task_assignments(states=(TaskAssignment.State.ACCEPTED,))
+
         ipfs_dir = Directory(multihash=task_declaration.dataset.train_dir_ipfs)
         dirs, files = ipfs_dir.ls()
+
+        count_ta = 0
+        for index, ta in enumerate(accepted_task_assignment):
+            self._assign_train_data_to_worker(
+                task_assignment=ta,
+                worker_index=index,
+                ipfs_files=files
+            )
+            count_ta += 1
+
+        assert task_declaration.workers_requested == count_ta
+
+        task_declaration.state = TaskDeclaration.State.EPOCH_IN_PROGRESS
+        task_declaration.save()
+
+    def _update_train_data_for_next_iteration(self, task_declaration: TaskDeclaration):
+        assert task_declaration.state == TaskDeclaration.State.VERIFY_IN_PROGRESS
+
+        task_declaration.current_iteration += 1
+        task_declaration.current_iteration_retry = 0
 
         task_declaration.progress = (
                 task_declaration.current_iteration * task_declaration.epochs_in_iteration * 100
                 / task_declaration.epochs)
 
-        task_declaration.current_iteration += 1
-        if task_declaration.current_iteration == 1:
-            # start of train
-            for index, ta in enumerate(task_declaration.get_task_assignments(states=(TaskAssignment.State.ACCEPTED,))):
-                self._assign_train_data_to_worker(
-                    task_assignment=ta,
-                    worker_index=index,
-                    ipfs_files=files
-                )
-        else:
-            for ta in task_declaration.get_task_assignments(states=(TaskAssignment.State.FINISHED,)):
-                train_data = ta.train_data
-                train_data.current_iteration = task_declaration.current_iteration
-                train_data.epochs = task_declaration.epochs_in_current_iteration
-                train_data.initial_weights = task_declaration.weights
-                train_data.set_encryption_key(ta.worker.enc_key)
-                train_data.save()
+        count_ta = 0
+        for ta in task_declaration.get_task_assignments(states=(TaskAssignment.State.FINISHED,)):
+            train_data = ta.train_data
+            train_data.current_iteration = task_declaration.current_iteration
+            train_data.epochs = task_declaration.epochs_in_current_iteration
+            train_data.initial_weights = task_declaration.weights
+            # share data to worker
+            train_data.set_encryption_key(ta.worker.enc_key)
+            train_data.save()
 
-                ta.state = TaskAssignment.State.TRAINING
-                ta.save()
+            ta.state = TaskAssignment.State.TRAINING
+            ta.save()
+            count_ta += 1
+
+        assert task_declaration.workers_requested == count_ta
+        task_declaration.state = TaskDeclaration.State.EPOCH_IN_PROGRESS
+        task_declaration.save()
+
+    def _reassign_train_data(self, task_declaration: TaskDeclaration):
+        assert task_declaration.state == TaskDeclaration.State.DEPLOYMENT_TRAIN
+
+        task_assignments = task_declaration.get_task_assignments(
+            states=(
+                TaskAssignment.State.ACCEPTED,
+                TaskAssignment.State.TIMEOUT,
+                TaskAssignment.State.FAKE_RESULTS
+            )
+        )
+
+        # split by state
+        accepted_task_assignment = []
+        failed_task_assignments = []
+        for ta in task_assignments:
+            if ta.state == TaskAssignment.State.ACCEPTED:
+                accepted_task_assignment.append(ta)
+                continue
+
+            if ta.state == TaskAssignment.State.TIMEOUT:
+                failed_task_assignments.append(ta)
+                continue
+
+            if ta.state == TaskAssignment.State.FAKE_RESULTS:
+                failed_task_assignments.append(ta)
+                continue
+
+            assert False and 'Check query!'
+
+        assert len(failed_task_assignments) == len(accepted_task_assignment)
+        # assign data to new accepted task_assignments
+        for index, ta in enumerate(accepted_task_assignment):
+            failed_ta = failed_task_assignments[index]
+            # reassign train data
+            # retrieve data which producer is able to encrypt
+            train_data = TrainData.get_with_initial_data(
+                asset_id=failed_ta.train_data_id,
+                db=self.db,
+                encryption=self.encryption
+            )
+            train_data.task_assignment_id = ta.asset_id
+            # share data with new worker
+            train_data.set_encryption_key(ta.worker.enc_key)
+            train_data.save()
+
+            ta.train_data_id = train_data.asset_id
+            ta.state = TaskAssignment.State.TRAINING
+            ta.save()
+
+            failed_ta.state = TaskAssignment.State.FORGOTTEN
+            failed_ta.save()
 
         task_declaration.state = TaskDeclaration.State.EPOCH_IN_PROGRESS
         task_declaration.save()
@@ -344,7 +447,60 @@ class Producer(Node):
             task_declaration, ready_to_start, task_declaration.workers_needed, task_declaration.verifiers_needed))
 
         if ready_to_start:
-            self._assign_train_data(task_declaration)
+            self._assign_initial_train_data(task_declaration)
+            return
+
+        # save if were changes
+        if save:
+            task_declaration.save()
+
+    def _process_deployment_train(self, task_declaration: TaskDeclaration):
+        assert task_declaration.state == TaskDeclaration.State.DEPLOYMENT_TRAIN
+
+        save = False
+        for ta in task_declaration.get_task_assignments(states=(TaskAssignment.State.READY,)):
+            if self._is_task_assignment_allowed(task_declaration, ta):
+                ta.state = TaskAssignment.State.ACCEPTED
+                ta.save()
+
+                task_declaration.workers_needed -= 1
+                save = True
+            else:
+                ta.state = TaskAssignment.State.REJECTED
+                ta.save()
+
+        ready_to_start = task_declaration.workers_needed == 0 and task_declaration.verifiers_needed == 0
+        logger.info('{} ready: {} workers_needed: {} verifiers_needed: {}'.format(
+            task_declaration, ready_to_start, task_declaration.workers_needed, task_declaration.verifiers_needed))
+
+        if ready_to_start:
+            self._reassign_train_data(task_declaration)
+            return
+
+        # save if were changes
+        if save:
+            task_declaration.save()
+
+    def _process_deployment_verification(self, task_declaration: TaskDeclaration):
+        assert task_declaration.state == TaskDeclaration.State.DEPLOYMENT_VERIFICATION
+        save = False
+        for va in task_declaration.get_verification_assignments(states=(VerificationAssignment.State.READY,)):
+            if self._is_verification_assignment_allowed(task_declaration, va):
+                va.state = VerificationAssignment.State.ACCEPTED
+                va.save()
+
+                task_declaration.verifiers_needed -= 1
+                save = True
+            else:
+                va.state = VerificationAssignment.State.REJECTED
+                va.save()
+
+        ready_to_verify = task_declaration.workers_needed == 0 and task_declaration.verifiers_needed == 0
+        logger.info('{} ready for verification: {} workers_needed: {} verifiers_needed: {}'.format(
+            task_declaration, ready_to_verify, task_declaration.workers_needed, task_declaration.verifiers_needed))
+
+        if ready_to_verify:
+            self._reassign_verification_data(task_declaration)
             return
 
         # save if were changes
@@ -360,10 +516,11 @@ class Producer(Node):
             })
             task_declaration.tflops += ta.train_result.tflops
 
-        if task_declaration.current_iteration == 1:
-            for verification_assignment in task_declaration.get_verification_assignments(
-                    states=(VerificationAssignment.State.ACCEPTED,)):
+        for verification_assignment in task_declaration.get_verification_assignments(
+                states=(VerificationAssignment.State.ACCEPTED, VerificationAssignment.State.FINISHED)):
 
+            if verification_assignment.state == VerificationAssignment.State.ACCEPTED:
+                assert verification_assignment.verification_data_id is None
                 verification_data = VerificationData.create(
                     verification_assignment_id=verification_assignment.asset_id,
                     # share data with verifier
@@ -379,20 +536,110 @@ class Producer(Node):
                 verification_assignment.verification_data_id = verification_data.asset_id
                 verification_assignment.state = VerificationAssignment.State.VERIFYING
                 verification_assignment.save()
-        else:
-            for verification_assignment in task_declaration.get_verification_assignments(
-                    states=(VerificationAssignment.State.FINISHED,)):
+                continue
 
+            if verification_assignment.state == VerificationAssignment.State.FINISHED:
                 verification_data = verification_assignment.verification_data
                 verification_data.train_results = train_results
                 verification_data.current_iteration = task_declaration.current_iteration
+                verification_data.current_iteration_retry = task_declaration.current_iteration_retry
                 verification_data.save()
 
                 verification_assignment.state = VerificationAssignment.State.VERIFYING
                 verification_assignment.save()
+                continue
 
         task_declaration.state = TaskDeclaration.State.VERIFY_IN_PROGRESS
         task_declaration.save()
+
+    def _reassign_verification_data(self, task_declaration: TaskDeclaration):
+        verification_assignments = task_declaration.get_verification_assignments(
+            states=(VerificationAssignment.State.ACCEPTED, VerificationAssignment.State.TIMEOUT)
+        )
+
+        # split accepted and overdue
+        accepted_verification_assignments = []
+        timeout_verification_assignments = []
+        for va in verification_assignments:
+            if va.state == VerificationAssignment.State.ACCEPTED:
+                accepted_verification_assignments.append(va)
+                continue
+
+            if va.state == VerificationAssignment.State.TIMEOUT:
+                timeout_verification_assignments.append(va)
+                continue
+
+            assert False and 'Check query!'
+
+        assert len(accepted_verification_assignments) == len(timeout_verification_assignments)
+
+        train_results = [
+            {
+                'worker_id': ta.worker_id,
+                'result': ta.train_result.weights
+            }
+            for ta in task_declaration.get_task_assignments(states=(TaskAssignment.State.FINISHED,))
+        ]
+
+        for index, va in enumerate(accepted_verification_assignments):
+            assert va.verification_data_id is None
+            verification_data = VerificationData.create(
+                verification_assignment_id=va.asset_id,
+                # share data with verifier
+                public_key=va.verifier.enc_key,
+                x_test=task_declaration.dataset.x_test_ipfs,
+                y_test=task_declaration.dataset.y_test_ipfs,
+                model_code=task_declaration.train_model.code_ipfs,
+                train_results=train_results,
+                db=self.db,
+                encryption=self.encryption
+            )
+
+            va.verification_data_id = verification_data.asset_id
+            va.state = VerificationAssignment.State.VERIFYING
+            va.save()
+
+            failed_va = timeout_verification_assignments[index]
+            failed_va.state = VerificationAssignment.State.FORGOTTEN
+            failed_va.save()
+
+        task_declaration.state = TaskDeclaration.State.VERIFY_IN_PROGRESS
+        task_declaration.save()
+
+    def _republish_for_train(self, task_declaration: TaskDeclaration):
+        assert task_declaration.workers_needed > 0
+
+        task_declaration.state = TaskDeclaration.State.DEPLOYMENT_TRAIN
+        task_declaration.current_iteration_retry += 1
+        task_declaration.save()
+
+        task_assignments = task_declaration.get_task_assignments(
+            states=(TaskAssignment.State.REJECTED,)
+        )
+
+        for ta in task_assignments:
+            ta.state = TaskAssignment.State.REASSIGN
+            # return back ownership
+            ta.save(recipients=ta.worker.address)
+
+    def _reject_fake_workers(self, task_declaration: TaskDeclaration, fake_worker_ids):
+        for worker_id in fake_worker_ids:
+            task_assignments = TaskAssignment.list(
+                additional_match={
+                    'assets.data.worker_id': worker_id,
+                    'assets.data.task_declaration_id': task_declaration.asset_id
+                },
+                created_by_user=False,
+                db=self.db,
+                encryption=self.encryption
+            )
+            assert len(task_assignments) == 1
+
+            task_assignment = task_assignments[0]
+            task_assignment.state = TaskAssignment.State.FAKE_RESULTS
+            task_assignment.save()
+
+            task_declaration.workers_needed += 1
 
     def _process_epoch_in_progress(self, task_declaration: TaskDeclaration):
         assert task_declaration.state == TaskDeclaration.State.EPOCH_IN_PROGRESS
@@ -403,8 +650,9 @@ class Producer(Node):
             )
         )
 
-        finished_task_assignments = []
         failed = False
+        finished_task_assignments = []
+        count_timeout = 0
         for ta in task_assignments:
             if ta.state == TaskAssignment.State.TRAINING:
                 if ta.iteration_is_finished:
@@ -418,26 +666,67 @@ class Producer(Node):
                     finished_task_assignments.append(ta)
                 continue
 
-            # TODO: handle timeout
+            train_timeout = settings.WAIT_TRAIN_TIMEOUT
+            now = datetime.datetime.utcnow().replace(tzinfo=ta.train_result.modified_at.tzinfo)
+            if (now - ta.train_result.modified_at).total_seconds() > train_timeout:
+                ta.state = TaskAssignment.State.TIMEOUT
+                ta.save()
+
+                logger.info('Timeout of waiting for {}'.format(ta))
+                count_timeout += 1
 
         if failed:
+            logger.info('{} is failed'.format(task_declaration))
             task_declaration.state = TaskDeclaration.State.FAILED
             task_declaration.save()
+            return
+
+        if count_timeout:
+            task_declaration.workers_needed += count_timeout
+            self._republish_for_train(task_declaration)
             return
 
         if len(finished_task_assignments) < task_declaration.workers_requested:
             logger.info('Wait for finish of training for {} iteration {}'.format(
                 task_declaration, task_declaration.current_iteration))
-            # epoch is not ready
-            # self._assign_partial_verification_data(task_declaration)
             return
 
-        # if len(task_declaration.get_verification_assignments(
-        #         states=(VerificationAssignment.State.PARTIAL_DATA_IS_READY,))):
-        #     # wait verifiers
-        #     return
-
         self._assign_verification_data(task_declaration, finished_task_assignments)
+
+    def _republish_for_verify(self, task_declaration: TaskDeclaration):
+        assert task_declaration.verifiers_needed > 0
+
+        task_declaration.state = TaskDeclaration.State.DEPLOYMENT_VERIFICATION
+        task_declaration.save()
+
+        verification_assignment = task_declaration.get_verification_assignments(
+            states=(VerificationAssignment.State.REJECTED,)
+        )
+
+        for va in verification_assignment:
+            va.state = VerificationAssignment.State.REASSIGN
+            # return back ownership
+            va.save(recipients=va.verifier.address)
+
+    def _parse_verification_results(self, task_declaration: TaskDeclaration,
+                                    finished_verification_assignments: ListVerificationAssignments):
+        fake_workers = {}
+        for va in finished_verification_assignments:
+            assert va.verification_result.error is None
+            for result in va.verification_result.result:
+                if result['is_fake']:
+                    try:
+                        fake_workers[result['worker_id']] += 1
+                    except KeyError:
+                        fake_workers[result['worker_id']] = 1
+
+            task_declaration.tflops += va.verification_result.tflops
+            # what to do if many verifiers ?
+            task_declaration.weights = va.verification_result.weights
+            task_declaration.loss = va.verification_result.loss
+            task_declaration.accuracy = va.verification_result.accuracy
+
+        return fake_workers
 
     def _process_verify_in_progress(self, task_declaration: TaskDeclaration):
         assert task_declaration.state == TaskDeclaration.State.VERIFY_IN_PROGRESS
@@ -450,6 +739,7 @@ class Producer(Node):
 
         failed = False
         finished_verification_assignments = []
+        count_timeout = 0
         for va in verification_assignments:
             if va.state == VerificationAssignment.State.VERIFYING:
                 if va.iteration_is_finished:
@@ -463,9 +753,22 @@ class Producer(Node):
                     finished_verification_assignments.append(va)
                 continue
 
-            # TODO: handle timeout
+            verify_timeout = settings.WAIT_VERIFY_TIMEOUT
+            now = datetime.datetime.utcnow().replace(tzinfo=va.verification_result.modified_at.tzinfo)
+            if (now - va.verification_result.modified_at).total_seconds() > verify_timeout:
+                va.state = VerificationAssignment.State.TIMEOUT
+                va.save()
+
+                logger.info('Timeout of waiting for {}'.format(va))
+                count_timeout += 1
+
+        if count_timeout:
+            task_declaration.verifiers_needed += count_timeout
+            self._republish_for_verify(task_declaration)
+            return
 
         if failed:
+            logger.info('{} is failed'.format(task_declaration))
             task_declaration.state = TaskDeclaration.State.FAILED
             task_declaration.save()
             return
@@ -476,17 +779,24 @@ class Producer(Node):
                 task_declaration, task_declaration.current_iteration))
             return
 
-        for va in finished_verification_assignments:
-            task_declaration.weights = va.verification_result.weights
-            task_declaration.loss = va.verification_result.loss
-            task_declaration.accuracy = va.verification_result.accuracy
-            break
+        fake_workers = self._parse_verification_results(
+            task_declaration, finished_verification_assignments)
+
+        if fake_workers:
+            logger.info('Fake workers detected')
+            fake_worker_ids = []
+            for worker_id, count_detections in fake_workers.items():
+                logger.info('Fake worker_id: {}, count detections: {}'.format(worker_id, count_detections))
+                fake_worker_ids.append(worker_id)
+            self._reject_fake_workers(task_declaration, fake_worker_ids)
+            self._republish_for_train(task_declaration)
+            return
 
         logger.info('Copy summarization for {}, loss: {}, accuracy: {}'.format(
             task_declaration, task_declaration.loss, task_declaration.accuracy))
 
-        if not task_declaration.is_last_epoch():
-            self._assign_train_data(task_declaration)
+        if not task_declaration.last_iteration:
+            self._update_train_data_for_next_iteration(task_declaration)
             return
 
         task_declaration.progress = 100.0
@@ -495,46 +805,8 @@ class Producer(Node):
         logger.info('{} is finished tflops: {} estimated: {}'.format(
             task_declaration, task_declaration.tflops, task_declaration.estimated_tflops))
 
-        # if task_declaration.verification_is_ready():
-        #     logger.info('{} verification iteration {} is ready'.format(
-        #         task_declaration, task_declaration.current_iteration))
-        #
-        #     can_continue, failed = self._process_verification_results(task_declaration)
-        #     if failed:
-        #         logger.info('{} is failed'.format(task_declaration))
-        #         task_declaration.state = TaskDeclaration.State.FAILED
-        #         task_declaration.save()
-        #         return
-        #
-        #     if not can_continue:
-        #         # set RETRY to REJECTED task_assignments
-        #         rejected_task_declarations = task_declaration.get_task_assignments(
-        #             states=(TaskAssignment.State.REJECTED,)
-        #         )
-        #
-        #         for task_assignment in rejected_task_declarations:
-        #             task_assignment.state = TaskAssignment.State.RETRY
-        #             task_assignment.save(recipients=task_assignment.worker.address)
-        #         return
-        #
-        #     self._copy_summarize_epoch_results(task_declaration)
-        #     logger.info('Copy summarization for {}, loss: {}, accuracy: {}'.format(
-        #         task_declaration, task_declaration.loss, task_declaration.accuracy))
-        #
-        #     if task_declaration.all_done():
-        #         task_declaration.progress = 100.0
-        #         task_declaration.state = TaskDeclaration.State.COMPLETED
-        #         task_declaration.save()
-        #         logger.info('{} is finished tflops: {} estimated: {}'.format(
-        #             task_declaration, task_declaration.tflops, task_declaration.estimated_tflops))
-        #     else:
-        #         self._assign_train_data(task_declaration)
-        # else:
-        #     logger.info('{} verification for iteration {} is not ready'.format(
-        #         task_declaration, task_declaration.current_iteration))
-
     def _process_task_declaration(self, task_declaration: TaskDeclaration):
-        if task_declaration.is_in_finished_state():
+        if task_declaration.in_finished_state:
             return
 
         if task_declaration.state == TaskDeclaration.State.ESTIMATE_IS_REQUIRED:
@@ -553,6 +825,14 @@ class Producer(Node):
             self._process_deployment(task_declaration)
             return
 
+        if task_declaration.state == TaskDeclaration.State.DEPLOYMENT_TRAIN:
+            self._process_deployment_train(task_declaration)
+            return
+
+        if task_declaration.state == TaskDeclaration.State.DEPLOYMENT_VERIFICATION:
+            self._process_deployment_verification(task_declaration)
+            return
+
         if task_declaration.state == TaskDeclaration.State.EPOCH_IN_PROGRESS:
             self._process_epoch_in_progress(task_declaration)
             return
@@ -561,100 +841,10 @@ class Producer(Node):
             self._process_verify_in_progress(task_declaration)
             return
 
-    def _process_verification_results(self, task_declaration):
-        verification_assignments = task_declaration.get_verification_assignments(
-            states=(VerificationAssignment.State.FINISHED,)
-        )
-
-        fake_workers = {}
-        failed = False
-        for verification_assignment in verification_assignments:
-            if verification_assignment.error is not None:
-                failed = True
-                can_continue = False
-                return can_continue, failed
-
-            task_declaration.tflops += verification_assignment.tflops
-            for result in verification_assignment.result:
-                if result['is_fake']:
-                    try:
-                        fake_workers[result['worker_id']] += 1
-                    except KeyError:
-                        fake_workers[result['worker_id']] = 1
-
-        if fake_workers:
-            logger.info('Found fake workers')
-            for worker_id in fake_workers.keys():
-                task_assignments = TaskAssignment.list(
-                    additional_match={
-                        'assets.data.worker_id': worker_id,
-                        'assets.data.task_declaration_id': task_declaration.asset_id
-                    },
-                    created_by_user=False,
-                    db=self.db,
-                    encryption=self.encryption
-                )
-                assert len(task_assignments) == 1
-
-                task_assignment = task_assignments[0]
-                task_assignment.state = TaskAssignment.State.FAKE_RESULTS
-                task_assignment.save()
-
-                logger.info('{} did fake results for {}'.format(task_assignment.worker, task_declaration))
-
-                task_declaration.workers_needed += 1
-
-            task_declaration.state = TaskDeclaration.State.DEPLOYMENT
-            task_declaration.save()
-            can_continue = False
-            return can_continue, failed
-
-        can_continue = True
-        return can_continue, failed
-
-    # def _assign_partial_verification_data(self, task_declaration):
-    #     task_assignments = task_declaration.get_task_assignments(states=(TaskAssignment.State.FINISHED,))
-    #
-    #     current_train_results = []
-    #     for task_assignment in task_assignments:
-    #         current_train_results.append({
-    #             'worker_id': task_assignment.worker_id,
-    #             'result': task_assignment.result,
-    #             'error': task_assignment.error
-    #         })
-    #
-    #     if len(current_train_results):
-    #         verification_assignments = task_declaration.get_verification_assignments(
-    #             states=(
-    #                 VerificationAssignment.State.ACCEPTED,
-    #                 VerificationAssignment.State.PARTIAL_DATA_IS_DOWNLOADED,
-    #                 VerificationAssignment.State.FINISHED
-    #             )
-    #         )
-    #
-    #         for verification_assignment in verification_assignments:
-    #             verification_assignment.train_results = current_train_results
-    #             verification_assignment.current_iteration = task_declaration.current_iteration
-    #             verification_assignment.result = None
-    #             verification_assignment.state = VerificationAssignment.State.PARTIAL_DATA_IS_READY
-    #             verification_assignment.set_encryption_key(verification_assignment.verifier.enc_key)
-    #             verification_assignment.save(recipients=verification_assignment.verifier.address)
-
-    # def _copy_summarize_epoch_results(self, task_declaration):
-    #     verification_assignments = task_declaration.get_verification_assignments(
-    #         states=(VerificationAssignment.State.FINISHED,)
-    #     )
-    #
-    #     for verification_assignment in verification_assignments:
-    #         task_declaration.weights = verification_assignment.weights
-    #         task_declaration.loss = verification_assignment.loss
-    #         task_declaration.accuracy = verification_assignment.accuracy
-    #         break
-
     def train_task(self, asset_id):
         while True:
             task_declaration = TaskDeclaration.get(asset_id, db=self.db, encryption=self.encryption)
-            if task_declaration.is_in_finished_state():
+            if task_declaration.in_finished_state:
                 break
 
             self._process_task_declaration(task_declaration)
@@ -664,7 +854,7 @@ class Producer(Node):
         while True:
             try:
                 for task_declaration in TaskDeclaration.enumerate(db=self.db, encryption=self.encryption):
-                    if task_declaration.is_in_finished_state():
+                    if task_declaration.in_finished_state:
                         continue
 
                     self._process_task_declaration(task_declaration)
@@ -672,5 +862,3 @@ class Producer(Node):
                 time.sleep(settings.PRODUCER_PROCESS_INTERVAL)
             except Exception as e:
                 logger.exception(e)
-
-

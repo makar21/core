@@ -39,20 +39,8 @@ class Model(metaclass=ModelBase):
 
         for name, attr in self._attrs.items():
             if isinstance(attr, Field):
-                attr._name = name
                 value = kwargs[name] if name in kwargs else attr.initial
-                if value is not None:
-                    if attr.encrypted and _decrypt_values:
-                        value = self.encryption.decrypt_text(value)
-                    if isinstance(attr, JsonField) and isinstance(value, str):
-                        try:
-                            value = json.loads(value)
-                        except json.JSONDecodeError:
-                            if attr.encrypted:
-                                value = value
-                            else:
-                                raise
-                attr.__set__(self, value)
+                attr.set_value(self, value, name=name, encryption=self.encryption, decrypt=_decrypt_values)
 
     def __str__(self):
         return '<{}: {}>'.format(self.get_asset_name(), self.asset_id)
@@ -92,21 +80,7 @@ class Model(metaclass=ModelBase):
 
     def _prepare_value(self, name, attr):
         value = getattr(self, name)
-
-        if value is None and not attr.null and attr.required:
-            raise ValueError('{} is required'.format(name))
-
-        if attr.encrypted and value is not None:
-            if isinstance(attr, EncryptedJsonField):
-                value = self.encryption.encrypt_text(
-                    text=json.dumps(value),
-                    public_key=self.get_encryption_key()
-                )
-
-        if isinstance(attr, JsonField) and value is not None:
-            return json.dumps(value)
-
-        return value
+        return attr.prepare_value(value, public_key=self.get_encryption_key())
 
     def get_data(self):
         data = dict(asset_name=self.get_asset_name())
@@ -212,4 +186,18 @@ class Model(metaclass=ModelBase):
             kwars['modified_at'] = transaction['generation_time']
             yield cls(db=db, encryption=encryption, asset_id=asset_id, _decrypt_values=True, _address=address, **kwars)
 
+    @classmethod
+    def get_with_initial_data(cls, asset_id, db, encryption):
+        asset = db.retrieve_asset_in_initial_state(asset_id)
+        address = asset.last_tx['outputs'][0]['public_keys'][0]
 
+        if asset.data['asset_name'] != cls.get_asset_name():
+            raise exceptions.Asset.WrongType()
+
+        kwars = dict(asset_id=asset_id)
+        kwars.update(asset.data)
+        if asset.metadata is not None:
+            kwars.update(asset.metadata)
+        kwars['created_at'] = asset.created_at
+        kwars['modified_at'] = asset.modified_at
+        return cls(db=db, encryption=encryption, _decrypt_values=True, _address=address, **kwars)

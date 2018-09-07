@@ -17,6 +17,7 @@ class VerificationData(models.Model):
     train_results = fields.EncryptedJsonField()
     # verification data will be always created for 1st iteration
     current_iteration = fields.IntegerField(initial=1)
+    current_iteration_retry = fields.IntegerField(initial=0)
 
 
 class VerificationResult(models.Model):
@@ -33,7 +34,10 @@ class VerificationResult(models.Model):
     progress = fields.FloatField(initial=0.0)
     tflops = fields.FloatField(initial=0.0)
     current_iteration = fields.IntegerField(initial=0)
-    result = fields.EncryptedJsonField(required=False)
+    current_iteration_retry = fields.IntegerField(initial=0)
+
+    # results should be public
+    result = fields.JsonField(required=False)
 
     weights = fields.EncryptedCharField(required=False)
     loss = fields.FloatField(required=False)
@@ -73,12 +77,13 @@ class VerificationAssignment(models.Model):
     class State:
         INITIAL = 'initial'
         READY = 'ready'
+        REASSIGN = 'reassign'
         REJECTED = 'rejected'
-        RETRY = 'retry'
         ACCEPTED = 'accepted'
-        DATA_IS_READY = 'data is ready'
         VERIFYING = 'verifying'
         FINISHED = 'finished'
+        TIMEOUT = 'timeout'
+        FORGOTTEN = 'forgotten'
 
     producer_id = fields.CharField(immutable=True)
     verifier_id = fields.CharField(immutable=True)
@@ -124,4 +129,5 @@ class VerificationAssignment(models.Model):
     @property
     def iteration_is_finished(self):
         return self.verification_data.current_iteration == self.verification_result.current_iteration \
+               and self.verification_data.current_iteration_retry == self.verification_result.current_iteration_retry \
                and self.verification_result.state == VerificationResult.State.FINISHED

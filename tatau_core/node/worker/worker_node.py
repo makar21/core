@@ -17,7 +17,7 @@ class Worker(Node):
     asset_class = WorkerNode
 
     def _process_task_declaration(self, task_declaration):
-        if task_declaration.state == TaskDeclaration.State.DEPLOYMENT \
+        if task_declaration.state in [TaskDeclaration.State.DEPLOYMENT, TaskDeclaration.State.DEPLOYMENT_TRAIN] \
                 and task_declaration.workers_needed > 0:
             logger.info('Process {}'.format(task_declaration))
             exists = TaskAssignment.exists(
@@ -55,13 +55,13 @@ class Worker(Node):
             logger.info('Added {}'.format(task_assignment))
 
     def _process_task_assignment(self, task_assignment):
-        if task_assignment.task_declaration.is_in_finished_state():
+        if task_assignment.task_declaration.in_finished_state:
             return
 
         logger.debug('{} process {} state:{}'.format(self, task_assignment, task_assignment.state))
 
-        if task_assignment.state == TaskAssignment.State.RETRY:
-            task_assignment.state = TaskAssignment.State.INITIAL
+        if task_assignment.state == TaskAssignment.State.REASSIGN:
+            task_assignment.state = TaskAssignment.State.READY
             # give ownership to producer
             task_assignment.save(recipients=task_assignment.producer.address)
             return
@@ -71,6 +71,11 @@ class Worker(Node):
                 self._train(task_assignment)
 
     def _train(self, task_assignment: TaskAssignment):
+        task_declaration = task_assignment.task_declaration
+        if task_declaration.balance_in_wei < task_declaration.iteration_cost_in_wei:
+            logger.info('Ignore {}, does not have enough balance'.format(task_declaration))
+            return
+
         logger.info('Start of training for {}'.format(self, task_assignment.task_declaration))
 
         session = TrainSession()
