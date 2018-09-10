@@ -1,12 +1,10 @@
-from tatau_core.nn.tatau import model
-from tatau_core.nn.tatau import TrainProgress
+from tatau_core.nn.tatau import model, TrainProgress
 from torch.utils.data import DataLoader, TensorDataset
 import torch
 # noinspection PyUnresolvedReferences
-from torch import from_numpy
+from torch import cuda, from_numpy
 import numpy
 from torch.nn import DataParallel
-from torch import cuda
 from logging import getLogger
 
 logger = getLogger(__name__)
@@ -70,7 +68,7 @@ class Model(model.Model):
 
         self.native_model.train()
 
-        dataset = TensorDataset(from_numpy(x), from_numpy(y))
+        dataset = TensorDataset(from_numpy(x).type(torch.FloatTensor), from_numpy(y))
         loader = DataLoader(dataset, batch_size=batch_size, shuffle=False)
 
         train_history = {'loss': [], 'acc': []}
@@ -108,7 +106,7 @@ class Model(model.Model):
         self.native_model.eval()
         test_loss = 0
         correct = 0
-        dataset = TensorDataset(from_numpy(x), from_numpy(y))
+        dataset = TensorDataset(from_numpy(x).type(torch.FloatTensor), from_numpy(y))
         loader = DataLoader(dataset, batch_size=128, shuffle=False, num_workers=0)
 
         with torch.no_grad():
