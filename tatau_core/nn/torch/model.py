@@ -66,9 +66,12 @@ class Model(model.Model):
         self.optimizer.load_state_dict(weights['optimizer'])
         # self._criterion.load_state_dict(weights['criterion'])
 
-    def train(self, x: numpy.array, y: numpy.array, batch_size: int, nb_epochs: int, train_progress: TrainProgress):
+    def train(self, x: numpy.array, y: numpy.array, batch_size: int, current_iteration: int,
+              nb_epochs: int, train_progress: TrainProgress):
 
         self.native_model.train()
+
+        x, y = self.data_preprocessing(x, y)
 
         dataset = TensorDataset(from_numpy(x), from_numpy(y))
         loader = DataLoader(dataset, batch_size=batch_size, shuffle=False)

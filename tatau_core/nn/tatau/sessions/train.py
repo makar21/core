@@ -100,7 +100,7 @@ class TrainSession(Session):
 
         logger.info('Start training')
 
-        self._run(batch_size, epochs)
+        self._run(batch_size, epochs, assignment.current_iteration)
 
         assignment.train_history = self.load_train_history()
 
@@ -116,6 +116,7 @@ class TrainSession(Session):
         logger.info("Start training")
         batch_size = int(sys.argv[2])
         nb_epochs = int(sys.argv[3])
+        current_iteration = int(sys.argv[4])
 
         model = Model.load_model(path=self.model_path)
         model.load_weights(self.init_weights_path)
@@ -124,7 +125,7 @@ class TrainSession(Session):
         train_history = model.train(
             x=np.load(self.x_train_path), y=np.load(self.y_train_path),
             batch_size=batch_size, nb_epochs=nb_epochs,
-            train_progress=progress
+            train_progress=progress, current_iteration=current_iteration
         )
         model.save_weights(self.train_weights_path)
         self.save_train_history(train_history)
