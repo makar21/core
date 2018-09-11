@@ -1,13 +1,13 @@
 import sys
-from tatau_core.nn.tatau.model import Model
-from tatau_core.nn.tatau.progress import TrainProgress
-import numpy as np
 from logging import getLogger
 
-from tatau_core.tatau.models import EstimationAssignment
-from .session import Session
+import numpy as np
 
-from tatau_core.utils.ipfs import IPFS
+from tatau_core.nn.tatau.model import Model
+from tatau_core.nn.tatau.progress import TrainProgress
+from tatau_core.tatau.models import EstimationAssignment
+from tatau_core.utils.ipfs import Downloader
+from .session import Session
 
 logger = getLogger(__name__)
 
@@ -17,19 +17,26 @@ class EstimationSession(Session):
         super(EstimationSession, self).__init__(module=__name__, uuid=uuid)
 
     def process_assignment(self, assignment: EstimationAssignment):
-        ipfs = IPFS()
+        list_download_params = [
+            Downloader.DownloadParams(
+                multihash=assignment.estimation_data['model_code'],
+                target_path=self.model_path
+            ),
+            Downloader.DownloadParams(
+                multihash=assignment.estimation_data['x_train'],
+                target_path=self.x_train_path
+            ),
+            Downloader.DownloadParams(
+                multihash=assignment.estimation_data['y_train'],
+                target_path=self.y_train_path
+            ),
+            Downloader.DownloadParams(
+                multihash=assignment.estimation_data['initial_weights'],
+                target_path=self.init_weights_path
+            )
+        ]
 
-        ipfs.download_to(assignment.estimation_data['model_code'], self.model_path)
-        logger.info('model code successfully downloaded')
-
-        ipfs.download_to(assignment.estimation_data['x_train'], self.x_train_path)
-        logger.info('x_train is downloaded')
-
-        ipfs.download_to(assignment.estimation_data['y_train'], self.y_train_path)
-        logger.info('x_train is downloaded')
-
-        ipfs.download_to(assignment.estimation_data['initial_weights'], self.init_weights_path)
-        logger.info('initial weights are downloaded')
+        Downloader.download_all(list_download_params)
 
         self._run(assignment.estimation_data['batch_size'], 1)
 

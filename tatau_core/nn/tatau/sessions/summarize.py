@@ -1,12 +1,13 @@
-from collections import deque
-from tatau_core.tatau.models import VerificationAssignment
-from tatau_core.utils.ipfs import IPFS
-from tatau_core.nn.tatau.model import Model
-from .session import Session
 import os
+from collections import deque
 from logging import getLogger
+
 import numpy as np
-import sys
+
+from tatau_core.nn.tatau.model import Model
+from tatau_core.tatau.models import VerificationAssignment
+from tatau_core.utils.ipfs import IPFS, Downloader
+from .session import Session
 
 logger = getLogger(__name__)
 
@@ -51,23 +52,37 @@ class SummarizeSession(Session):
     def process_assignment(self, assignment: VerificationAssignment):
         verification_assignment = assignment
 
-        ipfs = IPFS()
-        ipfs.download_to(verification_assignment.x_test_ipfs, self.x_test_path)
-        ipfs.download_to(verification_assignment.y_test_ipfs, self.y_test_path)
-        ipfs.download_to(verification_assignment.model_code_ipfs, self.model_path)
+        list_download_params = [
+            Downloader.DownloadParams(
+                multihash=verification_assignment.x_test_ipfs,
+                target_path=self.x_test_path
+            ),
+            Downloader.DownloadParams(
+                multihash=verification_assignment.y_test_ipfs,
+                target_path=self.y_test_path
+            ),
+            Downloader.DownloadParams(
+                multihash=verification_assignment.model_code_ipfs,
+                target_path=self.model_path
+            ),
+        ]
 
         downloaded_results = deque()
         for worker_result in verification_assignment.train_results:
-            downloaded_results.append(ipfs.download(worker_result['result'], self.base_dir))
+            target_path = os.path.join(self.base_dir, worker_result['result'])
+            list_download_params.append(Downloader.DownloadParams(multihash=worker_result['result'], target_path=target_path))
+            downloaded_results.append(target_path)
 
         if not len(downloaded_results):
             logger.error('list of weights is empty')
             raise ValueError('list of weights is empty')
 
+        Downloader.download_all(list_download_params)
         self.save_results_list(list(downloaded_results))
 
         self._run()
 
+        ipfs = IPFS()
         verification_assignment.loss, verification_assignment.accuracy = self.load_eval_result()
         verification_assignment.weights = ipfs.add_file(self.summarized_weights_path).multihash
 

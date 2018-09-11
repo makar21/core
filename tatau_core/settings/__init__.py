@@ -62,3 +62,5 @@ WHITELIST_JSON_PATH = os.getenv(
     'WHITELIST_JSON_PATH',
     os.path.join(KEYS_PATH,  "whitelist.json")
 )
+
+DOWNLOAD_POOL_SIZE = int(os.getenv('DOWNLOAD_POOL_SIZE', 16))
