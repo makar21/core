@@ -30,8 +30,7 @@ class Model(model.Model):
         net.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
         return net
 
-    @classmethod
-    def data_preprocessing(cls, x: numpy.array, y: numpy.array):
+    def data_preprocessing(self, x: numpy.array, y: numpy.array):
         x = x.reshape(len(x), 784).astype('float32') / 255
         y = np_utils.to_categorical(y, 10)
         return x, y

@@ -73,14 +73,19 @@ class Model(ABC):
         """
         pass
 
+    def data_preprocessing(self, x: numpy.array, y: numpy.array):
+        return x, y
+
     @abstractmethod
-    def train(self, x: numpy.array, y: numpy.array, batch_size: int, nb_epochs: int, train_progress: TrainProgress):
+    def train(self, x: numpy.array, y: numpy.array, batch_size: int, current_iteration: int,
+              nb_epochs: int, train_progress: TrainProgress):
         """
         Train model
         :param train_progress: Task Progress Callback
         :param batch_size: batch_size
         :param x: train inputs
         :param y: train outputs
+        :param current_iteration: iteration
         :param nb_epochs: number of epochs
         :return: loss history list((loss, acc))
         """
