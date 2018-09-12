@@ -1,16 +1,15 @@
-from collections import deque
 import os
-
-from tatau_core.models.train import TrainResult
-from .session import Session
-from logging import getLogger
 import sys
+from collections import deque
+from logging import getLogger
+
+import numpy as np
+
+from tatau_core.models import TaskAssignment
 from tatau_core.nn.tatau.model import Model
 from tatau_core.nn.tatau.progress import TrainProgress
-from tatau_core.models import TaskAssignment
 from tatau_core.utils.ipfs import IPFS, Downloader
-import numpy as np
-import pickle
+from .session import Session
 
 logger = getLogger(__name__)
 
@@ -103,7 +102,7 @@ class TrainSession(Session):
 
         logger.info('Start training')
 
-        self._run(batch_size, epochs, assignment.current_iteration)
+        self._run(batch_size, epochs, assignment.train_data.current_iteration)
 
         train_result.train_history = self.load_train_history()
 

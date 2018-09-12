@@ -43,12 +43,13 @@ class EstimationSession(Session):
         assignment.estimation_result.progress = 20.0
         assignment.estimation_result.save()
 
-        self._run(assignment.estimation_data.batch_size, 1)
+        self._run(assignment.estimation_data.batch_size, 1, 1)
 
     def main(self):
-        logger.info("Start estimation")
+        logger.info('Start estimation')
         batch_size = int(sys.argv[2])
         nb_epochs = int(sys.argv[3])
+        current_iteration = int(sys.argv[4])
 
         model = Model.load_model(path=self.model_path)
         model.load_weights(self.init_weights_path)
@@ -57,7 +58,7 @@ class EstimationSession(Session):
 
         model.train(
             x=np.load(self.x_train_path), y=np.load(self.y_train_path),
-            batch_size=batch_size, nb_epochs=nb_epochs,
+            batch_size=batch_size, nb_epochs=nb_epochs, current_iteration=current_iteration,
             train_progress=progress
         )
 
