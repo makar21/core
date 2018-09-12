@@ -51,13 +51,3 @@ class OptimizerSummarizer(Summarizer):
             state=states,
             param_groups=[params]
         )
-
-
-class MedianOptimizerSummarizer(OptimizerSummarizer):
-    def __init__(self):
-        super(MedianOptimizerSummarizer, self).__init__(np_sum_fn=np.median)
-
-
-class MeanOptimizerSummarizer(OptimizerSummarizer):
-    def __init__(self):
-        super(MeanOptimizerSummarizer, self).__init__(np_sum_fn=np.mean)

@@ -6,13 +6,12 @@ from torch import cuda, from_numpy
 from torch.nn import DataParallel
 from logging import getLogger
 
-
 logger = getLogger(__name__)
 
 
 class Model(model.Model):
     weights_serializer_class = 'tatau_core.nn.torch.serializer.WeightsSerializer'
-    weights_summarizer_class = 'tatau_core.nn.torch.summarizer.Median'
+    weights_summarizer_class = 'tatau_core.nn.torch.summarizer.Mean'
 
     def __init__(self, optimizer_class, optimizer_kwargs, criterion):
         super(Model, self).__init__()
@@ -64,7 +63,8 @@ class Model(model.Model):
         self.optimizer.load_state_dict(weights['optimizer'])
         # self._criterion.load_state_dict(weights['criterion'])
 
-    def train(self, train_dataset: Dataset, num_workers: int, batch_size: int, nb_epochs: int, train_progress: TrainProgress):
+    def train(self, x: numpy.array, y: numpy.array, batch_size: int, current_iteration: int,
+              nb_epochs: int, train_progress: TrainProgress):
 
         self.native_model.train()
 
@@ -99,11 +99,10 @@ class Model(model.Model):
             train_history['acc'].append(epoch_acc)
         return train_history
 
-    def eval(self, test_dataset: Dataset, num_workers: int):
+    def eval(self, x: numpy.array, y: numpy.array):
         # noinspection PyUnresolvedReferences
         # from torch import from_numpy
         self.native_model.eval()
-
         test_loss = 0
         correct = 0
 
