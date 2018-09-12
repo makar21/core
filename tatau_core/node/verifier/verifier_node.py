@@ -8,7 +8,6 @@ from tatau_core.models import VerifierNode, TaskDeclaration, VerificationAssignm
 from tatau_core.models.verification import VerificationResult, DistributeHistory
 from tatau_core.nn.tatau.sessions.summarize import SummarizeSession
 from tatau_core.node.node import Node
-from verifier.session import VerifySession
 
 logger = getLogger()
 
@@ -131,7 +130,7 @@ class Verifier(Node):
 
     def _run_verification_session(self, verification_assignment: VerificationAssignment):
         failed = False
-
+        from verifier.session import VerifySession
         session = VerifySession()
         try:
             session.process_assignment(assignment=verification_assignment)
