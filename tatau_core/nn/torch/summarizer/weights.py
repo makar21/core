@@ -25,13 +25,3 @@ class WeightsSummarizer(Summarizer):
             new_state_dict[key] = torch.tensor(data=sum_array)
 
         return new_state_dict
-
-
-class MedianWeightsSummarizer(WeightsSummarizer):
-    def __init__(self):
-        super(MedianWeightsSummarizer, self).__init__(np_sum_fn=np.median)
-
-
-class MeanWeightsSummarizer(WeightsSummarizer):
-    def __init__(self):
-        super(MeanWeightsSummarizer, self).__init__(np_sum_fn=np.mean)

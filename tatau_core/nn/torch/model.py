@@ -14,7 +14,7 @@ logger = getLogger(__name__)
 
 class Model(model.Model):
     weights_serializer_class = 'tatau_core.nn.torch.serializer.WeightsSerializer'
-    weights_summarizer_class = 'tatau_core.nn.torch.summarizer.Median'
+    weights_summarizer_class = 'tatau_core.nn.torch.summarizer.Mean'
 
     def __init__(self, optimizer_class, optimizer_kwargs, criterion):
         super(Model, self).__init__()
