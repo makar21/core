@@ -6,7 +6,6 @@ import torch
 from torch import from_numpy
 import numpy
 from torch.nn import DataParallel
-from torch import cuda
 from logging import getLogger
 
 logger = getLogger(__name__)
