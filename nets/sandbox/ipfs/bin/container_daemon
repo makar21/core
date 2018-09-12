@@ -20,6 +20,7 @@ else
   ipfs init
   ipfs config Addresses.API /ip4/0.0.0.0/tcp/5001
   ipfs config Addresses.Gateway /ip4/0.0.0.0/tcp/8080
+  ipfs bootstrap rm --all
   ipfs bootstrap add /ip4/34.198.185.217/tcp/4001/ipfs/QmWidDKqyxfjzUoVNAiumdBzscUj3ZirwSq5sDPiRj4LzT
   ipfs bootstrap add /ip4/18.211.150.58/tcp/4001/ipfs/Qmf1JSb1SHBCqt8rWoVLzaBDBxobQESEhf4oF9QuzMyw3C
   ipfs bootstrap add /ip4/34.199.110.132/tcp/4001/ipfs/QmUSsfQUFpT5MUrAViaXqsXC7mW97WKjr9yuP2VJFDp568
