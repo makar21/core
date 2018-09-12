@@ -41,7 +41,8 @@ if __name__ == '__main__':
                 rsa_pk=rsa_pk
             )
 
-            # worker.perform_benchmark()
+            if not settings.DEBUG:
+                worker.perform_benchmark()
 
             logger.info('Start {} address: {}'.format(worker.asset, worker.asset.account_address))
             worker.search_tasks()
