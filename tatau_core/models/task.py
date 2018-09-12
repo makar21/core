@@ -296,10 +296,6 @@ class TaskDeclaration(models.Model):
 
         train_info = data['workers']
 
-        # add arrays to each spent epochs
-        for i in range(self.current_iteration):
-            train_info[i+1] = []
-
         for task_assignment in task_assignments:
             history = TrainResult.get_history(task_assignment.train_result_id, db=self.db, encryption=self.encryption)
 
@@ -326,16 +322,19 @@ class TaskDeclaration(models.Model):
                 if tr.state == TrainResult.State.IN_PROGRESS and train_data['start_time'] is None:
                     train_data['start_time'] = tr.modified_at
                     # update start time of iteration
-                    if data['history'][tr.current_iteration]['start_time'] is None \
-                            or data['history'][tr.current_iteration]['start_time'] > train_data['start_time']:
+                    if data['history'].get(tr.current_iteration) and (
+                            data['history'][tr.current_iteration]['start_time'] is None or
+                            data['history'][tr.current_iteration]['start_time'] > train_data['start_time']):
+
                         data['history'][tr.current_iteration]['start_time'] = train_data['start_time']
 
                 if tr.state == TrainResult.State.FINISHED:
                     train_data['end_time'] = tr.modified_at
 
                     # update tflops
-                    data['history'][tr.current_iteration]['spent_tflops'] += train_data['spent_tflops']
-                    data['history'][tr.current_iteration]['cost'] += train_data['cost']
+                    if data['history'].get(tr.current_iteration):
+                        data['history'][tr.current_iteration]['spent_tflops'] += train_data['spent_tflops']
+                        data['history'][tr.current_iteration]['cost'] += train_data['cost']
 
                 end_time = train_data['end_time'] or datetime.datetime.utcnow().replace(
                     tzinfo=tr.modified_at.tzinfo)
@@ -344,8 +343,11 @@ class TaskDeclaration(models.Model):
 
                 if tr.state == TrainResult.State.FINISHED:
                     # save train data and refresh for next iteration
+                    if train_info.get(train_data['current_iteration']) is None:
+                        train_info[train_data['current_iteration']] = [train_data]
+                    else:
+                        train_info[train_data['current_iteration']].append(train_data)
 
-                    train_info[train_data['current_iteration']].append(train_data)
                     train_data = {
                         'worker_id': task_assignment.worker_id,
                         'assignment_id': task_assignment.asset_id,
@@ -354,16 +356,18 @@ class TaskDeclaration(models.Model):
                         'duration': None
                     }
 
+            if train_data.get('state') and train_data['state'] != TrainResult.State.FINISHED:
+                if train_info.get(train_data['current_iteration']) is None:
+                    train_info[train_data['current_iteration']] = [train_data]
+                else:
+                    train_info[train_data['current_iteration']].append(train_data)
+
     def _add_verification_info(self, data):
         verification_assignments = self.get_verification_assignments(
             states=(VerificationAssignment.State.VERIFYING, VerificationAssignment.State.FINISHED)
         )
 
         verification_info = data['verifiers']
-
-        # add arrays to each spent epochs
-        for i in range(self.current_iteration):
-            verification_info[i + 1] = []
 
         for verification_assignment in verification_assignments:
             history = VerificationResult.get_history(
@@ -415,8 +419,10 @@ class TaskDeclaration(models.Model):
                     verification_data['end_time'] = vr.modified_at
 
                     # update end time of iteration
-                    if data['history'][vr.current_iteration]['end_time'] is None \
-                            or data['history'][vr.current_iteration]['end_time'] < verification_data['end_time']:
+                    if data['history'].get(vr.current_iteration) and (
+                            data['history'][vr.current_iteration]['end_time'] is None or
+                            data['history'][vr.current_iteration]['end_time'] < verification_data['end_time']):
+
                         data['history'][vr.current_iteration]['end_time'] = verification_data['end_time']
 
                 end_time = verification_data['end_time'] or datetime.datetime.utcnow().replace(
@@ -427,7 +433,11 @@ class TaskDeclaration(models.Model):
                 if vr.state == VerificationResult.State.FINISHED:
                     # save train data and refresh for next iteration
 
-                    verification_info[verification_data['current_iteration']].append(verification_data)
+                    if verification_info.get(verification_data['current_iteration']) is None:
+                        verification_info[verification_data['current_iteration']] = [verification_data]
+                    else:
+                        verification_info[verification_data['current_iteration']].append(verification_data)
+
                     verification_data = {
                         'verifier_id': verification_assignment.verifier_id,
                         'assignment_id': verification_assignment.asset_id,
@@ -436,6 +446,12 @@ class TaskDeclaration(models.Model):
                         'duration': None,
                         'results': []
                     }
+
+            if verification_data.get('state') and verification_data['state'] != VerificationResult.State.FINISHED:
+                if verification_info.get(verification_data['current_iteration']) is None:
+                    verification_info[verification_data['current_iteration']] = [verification_data]
+                else:
+                    verification_info[verification_data['current_iteration']].append(verification_data)
 
     @property
     def progress_info(self):
@@ -478,18 +494,12 @@ class TaskDeclaration(models.Model):
         self._add_train_info(data)
         self._add_verification_info(data)
 
+        # update duration of iterations
+        for iteration, iteration_data in data['history'].items():
+            if iteration_data['start_time'] is not None:
+                end_time = iteration_data['end_time'] or datetime.datetime.utcnow().replace(
+                        tzinfo=iteration_data['start_time'].tzinfo)
 
-        # if data['start_time']:
-        #     data['duration'] = (
-        #             datetime.datetime.utcnow().replace(tzinfo=data['start_time'].tzinfo) - data['start_time']
-        #     ).total_seconds()
-        #
-        # if task_declaration.state in [TaskDeclaration.State.FAILED, TaskDeclaration.State.COMPLETED]:
-        #     try:
-        #         data['end_time'] = data['history'][task_declaration.epochs]['end_time']
-        #     except KeyError:
-        #         data['end_time'] = task_declaration.modified_at
-        #     data['duration'] = (data['end_time'] - data['start_time']).total_seconds()
+                iteration_data['duration'] = (end_time - iteration_data['start_time']).total_seconds()
 
         return data
-

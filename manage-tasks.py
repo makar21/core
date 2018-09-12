@@ -134,114 +134,8 @@ def white(text, on_color=None, attrs=None):
     return colored('{}'.format(text), 'white', on_color=on_color, attrs=attrs)
 
 
-def get_progress_data(task_declaration):
-    data = {
-        'asset_id': task_declaration.asset_id,
-        'dataset': task_declaration.dataset.name,
-        'train_model': task_declaration.train_model.name,
-        'state': task_declaration.state,
-        'accepted_workers': '{}/{}'.format(
-            task_declaration.workers_requested - task_declaration.workers_needed, task_declaration.workers_requested),
-        'accepted_verifiers': '{}/{}'.format(
-            task_declaration.verifiers_requested - task_declaration.verifiers_needed,
-            task_declaration.verifiers_requested),
-        'total_progress': task_declaration.progress,
-        'current_iteration': task_declaration.current_iteration,
-        'epochs_in_iteration': task_declaration.epochs_in_iteration,
-        'epochs': task_declaration.epochs,
-        'history': {},
-        'spent_tflops': task_declaration.tflops,
-        'estimated_tflops': task_declaration.estimated_tflops,
-        'workers': {},
-        'verifiers': {}
-    }
-
-    if task_declaration.state == TaskDeclaration.State.COMPLETED:
-        data['train_result'] = task_declaration.weights
-
-    for td in TaskDeclaration.get_history(
-            task_declaration.asset_id, db=task_declaration.db, encryption=task_declaration.encryption):
-        if td.loss and td.accuracy and td.state in (TaskDeclaration.State.EPOCH_IN_PROGRESS,
-                                                    TaskDeclaration.State.COMPLETED):
-            if td.state == TaskDeclaration.State.EPOCH_IN_PROGRESS:
-                epoch = td.current_iteration - 1
-            else:
-                epoch = td.current_iteration
-
-            data['history'][epoch] = {
-                'loss': td.loss,
-                'accuracy': td.accuracy
-            }
-
-    task_assignments = task_declaration.get_task_assignments(
-        states=(TaskAssignment.State.IN_PROGRESS, TaskAssignment.State.DATA_IS_READY, TaskAssignment.State.FINISHED)
-    )
-
-    for task_assignment in task_assignments:
-        worker_id = task_assignment.worker_id
-        data['workers'][worker_id] = []
-        history = TaskAssignment.get_history(
-            task_assignment.asset_id, db=task_declaration.db, encryption=task_declaration.encryption)
-        for ta in history:
-            if ta.state == TaskAssignment.State.FINISHED:
-                data['workers'][worker_id].append({
-                    'asset_id': ta.worker_id,
-                    'state': ta.state,
-                    'current_iteration': ta.current_iteration,
-                    'progress': ta.progress,
-                    'spent_tflops': ta.tflops,
-                    'loss': ta.loss,
-                    'accuracy': ta.accuracy
-                })
-
-        if task_assignment.state != TaskAssignment.State.FINISHED:
-            data['workers'][worker_id].append({
-                'asset_id': task_assignment.asset_id,
-                'state': task_assignment.state,
-                'current_iteration': task_assignment.current_iteration,
-                'progress': task_assignment.progress,
-                'spent_tflops': task_assignment.tflops,
-                'loss': task_assignment.loss,
-                'accuracy': task_assignment.accuracy
-            })
-
-    verification_assignments = task_declaration.get_verification_assignments(
-        states=(
-            VerificationAssignment.State.IN_PROGRESS,
-            VerificationAssignment.State.DATA_IS_READY,
-            VerificationAssignment.State.FINISHED
-        )
-    )
-
-    for verification_assignment in verification_assignments:
-        verifier_id = verification_assignment.verifier_id
-        data['verifiers'][verifier_id] = []
-        history = VerificationAssignment.get_history(
-            verification_assignment.asset_id, db=task_declaration.db, encryption=task_declaration.encryption)
-        for va in history:
-            if va.state == VerificationAssignment.State.FINISHED:
-                data['verifiers'][verifier_id].append({
-                    'asset_id': va.verifier_id,
-                    'state': va.state,
-                    'progress': va.progress,
-                    'spent_tflops': va.tflops,
-                    'result': va.result
-                })
-
-        if verification_assignment.state != VerificationAssignment.State.FINISHED:
-            data['verifiers'][verifier_id].append({
-                'asset_id': verification_assignment.verifier_id,
-                'state': verification_assignment.state,
-                'progress': verification_assignment.progress,
-                'spent_tflops': verification_assignment.tflops,
-                'result': None
-            })
-
-    return data
-
-
 def print_task_declaration(task_declaration):
-    data = get_progress_data(task_declaration)
+    data = task_declaration.progress_info
 
     logger.info('\n\n\n\n\n')
 
@@ -253,41 +147,45 @@ def print_task_declaration(task_declaration):
 
     logger.info('Dataset: {}'.format(data['dataset']))
     logger.info('Model: {}'.format(data['train_model']))
-    logger.info('Workers: {}, Verifiers: {}'.format(
-        yellow(data['accepted_workers']), yellow(data['accepted_verifiers'])))
+    logger.info('Estimators:{} Workers: {}, Verifiers: {}'.format(
+        yellow((data['accepted_estimators'])), yellow(data['accepted_workers']), yellow(data['accepted_verifiers'])))
 
-    logger.info('Epochs: {}'.format(yellow('{}/{}'.format(
-        min(data['current_iteration'] * data['epochs_in_iteration'], data['epochs']), data['epochs']))))
-    for epoch, value in data['history'].items():
-        logger.info('Iteration #{}\tloss: {}\taccuracy: {}'.format(epoch, green(value['loss']), green(value['accuracy'])))
+    logger.info('Epochs: {}'.format(yellow('{}/{}'.format(data['current_epoch'], data['epochs']))))
+
+    logger.info('Current iteration: {}'.format(yellow(data['current_iteration'])))
+
+    for iteration, value in data['history'].items():
+        logger.info('Iteration #{}\tloss: {}\taccuracy: {}\tduration: {}'.format(
+            iteration, green(value['loss']), green(value['accuracy']), green(value['duration'])))
 
     logger.info('-------------------------------------------------------------------------------------------')
 
-    for worker_id, worker_data in data['workers'].items():
-        logger.info('\tWorker: {}'.format(worker_id))
-        for wd in worker_data:
-            logger.info('\t\tIteration: #{}'.format(wd['current_iteration']))
+    logger.info('\tTrain')
+    for iteration, worker_data in data['workers'].items():
+        logger.info('\tIteration: {}'.format(iteration))
+        for worker_info in worker_data:
+            logger.info('\tWorker: {}'.format(worker_info['worker_id']))
             logger.info('\t\t\tState: {}\tProgress: {}\tTFLOPS: {}'.format(
-                magenta(wd['state']), blue(wd['progress']), cyan(wd['spent_tflops'])))
-            if wd['loss'] and wd['accuracy']:
-                logger.info('\t\t\tloss: {}\taccuracy: {}'.format(green(wd['loss']), green(wd['accuracy'])))
+                magenta(worker_info['state']), blue(worker_info['progress']), cyan(worker_info['spent_tflops'])))
+            if worker_info['loss'] and worker_info['accuracy']:
+                logger.info('\t\t\tloss: {}\taccuracy: {}'.format(
+                    green(worker_info['loss']), green(worker_info['accuracy'])))
             logger.info('\n')
     logger.info('-------------------------------------------------------------------------------------------')
 
-    for verifier_id, verifier_data in data['verifiers'].items():
-        logger.info('\tVerifier: {}'.format(verifier_id))
-        epoch = 1
-        for vd in verifier_data:
-            logger.info('\t\tIteration: #{}'.format(epoch))
+    logger.info('\tVerification')
+    for iteration, verifier_data in data['verifiers'].items():
+        logger.info('\t\tIteration: #{}'.format(iteration))
+        for verifier_info in verifier_data:
             logger.info('\t\t\tState: {}\tProgress: {}\tTFLOPS: {}'.format(
-                magenta(vd['state']), blue(vd['progress']), cyan(vd['spent_tflops'])))
-            if vd['result']:
+                magenta(verifier_info['state']), blue(verifier_info['progress']), cyan(verifier_info['spent_tflops'])))
+            if verifier_info['results']:
                 result_text = ''
-                for result in vd['result']:
+                for result in verifier_info['results']:
                     result_text += '\n\t\t\t\tworker: {} - {}'.format(
                         result['worker_id'], green('FAKE' if result['is_fake'] else 'OK'))
                 logger.info('\t\t\tResult: {}'.format(result_text))
-            epoch += 1
+            iteration += 1
 
     logger.info('-------------------------------------------------------------------------------------------')
     if task_declaration.state == TaskDeclaration.State.COMPLETED:
