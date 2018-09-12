@@ -51,7 +51,12 @@ def train(x_train_path, y_train_path, x_test_path, y_test_path, model_path, batc
         def progress_callback(self, progress):
             logger.info("Progress: {:.2f}".format(progress))
 
-    model.train(x=x_train, y=y_train, batch_size=batch_size, nb_epochs=epochs, train_progress=LocalProgress())
+    model.train(
+        x=x_train, y=y_train,
+        batch_size=batch_size, nb_epochs=epochs, current_iteration=1,
+        train_progress=LocalProgress()
+    )
+
     loss, acc = model.eval(x=x_test, y=y_test)
     logger.info('loss({}):{}, acc({}):{}'.format(loss.__class__.__name__, loss, acc.__class__.__name__, acc))
 
