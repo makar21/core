@@ -1,11 +1,11 @@
 from tatau_core.nn.tatau import model, TrainProgress
-from torch.utils.data import DataLoader, TensorDataset
+from torch.utils.data import Dataset, DataLoader
 import torch
 # noinspection PyUnresolvedReferences
 from torch import cuda, from_numpy
-import numpy
 from torch.nn import DataParallel
 from logging import getLogger
+
 
 logger = getLogger(__name__)
 
@@ -64,12 +64,11 @@ class Model(model.Model):
         self.optimizer.load_state_dict(weights['optimizer'])
         # self._criterion.load_state_dict(weights['criterion'])
 
-    def train(self, x: numpy.array, y: numpy.array, batch_size: int, nb_epochs: int, train_progress: TrainProgress):
+    def train(self, train_dataset: Dataset, num_workers: int, batch_size: int, nb_epochs: int, train_progress: TrainProgress):
 
         self.native_model.train()
 
-        dataset = TensorDataset(from_numpy(x).type(torch.FloatTensor), from_numpy(y))
-        loader = DataLoader(dataset, batch_size=batch_size, shuffle=False)
+        loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers)
 
         train_history = {'loss': [], 'acc': []}
         for epoch in range(1, nb_epochs + 1):
@@ -94,20 +93,21 @@ class Model(model.Model):
                 #                100. * batch_idx / len(loader), loss.item()))
                 #     running_loss = 0.0
             epoch_loss = epoch_loss / len(loader)
-            epoch_acc = correct/len(loader.dataset)
+            epoch_acc = correct / len(loader.dataset)
             logger.info("Epoch #{}: Loss: {:.4f} Acc: {:.2f}".format(epoch, epoch_loss, 100 * epoch_acc))
             train_history['loss'].append(epoch_loss)
             train_history['acc'].append(epoch_acc)
         return train_history
 
-    def eval(self, x: numpy.array, y: numpy.array):
+    def eval(self, test_dataset: Dataset, num_workers: int):
         # noinspection PyUnresolvedReferences
-        from torch import from_numpy
+        # from torch import from_numpy
         self.native_model.eval()
+
         test_loss = 0
         correct = 0
-        dataset = TensorDataset(from_numpy(x).type(torch.FloatTensor), from_numpy(y))
-        loader = DataLoader(dataset, batch_size=128, shuffle=False, num_workers=0)
+
+        loader = DataLoader(test_dataset, batch_size=128, shuffle=False, num_workers=num_workers)
 
         with torch.no_grad():
             for input_, target in loader:

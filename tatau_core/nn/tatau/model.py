@@ -3,6 +3,8 @@ from abc import abstractmethod, ABC
 from logging import getLogger
 from .progress import TrainProgress
 from tatau_core.utils.class_loader import load_class
+from collections import deque
+from torch.utils.data import Dataset
 
 
 logger = getLogger(__name__)
@@ -72,6 +74,9 @@ class Model(ABC):
         :return:
         """
         pass
+
+    def data_preprocessing(self, x_path_list: deque, y_path_list: deque) -> Dataset:
+        raise NotImplementedError()
 
     @abstractmethod
     def train(self, x: numpy.array, y: numpy.array, batch_size: int, nb_epochs: int, train_progress: TrainProgress):
