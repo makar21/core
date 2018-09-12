@@ -291,7 +291,8 @@ class TaskDeclaration(models.Model):
 
     def _add_train_info(self, data):
         task_assignments = self.get_task_assignments(
-            states=(TaskAssignment.State.TRAINING, TaskAssignment.State.FINISHED)
+            states=(TaskAssignment.State.TRAINING, TaskAssignment.State.FINISHED, TaskAssignment.State.TIMEOUT,
+                    TaskAssignment.State.FAKE_RESULTS, TaskAssignment.State.FORGOTTEN)
         )
 
         train_info = data['workers']
@@ -364,7 +365,8 @@ class TaskDeclaration(models.Model):
 
     def _add_verification_info(self, data):
         verification_assignments = self.get_verification_assignments(
-            states=(VerificationAssignment.State.VERIFYING, VerificationAssignment.State.FINISHED)
+            states=(VerificationAssignment.State.VERIFYING, VerificationAssignment.State.FINISHED,
+                    VerificationAssignment.State.TIMEOUT, VerificationAssignment.State.FORGOTTEN)
         )
 
         verification_info = data['verifiers']
