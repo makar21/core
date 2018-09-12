@@ -114,7 +114,7 @@ class Model(model.Model):
 
     @classmethod
     def native_model_factory(cls) -> nn.Module:
-        return res_net101()
+        return res_net152()
 
     def __init__(self):
         super(Model, self).__init__(

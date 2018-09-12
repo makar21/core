@@ -25,12 +25,8 @@ class Model(tatau.Model):
     def set_weights(self, weights: list):
         self.native_model.set_weights(weights=weights)
 
-    @classmethod
-    def data_preprocessing(cls, x: numpy.array, y: numpy.array):
-        return x, y
-
-    def train(self, x: numpy.array, y: numpy.array, batch_size: int, nb_epochs: int,
-              train_progress: tatau.TrainProgress):
+    def train(self, x: numpy.array, y: numpy.array, batch_size: int, current_iteration: int,
+              nb_epochs: int, train_progress: tatau.TrainProgress):
         callbacks = [
             ProgressCallback(nb_epochs=nb_epochs, train_progress=train_progress)
         ]
