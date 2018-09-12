@@ -3,10 +3,11 @@ import time
 from logging import getLogger
 
 from tatau_core import settings
+from tatau_core.models.train import TrainResult
 from tatau_core.nn import benchmark
 from tatau_core.nn.tatau.sessions.train import TrainSession
-from tatau_core.tatau.models import WorkerNode, TaskDeclaration, TaskAssignment, BenchmarkInfo
-from tatau_core.tatau.node import Node
+from tatau_core.models import WorkerNode, TaskDeclaration, TaskAssignment, BenchmarkInfo
+from tatau_core.node import Node
 
 logger = getLogger()
 
@@ -15,25 +16,8 @@ class Worker(Node):
 
     asset_class = WorkerNode
 
-    def _get_tx_methods(self):
-        return {
-            TaskDeclaration.get_asset_name(): self._process_task_declaration_transaction,
-            TaskAssignment.get_asset_name(): self._process_task_assignment_transaction
-        }
-
-    def _process_task_declaration_transaction(self, asset_id, transaction):
-        if transaction['operation'] == 'TRANSFER':
-            return
-
-        task_declaration = TaskDeclaration.get(asset_id, db=self.db, encryption=self.encryption)
-        logger.info('Received {}, workers_needed: {}'.format(task_declaration, task_declaration.workers_needed))
-        if task_declaration.workers_needed == 0:
-            return
-
-        self._process_task_declaration(task_declaration)
-
     def _process_task_declaration(self, task_declaration):
-        if task_declaration.state == TaskDeclaration.State.DEPLOYMENT \
+        if task_declaration.state in [TaskDeclaration.State.DEPLOYMENT, TaskDeclaration.State.DEPLOYMENT_TRAIN] \
                 and task_declaration.workers_needed > 0:
             logger.info('Process {}'.format(task_declaration))
             exists = TaskAssignment.exists(
@@ -46,68 +30,60 @@ class Worker(Node):
             )
 
             if exists:
-                logger.info('{} has already created task assignment for {}'.format(self, task_declaration))
+                logger.debug('{} has already created task assignment for {}'.format(self, task_declaration))
                 return
 
             task_assignment = TaskAssignment.create(
                 worker_id=self.asset_id,
                 producer_id=task_declaration.producer_id,
                 task_declaration_id=task_declaration.asset_id,
-                recipients=task_declaration.producer.address,
                 db=self.db,
                 encryption=self.encryption
             )
 
+            train_result = TrainResult.create(
+                task_assignment_id=task_assignment.asset_id,
+                public_key=task_assignment.producer.enc_key,
+                db=self.db,
+                encryption=self.encryption
+            )
+
+            task_assignment.train_result_id = train_result.asset_id
+            task_assignment.state = TaskAssignment.State.READY
+            task_assignment.save(recipients=task_declaration.producer.address)
+
             logger.info('Added {}'.format(task_assignment))
 
-    def _process_task_assignment_transaction(self, asset_id, transaction):
-        if transaction['operation'] == 'CREATE':
-            return
-
-        task_assignment = TaskAssignment.get(asset_id, db=self.db, encryption=self.encryption)
-
-        # skip another assignment
-        if task_assignment.worker_id != self.asset_id:
-            return
-
-        self._process_task_assignment(task_assignment)
-
     def _process_task_assignment(self, task_assignment):
-        if task_assignment.task_declaration.is_in_finished_state():
+        if task_assignment.task_declaration.in_finished_state:
             return
 
         logger.debug('{} process {} state:{}'.format(self, task_assignment, task_assignment.state))
 
-        if task_assignment.state == TaskAssignment.State.IN_PROGRESS:
-            if task_assignment.task_declaration.state == TaskDeclaration.State.EPOCH_IN_PROGRESS:
-                task_assignment.state = TaskAssignment.State.DATA_IS_READY
-
-        if task_assignment.state == TaskAssignment.State.RETRY:
-            task_assignment.state = TaskAssignment.State.INITIAL
+        if task_assignment.state == TaskAssignment.State.REASSIGN:
+            task_assignment.state = TaskAssignment.State.READY
+            # give ownership to producer
             task_assignment.save(recipients=task_assignment.producer.address)
             return
 
-        if task_assignment.state == TaskAssignment.State.DATA_IS_READY:
-            if not task_assignment.task_declaration.job_has_enough_balance():
-                return
+        if task_assignment.state == TaskAssignment.State.TRAINING:
+            if not task_assignment.iteration_is_finished:
+                self._train(task_assignment)
 
-            task_assignment.state = TaskAssignment.State.IN_PROGRESS
-            task_assignment.save()
-            self._train(task_assignment.asset_id)
+    def _train(self, task_assignment: TaskAssignment):
+        task_declaration = task_assignment.task_declaration
+        if task_declaration.balance_in_wei < task_declaration.iteration_cost_in_wei:
+            logger.info('Ignore {}, does not have enough balance'.format(task_declaration))
+            return
 
-    def _train(self, asset_id):
-        logger.info('Start work process'.format(asset_id))
-        task_assignment = TaskAssignment.get(asset_id, db=self.db, encryption=self.encryption)
-        logger.info("Train Task: {}".format(task_assignment))
+        logger.info('Start of training for {}'.format(self, task_assignment.task_declaration))
+
         session = TrainSession()
-
         try:
-
-            # progress = TaskProgress(self, asset_id, collect_metrics)
-
-            # reset data from previous iteration
-            task_assignment.result = None
-            task_assignment.error = None
+            task_assignment.train_result.clean()
+            task_assignment.train_result.state = TrainResult.State.IN_PROGRESS
+            task_assignment.train_result.current_iteration = task_assignment.train_data.current_iteration
+            task_assignment.train_result.save()
 
             try:
                 session.process_assignment(assignment=task_assignment)
@@ -117,17 +93,17 @@ class Worker(Node):
                 if msg:
                     error_dict['message'] = msg
 
-                task_assignment.error = json.dumps(error_dict)
+                task_assignment.train_result.error = json.dumps(error_dict)
                 logger.exception(e)
 
-            task_assignment.tflops = session.get_tflops()
-            task_assignment.progress = 100
-            task_assignment.state = TaskAssignment.State.FINISHED
-            task_assignment.set_encryption_key(task_assignment.producer.enc_key)
-            task_assignment.save(recipients=task_assignment.producer.address)
+            task_assignment.train_result.tflops = session.get_tflops()
+            task_assignment.train_result.progress = 100.0
+            task_assignment.train_result.state = TrainResult.State.FINISHED
+            task_assignment.train_result.save()
 
-            logger.info('Finished {}, tflops: {}, result: {}, error: {}'.format(
-                task_assignment, task_assignment.tflops, task_assignment.result, task_assignment.error
+            logger.info('End of training for {}, tflops: {}, result: {}, error: {}'.format(
+                task_assignment.task_declaration, task_assignment.train_result.tflops,
+                task_assignment.train_result.weights, task_assignment.train_result.error
             ))
         finally:
             session.clean()

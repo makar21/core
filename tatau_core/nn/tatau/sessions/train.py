@@ -1,14 +1,15 @@
-from collections import deque
 import os
-from .session import Session
-from logging import getLogger
 import sys
+from collections import deque
+from logging import getLogger
+
+import numpy as np
+
+from tatau_core.models import TaskAssignment
 from tatau_core.nn.tatau.model import Model
 from tatau_core.nn.tatau.progress import TrainProgress
-from tatau_core.tatau.models import TaskAssignment
 from tatau_core.utils.ipfs import IPFS, Downloader
-import numpy as np
-import pickle
+from .session import Session
 
 logger = getLogger(__name__)
 
@@ -40,11 +41,11 @@ class TrainSession(Session):
 
     @property
     def train_history_path(self):
-        return os.path.join(self.base_dir, "train_history.pkl")
+        return os.path.join(self.base_dir, 'train_history.pkl')
 
     @property
     def train_weights_path(self):
-        return os.path.join(self.base_dir, "train_weights.pkl")
+        return os.path.join(self.base_dir, 'train_weights.pkl')
 
     def save_train_history(self, train_history):
         self.save_object(path=self.train_history_path, obj=train_history)
@@ -52,35 +53,41 @@ class TrainSession(Session):
     def load_train_history(self):
         return self.load_object(self.train_history_path)
 
-    def process_assignment(self, assignment: TaskAssignment):
-        logger.info("Train Task: {}".format(assignment))
+    def process_assignment(self, assignment: TaskAssignment, *args, **kwargs):
+        logger.info('Train Task: {}'.format(assignment))
+
+        train_result = assignment.train_result
+        assert train_result
 
         ipfs = IPFS()
 
         logger.info('Train data: {}'.format(assignment.train_data))
 
-        batch_size = assignment.train_data['batch_size']
-        epochs = assignment.train_data['epochs']
+        batch_size = assignment.train_data.batch_size
+        epochs = assignment.train_data.epochs
 
-        list_download_params = [Downloader.DownloadParams(
-            multihash=assignment.train_data['model_code'],
-            target_path=self.model_path)]
+        list_download_params = [
+            Downloader.DownloadParams(
+                multihash=assignment.train_data.model_code,
+                target_path=self.model_path
+            )
+        ]
 
         train_x_paths = deque()
-        for x_train in assignment.train_data['x_train_ipfs']:
+        for x_train in assignment.train_data.x_train:
             target_path = os.path.join(self.base_dir, x_train)
             list_download_params.append(Downloader.DownloadParams(multihash=x_train, target_path=target_path))
             train_x_paths.append(target_path)
 
         train_y_paths = deque()
-        for y_train in assignment.train_data['y_train_ipfs']:
+        for y_train in assignment.train_data.y_train:
             target_path = os.path.join(self.base_dir, y_train)
             list_download_params.append(Downloader.DownloadParams(multihash=y_train, target_path=target_path))
             train_y_paths.append(target_path)
 
         list_download_params.append(
             Downloader.DownloadParams(
-                multihash=assignment.train_data['initial_weights'],
+                multihash=assignment.train_data.initial_weights,
                 target_path=self.init_weights_path
             )
         )
@@ -95,20 +102,20 @@ class TrainSession(Session):
 
         logger.info('Start training')
 
-        self._run(batch_size, epochs, assignment.current_iteration)
+        self._run(batch_size, epochs, assignment.train_data.current_iteration)
 
-        assignment.train_history = self.load_train_history()
+        train_result.train_history = self.load_train_history()
 
-        assignment.loss = assignment.train_history['loss'][-1]
-        assignment.accuracy = assignment.train_history['acc'][-1]
+        train_result.loss = train_result.train_history['loss'][-1]
+        train_result.accuracy = train_result.train_history['acc'][-1]
 
         ipfs_file = ipfs.add_file(self.train_weights_path)
         logger.info('Result weights are uploaded')
 
-        assignment.result = ipfs_file.multihash
+        train_result.weights = ipfs_file.multihash
 
     def main(self):
-        logger.info("Start training")
+        logger.info('Start training')
         batch_size = int(sys.argv[2])
         nb_epochs = int(sys.argv[3])
         current_iteration = int(sys.argv[4])

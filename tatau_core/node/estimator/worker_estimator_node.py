@@ -2,9 +2,9 @@ import time
 from logging import getLogger
 
 from tatau_core import settings
-from tatau_core.tatau.models import WorkerNode, TaskDeclaration
-from tatau_core.tatau.node.estimator.estimator_node import Estimator
-from tatau_core.tatau.node.worker.worker_node import Worker
+from tatau_core.models import WorkerNode, TaskDeclaration
+from tatau_core.node.estimator.estimator_node import Estimator
+from tatau_core.node.worker.worker_node import Worker
 
 logger = getLogger()
 
@@ -12,22 +12,6 @@ logger = getLogger()
 class WorkerEstimator(Worker, Estimator):
 
     asset_class = WorkerNode
-
-    def _get_tx_methods(self):
-        methods = Worker._get_tx_methods(self)
-        methods.update(Estimator._get_tx_methods(self))
-        return methods
-    
-    def _process_task_declaration_transaction(self, asset_id, transaction):
-        try:
-            Estimator._process_task_declaration_transaction(self, asset_id, transaction)
-        except Exception as ex:
-            logger.exception(ex)
-
-        try:
-            Worker._process_task_declaration_transaction(self, asset_id, transaction)
-        except Exception as ex:
-            logger.exception(ex)
 
     def _process_task_declaration(self, task_declaration):
         try:

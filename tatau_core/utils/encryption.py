@@ -72,10 +72,14 @@ class Encryption:
         ).decode()
 
     def decrypt_text(self, encrypted_text):
+        decrypted = False
         if encrypted_text is None:
-            return None
+            return None, decrypted
 
         try:
-            return self.decrypt(encrypted_text.encode()).decode()
+            decrypted_text = self.decrypt(encrypted_text.encode()).decode()
+            decrypted = True
+            return decrypted_text, decrypted
         except ValueError:
-            return encrypted_text
+            decrypted = False
+            return encrypted_text, decrypted

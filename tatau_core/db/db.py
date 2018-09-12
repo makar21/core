@@ -205,6 +205,15 @@ class DB:
         )[0]
         return create_tx
 
+    def retrieve_asset_in_initial_state(self, asset_id):
+        """
+        Retrieves the asset in initial state (with initial data)
+
+        Returns tx.
+        """
+        create_tx = self._get_transaction(asset_id)
+        return Asset(asset_id=asset_id, first_tx=create_tx, last_tx=create_tx)
+
     def retrieve_asset_ids(self, match, created_by_user=True, skip=None, limit=None):
         """
         Retreives assets that match to a $match provided as match argument.

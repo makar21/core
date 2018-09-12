@@ -6,7 +6,7 @@ from logging import getLogger
 from multiprocessing import Process
 
 from tatau_core import web3
-from tatau_core.db import DB, TransactionListener, NodeDBInfo
+from tatau_core.db import DB
 from tatau_core.settings import ROOT_DIR
 from tatau_core.utils.encryption import Encryption
 from tatau_core.utils.ipfs import IPFS
@@ -14,7 +14,7 @@ from tatau_core.utils.ipfs import IPFS
 logger = getLogger()
 
 
-class Node(TransactionListener):
+class Node:
 
     # should be rename by child classes
     asset_class = None
@@ -23,7 +23,6 @@ class Node(TransactionListener):
         self.db = DB()
         self.bdb = self.db.bdb
         self.encryption = Encryption()
-        NodeDBInfo.configure(self.db, self.encryption)
 
         if rsa_pk_fs_name:
             self._handle_fs_key(rsa_pk_fs_name)
@@ -75,37 +74,6 @@ class Node(TransactionListener):
                 db=self.db,
                 encryption=self.encryption
             )
-
-    def _process_tx(self, data):
-        """
-        Accepts WS stream data dict and checks if the transaction
-        needs to be processed.
-
-        If this is one of task assignment or verification assignment
-        transactions, runs a method that processes the transaction.
-        """
-        transaction = self.bdb.transactions.retrieve(data['transaction_id'])
-
-        if self._ignore_operation(transaction['operation']):
-            return
-
-        asset_id = data['asset_id']
-        asset_create_tx = self.db.retrieve_asset_create_tx(asset_id)
-
-        name = asset_create_tx['asset']['data'].get('asset_name')
-        logger.debug('{} process tx of "{}": {}'.format(self, name, asset_id))
-
-        tx_methods = self._get_tx_methods()
-        if name in tx_methods:
-            tx_methods[name](asset_id, transaction)
-        else:
-            logger.debug('{} skip tx of "{}": {}'.format(self, name, asset_id))
-
-    def _get_tx_methods(self):
-        raise NotImplemented
-
-    def _ignore_operation(self, operation):
-        return False
 
     def _ipfs_prefetch_async(self, multihash):
         Process(
