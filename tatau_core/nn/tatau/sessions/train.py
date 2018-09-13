@@ -73,11 +73,10 @@ class TrainSession(Session):
 
         Downloader.download_all(list_download_params)
 
-        x_train, y_train = self.concat_dataset(x_paths=train_x_paths, y_paths=train_y_paths)
+        self.save_x_train(train_x_paths)
+        self.save_y_train(train_y_paths)
 
-        np.save(self.x_train_path, x_train)
-        np.save(self.y_train_path, y_train)
-        logger.info('Dataset is loaded')
+        logger.info('Dataset downloaded')
 
         logger.info('Start training')
 
@@ -104,7 +103,7 @@ class TrainSession(Session):
 
         progress = TrainProgress()
         train_history = model.train(
-            x=np.load(self.x_train_path), y=np.load(self.y_train_path),
+            x_path_list=self.load_x_train(), y_path_list=self.load_y_train(),
             batch_size=batch_size, nb_epochs=nb_epochs,
             train_progress=progress, current_iteration=current_iteration
         )

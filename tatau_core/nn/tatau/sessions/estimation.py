@@ -24,11 +24,11 @@ class EstimationSession(Session):
             ),
             Downloader.DownloadParams(
                 multihash=assignment.estimation_data.x_train,
-                target_path=self.x_train_path
+                target_path=self.x_train_list_path
             ),
             Downloader.DownloadParams(
                 multihash=assignment.estimation_data.y_train,
-                target_path=self.y_train_path
+                target_path=self.y_train_list_path
             ),
             Downloader.DownloadParams(
                 multihash=assignment.estimation_data.initial_weights,
@@ -54,7 +54,7 @@ class EstimationSession(Session):
         progress = TrainProgress()
 
         model.train(
-            x_path_list=[self.x_train_path], y_path_list=[self.y_train_path],
+            x_path_list=self.load_x_train(), y_path_list=self.load_y_train(),
             batch_size=batch_size, nb_epochs=nb_epochs, current_iteration=current_iteration,
             train_progress=progress
         )

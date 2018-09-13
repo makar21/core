@@ -17,14 +17,6 @@ class SummarizeSession(Session):
         super(SummarizeSession, self).__init__(module=__name__, uuid=uuid)
 
     @property
-    def x_test_path(self):
-        return os.path.join(self.base_dir, 'x_test.npy')
-
-    @property
-    def y_test_path(self):
-        return os.path.join(self.base_dir, 'y_test.npy')
-
-    @property
     def results_list_path(self):
         return os.path.join(self.base_dir, 'results_list.pkl')
 
@@ -56,11 +48,11 @@ class SummarizeSession(Session):
         list_download_params = [
             Downloader.DownloadParams(
                 multihash=verification_assignment.verification_data.x_test,
-                target_path=self.x_test_path
+                target_path=self.x_test_list_path
             ),
             Downloader.DownloadParams(
                 multihash=verification_assignment.verification_data.y_test,
-                target_path=self.y_test_path
+                target_path=self.y_test_list_path
             ),
             Downloader.DownloadParams(
                 multihash=verification_assignment.verification_data.model_code,
@@ -71,7 +63,8 @@ class SummarizeSession(Session):
         downloaded_results = deque()
         for worker_result in verification_assignment.verification_data.train_results:
             target_path = os.path.join(self.base_dir, worker_result['result'])
-            list_download_params.append(Downloader.DownloadParams(multihash=worker_result['result'], target_path=target_path))
+            list_download_params.append(Downloader.DownloadParams(
+                multihash=worker_result['result'], target_path=target_path))
             downloaded_results.append(target_path)
 
         if not len(downloaded_results):
@@ -106,7 +99,7 @@ class SummarizeSession(Session):
 
         model.set_weights(weights)
 
-        loss, acc = model.eval(x=np.load(self.x_test_path), y=np.load(self.y_test_path))
+        loss, acc = model.eval(x_path_list=self.load_x_test(), y_path_list=self.load_y_test())
         self.save_eval_result(loss=loss, acc=acc)
         model.save_weights(self.summarized_weights_path)
 
