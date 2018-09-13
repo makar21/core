@@ -94,11 +94,11 @@ class Model(ABC):
         pass
 
     @abstractmethod
-    def eval(self, x: numpy.array, y: numpy.array):
+    def eval(self, x_path_list: deque, y_path_list: deque):
         """
         Evaluate  model
-        :param x: inputs
-        :param y: outputs
+        :param x_path_list: inputs
+        :param y_path_list: outputs
         :return: tuple(loss, acc)
         """
         raise NotImplementedError()
