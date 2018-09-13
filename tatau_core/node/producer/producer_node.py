@@ -280,8 +280,6 @@ class Producer(Node):
             model_code=task_declaration.train_model.code_ipfs,
             x_train=x_train_ipfs,
             y_train=y_train_ipfs,
-            x_test=task_declaration.dataset.x_test_ipfs,
-            y_test=task_declaration.dataset.y_test_ipfs,
             data_index=worker_index,
             batch_size=task_declaration.batch_size,
             initial_weights=task_declaration.weights,
@@ -525,9 +523,8 @@ class Producer(Node):
                     verification_assignment_id=verification_assignment.asset_id,
                     # share data with verifier
                     public_key=verification_assignment.verifier.enc_key,
-                    x_test=task_declaration.dataset.x_test_ipfs,
-                    y_test=task_declaration.dataset.y_test_ipfs,
-                    model_code=task_declaration.train_model.code_ipfs,
+                    test_dir_ipfs=task_declaration.dataset.test_dir_ipfs,
+                    model_code_ipfs=task_declaration.train_model.code_ipfs,
                     train_results=train_results,
                     db=self.db,
                     encryption=self.encryption
@@ -587,9 +584,8 @@ class Producer(Node):
                 verification_assignment_id=va.asset_id,
                 # share data with verifier
                 public_key=va.verifier.enc_key,
-                x_test=task_declaration.dataset.x_test_ipfs,
-                y_test=task_declaration.dataset.y_test_ipfs,
-                model_code=task_declaration.train_model.code_ipfs,
+                test_dir_ipfs=task_declaration.dataset.test_dir_ipfs,
+                model_code_ipfs=task_declaration.train_model.code_ipfs,
                 train_results=train_results,
                 db=self.db,
                 encryption=self.encryption

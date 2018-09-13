@@ -13,11 +13,12 @@ class NumpyDataChunk(Dataset):
     @classmethod
     def load_file(cls, path):
         # TODO: check memory usage
-        with np.load(path, mmap_mode='r') as data:
-            if issubclass(np.lib.npyio.NpzFile, data.__class__):
+        data = np.load(path, mmap_mode='r')
+        if issubclass(np.lib.npyio.NpzFile, data.__class__):
+            with data:
                 return data['arr_0']
-            elif issubclass(np.ndarray, data.__class__):
-                return data
+        elif isinstance(data, np.core.memmap):
+            return data
 
         raise RuntimeError("Unsupported numpy format")
 
