@@ -143,7 +143,9 @@ class Worker(Node):
                 model_train_tflops=train_benchmark_info.model_train_tflops,
                 train_time=int(train_benchmark_info.train_time),
                 av_cpu_load=train_benchmark_info.av_cpu_load,
-                av_gpu_load=train_benchmark_info.av_gpu_load
+                av_gpu_load=train_benchmark_info.av_gpu_load,
+                db=self.db,
+                encryption=self.encryption
             )
             self.asset.benchmark_info_id = benchmark_info_asset.asset_id
             self.asset.save()
