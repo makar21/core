@@ -1,13 +1,14 @@
 import os
 from logging import getLogger
-from examples.torch.imagenet12.model import Model
+from examples.torch.imagenet12.resnet import Model
 from tatau_core.nn.torch.model import TrainProgress
+from glob import glob
 
 
 logger = getLogger(__name__)
 
 
-def train_local(train_dataset, test_dataset, model_path, batch_size, epochs):
+def train_local(x_train_paths, y_train_paths, x_test_paths, y_test_paths, model_path, batch_size, epochs):
 
     model = Model.load_model(path=model_path)
 
@@ -15,28 +16,24 @@ def train_local(train_dataset, test_dataset, model_path, batch_size, epochs):
         def progress_callback(self, progress):
             logger.info("Progress: {:.2f}".format(progress))
 
-    history = model.train(train_dataset, batch_size=batch_size, nb_epochs=epochs,
+    history = model.train(x_train_paths, y_train_paths,
+                          batch_size=batch_size, nb_epochs=epochs,
+                          current_iteration=1,
                           train_progress=LocalProgress())
 
     print(history)
-    loss, acc = model.eval(test_dataset)
+    loss, acc = model.eval(x_test_paths, y_test_paths)
     print('loss({}):{}, acc({}):{}'.format(loss.__class__.__name__, loss, acc.__class__.__name__, acc))
 
 
 def main():
     model_path = 'resnet.py'
-    base_path = '../../../../../amazon-sagemaker-vs-tatau/pytorch_imagenet/compressed'
+    base_path = 'data/'
 
-    x_train_paths_pattern = os.path.join(base_path, 'x_train')
-    y_train_paths_pattern = os.path.join(base_path, 'y_train')
-
-    train_chunks_number = 80
-    test_chunks_number = 8
-    x_train_paths = [os.path.join(x_train_paths_pattern, f'x_train_part_{p:05}.npz') for p in range(train_chunks_number)]
-    y_train_paths = [os.path.join(y_train_paths_pattern, f'y_train_part_{p:05}.npz') for p in range(train_chunks_number)]
-
-    x_test_paths = [os.path.join(base_path, 'x_test', f'x_test_part_{p:05}.npz') for p in range(test_chunks_number)]
-    y_test_paths = [os.path.join(base_path, 'y_test', f'y_test_part_{p:05}.npz') for p in range(test_chunks_number)]
+    x_train_paths = glob(os.path.join(base_path, 'x_train', '*.npz'))
+    y_train_paths = glob(os.path.join(base_path, 'y_train', '*.npz'))
+    x_test_paths = glob(os.path.join(base_path, 'x_test', '*.npz'))
+    y_test_paths = glob(os.path.join(base_path, 'y_test', '*.npz'))
 
     train_local(x_train_paths, y_train_paths, x_test_paths, y_test_paths, model_path, batch_size=32, epochs=1)
 
