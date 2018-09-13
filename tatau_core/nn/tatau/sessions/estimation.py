@@ -51,7 +51,7 @@ class EstimationSession(Session):
         progress = TrainProgress()
 
         model.train(
-            x=np.load(self.x_train_path), y=np.load(self.y_train_path),
+            x_path_list=[self.x_train_path], y_path_list=[self.y_train_path],
             batch_size=batch_size, nb_epochs=nb_epochs,
             train_progress=progress
         )
