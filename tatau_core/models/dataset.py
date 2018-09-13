@@ -73,11 +73,11 @@ class Dataset(models.Model):
         train_dir = tempfile.mkdtemp()
         test_dir = tempfile.mkdtemp()
         try:
-            kwargs['test_dir_ipfs'] = Dataset.parse_csv_and_upload_to_ipfs(train_csv_text, train_part=False)
-            logger.info('Test part is uploaded: {}'.format(kwargs['test_dir_ipfs']))
+            kwargs['train_dir_ipfs'] = Dataset.parse_csv_and_upload_to_ipfs(train_csv_text, train_part=False)
+            logger.info('Train part is uploaded: {}'.format(kwargs['train_dir_ipfs']))
 
             kwargs['test_dir_ipfs'] = Dataset.parse_csv_and_upload_to_ipfs(test_csv_text, train_part=True)
-            logger.info('Train part is uploaded: {}'.format(kwargs['train_dir_ipfs']))
+            logger.info('Test part is uploaded: {}'.format(kwargs['test_dir_ipfs']))
         finally:
             shutil.rmtree(train_dir)
             shutil.rmtree(test_dir)
