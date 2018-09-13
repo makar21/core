@@ -56,7 +56,7 @@ def distribute(task_declaration, verification_assignment):
 
     good_worker_ids = []
     fake_worker_ids = []
-    # if verification was failed
+    # if verification was failed or task was canceled
     if verification_assignment.verification_result.result:
         for r in verification_assignment.verification_result.result:
             if r['is_fake']:
