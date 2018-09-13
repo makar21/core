@@ -1,5 +1,7 @@
 import argparse
 import os
+import shutil
+import tempfile
 import time
 from logging import getLogger
 from termcolor import colored
@@ -36,7 +38,10 @@ def train_local(x_train_list, y_train_list, x_test_list, y_test_list, model_path
     print('loss({}):{}, acc({}):{}'.format(loss.__class__.__name__, loss, acc.__class__.__name__, acc))
 
 
-def train_remote(x_train_path, y_train_path, x_test_path, y_test_path, args):
+def train_remote(x_train_list, y_train_list, x_test_list, y_test_list, args):
+    assert len(x_train_list) == len(y_train_list)
+    assert len(x_test_list) == len(y_test_list)
+
     logger.info("Start remote train")
 
     producer = load_producer()
@@ -55,18 +60,31 @@ def train_remote(x_train_path, y_train_path, x_test_path, y_test_path, args):
 
     dataset_name = os.path.basename(args.dataset)
 
-    dataset = Dataset.upload_and_create(
-        db=producer.db,
-        encryption=producer.encryption,
-        name=dataset_name,
-        x_train_path=x_train_path,
-        y_train_path=y_train_path,
-        x_test_path=x_test_path,
-        y_test_path=y_test_path,
-        minibatch_size=1000
-    )
+    train_dir = tempfile.mkdtemp()
+    test_dir = tempfile.mkdtemp()
+    
+    try:
+        name_format = '{{:0{}d}}'.format(len(x_train_list) + 1)
+        for index in range(len(x_train_list)):
+            shutil.copy(x_train_list[index], os.path.join(train_dir, 'x_train_' + name_format.format(index)))
+            shutil.copy(y_train_list[index], os.path.join(train_dir, 'y_train_' + name_format.format(index)))
 
-    logger.info('Dataset created: {}'.format(dataset))
+        for index in range(len(x_test_list)):
+            shutil.copy(x_test_list[index], os.path.join(test_dir, 'x_test_' + name_format.format(index)))
+            shutil.copy(y_test_list[index], os.path.join(test_dir, 'y_test_' + name_format.format(index)))
+
+        dataset = Dataset.upload_and_create(
+            db=producer.db,
+            encryption=producer.encryption,
+            name=dataset_name,
+            train_dir=train_dir,
+            test_dir=test_dir
+        )
+    finally:
+        shutil.rmtree(train_dir)
+        shutil.rmtree(test_dir)
+
+    # logger.info('Dataset created: {}'.format(dataset))
     logger.info('Create model')
     train_model = TrainModel.upload_and_create(
         name=args.name,
@@ -220,8 +238,8 @@ def main():
     parser.add_argument('-c', '--command', required=True, metavar='KEY', help='add|stop|cancel|issue|deposit|monitor')
     parser.add_argument('-k', '--key', default="producer", metavar='KEY', help='RSA key name')
     parser.add_argument('-n', '--name', default='mnist_mlp', metavar='NAME', help='model name')
-    parser.add_argument('-p', '--path', default='examples/keras/mnist/mlp.py', metavar='PATH', help='model path')
-    parser.add_argument('-d', '--dataset', default='examples/keras/mnist', metavar='dataset', help='dataset dir')
+    parser.add_argument('-p', '--path', default='examples/torch/cifar10/cnn.py', metavar='PATH', help='model path')
+    parser.add_argument('-d', '--dataset', default='examples/torch/cifar10', metavar='dataset', help='dataset dir')
     parser.add_argument('-w', '--workers', default=1, type=int, metavar='WORKERS', help='workers count')
     parser.add_argument('-v', '--verifiers', default=1, type=int, metavar='VERIFIERS', help='verifiers count')
     parser.add_argument('-b', '--batch', default=128, type=int, metavar='BATCH_SIZE', help='batch size')
@@ -235,10 +253,10 @@ def main():
     args = parser.parse_args()
 
     if args.command == 'add':
-        x_train_paths = glob(os.path.join(args.dataset, 'x_train', '*.npz'))
-        y_train_paths = glob(os.path.join(args.dataset, 'y_train', '*.npz'))
-        x_test_paths = glob(os.path.join(args.dataset, 'x_test', '*.npz'))
-        y_test_paths = glob(os.path.join(args.dataset, 'y_test', '*.npz'))
+        x_train_paths = glob(os.path.join(args.dataset, 'x_train', '*.np*'))
+        y_train_paths = glob(os.path.join(args.dataset, 'y_train', '*.np*'))
+        x_test_paths = glob(os.path.join(args.dataset, 'x_test', '*.np*'))
+        y_test_paths = glob(os.path.join(args.dataset, 'y_test', '*.np*'))
 
         if args.local:
             train_local(
@@ -248,8 +266,8 @@ def main():
             )
         else:
             train_remote(
-                x_train_path=x_train_paths, y_train_path=y_train_paths,
-                x_test_path=x_test_paths, y_test_path=y_test_paths,
+                x_train_list=x_train_paths, y_train_list=y_train_paths,
+                x_test_list=x_test_paths, y_test_list=y_test_paths,
                 args=args
             )
         return
