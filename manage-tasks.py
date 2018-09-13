@@ -3,7 +3,6 @@ import os
 import time
 from logging import getLogger
 
-import numpy as np
 from termcolor import colored
 
 from producer import load_producer
@@ -14,43 +13,29 @@ from tatau_core.tatau.models import TaskDeclaration, TaskAssignment, Verificatio
 from tatau_core.tatau.models import TrainModel, Dataset
 from tatau_core.utils.ipfs import IPFS
 from tatau_core.utils.logging import configure_logging
+from glob import glob
 
 configure_logging(__name__)
 
 logger = getLogger(__name__)
 
 
-def train_local(x_train_path, y_train_path, x_test_path, y_test_path, model_path, batch_size, epochs):
+def train_local(x_train_list, y_train_list, x_test_list, y_test_list, model_path, batch_size, epochs):
     model = Model.load_model(path=model_path)
-
-    x_train = np.load(x_train_path)
-    y_train = np.load(y_train_path)
-    x_test = np.load(x_test_path)
-    y_test = np.load(y_test_path)
 
     class LocalProgress(TrainProgress):
         def progress_callback(self, progress):
             logger.info("Progress: {:.2f}".format(progress))
 
     history = model.train(
-        x=x_train, y=y_train,
+        x_path_list=x_train_list, y_path_list=y_train_list,
         batch_size=batch_size,
         current_iteration=1,
-        nb_epochs=1,
+        nb_epochs=epochs,
         train_progress=LocalProgress())
 
-    model2 = Model.load_model(path=model_path)
+    loss, acc = model.eval(x_path_list=x_test_list, y_path_list=y_test_list)
 
-    history = model.train(
-        x=x_train, y=y_train,
-        batch_size=batch_size,
-        current_iteration=1,
-        nb_epochs=1,
-        train_progress=LocalProgress())
-
-
-    # print(history)
-    loss, acc = model.eval(x=x_test, y=y_test)
     print('loss({}):{}, acc({}):{}'.format(loss.__class__.__name__, loss, acc.__class__.__name__, acc))
 
 
@@ -270,7 +255,8 @@ def print_task_declaration(task_declaration):
     logger.info('Epochs: {}'.format(yellow('{}/{}'.format(
         min(data['current_iteration'] * data['epochs_in_iteration'], data['epochs']), data['epochs']))))
     for epoch, value in data['history'].items():
-        logger.info('Iteration #{}\tloss: {}\taccuracy: {}'.format(epoch, green(value['loss']), green(value['accuracy'])))
+        logger.info(
+            'Iteration #{}\tloss: {}\taccuracy: {}'.format(epoch, green(value['loss']), green(value['accuracy'])))
 
     logger.info('-------------------------------------------------------------------------------------------')
 
@@ -355,19 +341,21 @@ def main():
     args = parser.parse_args()
 
     if args.command == 'add':
-        x_train_path = os.path.join(args.dataset, 'x_train.npy')
-        y_train_path = os.path.join(args.dataset, 'y_train.npy')
-        x_test_path = os.path.join(args.dataset, 'x_test.npy')
-        y_test_path = os.path.join(args.dataset, 'y_test.npy')
+        x_train_paths = glob(os.path.join(args.dataset, 'x_train', '*.npz'))
+        y_train_paths = glob(os.path.join(args.dataset, 'y_train', '*.npz'))
+        x_test_paths = glob(os.path.join(args.dataset, 'x_test', '*.npz'))
+        y_test_paths = glob(os.path.join(args.dataset, 'y_test', '*.npz'))
 
         if args.local:
             train_local(
-                x_train_path=x_train_path, y_train_path=y_train_path, x_test_path=x_test_path, y_test_path=y_test_path,
+                x_train_list=x_train_paths, y_train_list=y_train_paths, x_test_list=x_test_paths,
+                y_test_list=y_test_paths,
                 model_path=args.path, batch_size=args.batch, epochs=args.epochs
             )
         else:
             train_remote(
-                x_train_path=x_train_path, y_train_path=y_train_path, x_test_path=x_test_path, y_test_path=y_test_path,
+                x_train_path=x_train_paths, y_train_path=y_train_paths,
+                x_test_path=x_test_paths, y_test_path=y_test_paths,
                 args=args
             )
         return

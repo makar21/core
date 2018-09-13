@@ -1,12 +1,13 @@
-from tatau_core.nn.tatau import model
-from tatau_core.nn.tatau import TrainProgress
-from torch.utils.data import DataLoader, TensorDataset
+from tatau_core.nn.tatau import model, TrainProgress
+from torch.utils.data import Dataset, ConcatDataset, DataLoader
 import torch
 # noinspection PyUnresolvedReferences
-from torch import from_numpy
-import numpy
+from torch import cuda, from_numpy
 from torch.nn import DataParallel
 from logging import getLogger
+from collections import deque
+from tatau_core.nn.torch.data_loader import NumpyDataChunk
+
 
 logger = getLogger(__name__)
 
@@ -65,15 +66,18 @@ class Model(model.Model):
         self.optimizer.load_state_dict(weights['optimizer'])
         # self._criterion.load_state_dict(weights['criterion'])
 
-    def train(self, x: numpy.array, y: numpy.array, batch_size: int, current_iteration: int,
+    def data_preprocessing(self, x_path_list: deque, y_path_list: deque) -> Dataset:
+        chunks = [NumpyDataChunk(x_path, y_path, transform=None)
+                  for x_path, y_path in zip(x_path_list, y_path_list)]
+        dataset = ConcatDataset(chunks)
+        return dataset
+
+    def train(self, x_path_list: deque, y_path_list: deque, batch_size: int, current_iteration: int,
               nb_epochs: int, train_progress: TrainProgress):
 
         self.native_model.train()
-
-        x, y = self.data_preprocessing(x, y)
-
-        dataset = TensorDataset(from_numpy(x), from_numpy(y))
-        loader = DataLoader(dataset, batch_size=batch_size, shuffle=False)
+        dataset = self.data_preprocessing(x_path_list, y_path_list)
+        loader = DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=0)
 
         train_history = {'loss': [], 'acc': []}
         for epoch in range(1, nb_epochs + 1):
@@ -98,19 +102,19 @@ class Model(model.Model):
                 #                100. * batch_idx / len(loader), loss.item()))
                 #     running_loss = 0.0
             epoch_loss = epoch_loss / len(loader)
-            epoch_acc = correct/len(loader.dataset)
+            epoch_acc = correct / len(loader.dataset)
             logger.info("Epoch #{}: Loss: {:.4f} Acc: {:.2f}".format(epoch, epoch_loss, 100 * epoch_acc))
             train_history['loss'].append(epoch_loss)
             train_history['acc'].append(epoch_acc)
         return train_history
 
-    def eval(self, x: numpy.array, y: numpy.array):
+    def eval(self, x_path_list: deque, y_path_list: deque):
         # noinspection PyUnresolvedReferences
-        from torch import from_numpy
+        # from torch import from_numpy
         self.native_model.eval()
         test_loss = 0
         correct = 0
-        dataset = TensorDataset(from_numpy(x), from_numpy(y))
+        dataset = self.data_preprocessing(x_path_list, y_path_list)
         loader = DataLoader(dataset, batch_size=128, shuffle=False, num_workers=0)
 
         with torch.no_grad():
