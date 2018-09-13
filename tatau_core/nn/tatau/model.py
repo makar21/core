@@ -1,11 +1,9 @@
-import numpy
+from collections import Iterable
 from abc import abstractmethod, ABC
 from logging import getLogger
 from .progress import TrainProgress
 from tatau_core.utils.class_loader import load_class
-from collections import deque
 from torch.utils.data import Dataset
-
 
 logger = getLogger(__name__)
 
@@ -75,11 +73,11 @@ class Model(ABC):
         """
         pass
 
-    def data_preprocessing(self, x_path_list: deque, y_path_list: deque) -> Dataset:
+    def data_preprocessing(self, x_path_list: Iterable, y_path_list: Iterable) -> Dataset:
         raise NotImplementedError()
 
     @abstractmethod
-    def train(self, x_path_list: deque, y_path_list: deque, batch_size: int, current_iteration: int,
+    def train(self, x_path_list: Iterable, y_path_list: Iterable, batch_size: int, current_iteration: int,
               nb_epochs: int, train_progress: TrainProgress):
         """
         Train model
@@ -94,7 +92,7 @@ class Model(ABC):
         pass
 
     @abstractmethod
-    def eval(self, x_path_list: deque, y_path_list: deque):
+    def eval(self, x_path_list: Iterable, y_path_list: Iterable):
         """
         Evaluate  model
         :param x_path_list: inputs

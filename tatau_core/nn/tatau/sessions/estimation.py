@@ -1,6 +1,5 @@
 import sys
 from logging import getLogger
-from collections import deque
 from tatau_core.nn.tatau.model import Model
 from tatau_core.nn.tatau.progress import TrainProgress
 from tatau_core.models import EstimationAssignment, EstimationResult
@@ -55,7 +54,7 @@ class EstimationSession(Session):
         progress = TrainProgress()
 
         model.train(
-            x_path_list=deque([self.x_train_path]), y_path_list=deque([self.y_train_path]),
+            x_path_list=[self.x_train_path], y_path_list=[self.y_train_path],
             batch_size=batch_size, nb_epochs=nb_epochs, current_iteration=current_iteration,
             train_progress=progress
         )

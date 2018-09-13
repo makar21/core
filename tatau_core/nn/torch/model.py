@@ -5,7 +5,7 @@ import torch
 from torch import cuda, from_numpy
 from torch.nn import DataParallel
 from logging import getLogger
-from collections import deque
+from collections import Iterable
 from tatau_core.nn.torch.data_loader import NumpyDataChunk
 
 
@@ -66,13 +66,13 @@ class Model(model.Model):
         self.optimizer.load_state_dict(weights['optimizer'])
         # self._criterion.load_state_dict(weights['criterion'])
 
-    def data_preprocessing(self, x_path_list: deque, y_path_list: deque) -> Dataset:
+    def data_preprocessing(self, x_path_list: Iterable, y_path_list: Iterable) -> Dataset:
         chunks = [NumpyDataChunk(x_path, y_path, transform=None)
                   for x_path, y_path in zip(x_path_list, y_path_list)]
         dataset = ConcatDataset(chunks)
         return dataset
 
-    def train(self, x_path_list: deque, y_path_list: deque, batch_size: int, current_iteration: int,
+    def train(self, x_path_list: Iterable, y_path_list: Iterable, batch_size: int, current_iteration: int,
               nb_epochs: int, train_progress: TrainProgress):
 
         self.native_model.train()
@@ -108,7 +108,7 @@ class Model(model.Model):
             train_history['acc'].append(epoch_acc)
         return train_history
 
-    def eval(self, x_path_list: deque, y_path_list: deque):
+    def eval(self, x_path_list: Iterable, y_path_list: Iterable):
         # noinspection PyUnresolvedReferences
         # from torch import from_numpy
         self.native_model.eval()

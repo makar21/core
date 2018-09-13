@@ -4,7 +4,7 @@ from torch import nn
 from torchvision import transforms
 from tatau_core.nn.torch import model
 from torch.utils.data import Dataset, ConcatDataset
-from collections import deque
+from collections import Iterable
 from tatau_core.nn.torch.data_loader import NumpyDataChunk
 
 
@@ -19,7 +19,7 @@ class Model(model.Model):
     def native_model_factory(cls) -> nn.Module:
         return models.resnet18()
 
-    def data_preprocessing(self, x_path_list: deque, y_path_list: deque) -> Dataset:
+    def data_preprocessing(self, x_path_list: Iterable, y_path_list: Iterable) -> Dataset:
         chunks = [NumpyDataChunk(x_path, y_path, transform=self.transform)
                   for x_path, y_path in zip(x_path_list, y_path_list)]
         return ConcatDataset(chunks)

@@ -18,27 +18,6 @@ class TrainSession(Session):
     def __init__(self, uuid=None):
         super(TrainSession, self).__init__(module=__name__, uuid=uuid)
 
-    # TODO: refactor to iterable
-    @classmethod
-    def concat_dataset(cls, x_paths, y_paths):
-        x_train = None
-        for train_x_path in x_paths:
-            f = np.load(train_x_path)
-            if x_train is not None:
-                x_train = np.concatenate((x_train, f))
-            else:
-                x_train = f
-
-        y_train = None
-        for train_y_path in y_paths:
-            f = np.load(train_y_path)
-            if y_train is not None:
-                y_train = np.concatenate((y_train, f))
-            else:
-                y_train = f
-
-        return x_train, y_train
-
     @property
     def train_history_path(self):
         return os.path.join(self.base_dir, 'train_history.pkl')
@@ -93,6 +72,8 @@ class TrainSession(Session):
         )
 
         Downloader.download_all(list_download_params)
+
+
 
         x_train, y_train = self.concat_dataset(x_paths=train_x_paths, y_paths=train_y_paths)
 
