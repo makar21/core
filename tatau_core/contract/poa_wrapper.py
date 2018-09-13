@@ -56,11 +56,13 @@ def distribute(task_declaration, verification_assignment):
 
     good_worker_ids = []
     fake_worker_ids = []
-    for r in verification_assignment.verification_result.result:
-        if r['is_fake']:
-            fake_worker_ids.append(r['worker_id'])
-        else:
-            good_worker_ids.append(r['worker_id'])
+    # if verification was failed
+    if verification_assignment.verification_result.result:
+        for r in verification_assignment.verification_result.result:
+            if r['is_fake']:
+                fake_worker_ids.append(r['worker_id'])
+            else:
+                good_worker_ids.append(r['worker_id'])
 
     amount_for_worker = int(task_declaration.iteration_cost_in_wei / task_declaration.workers_requested)
     distribute_history = verification_assignment.distribute_history
