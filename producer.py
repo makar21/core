@@ -2,7 +2,7 @@ import os
 from logging import getLogger
 
 from tatau_core import settings
-from tatau_core.tatau.node.producer import Producer
+from tatau_core.node.producer import Producer
 from tatau_core.utils.logging import configure_logging
 
 configure_logging('producer')
@@ -38,13 +38,5 @@ def load_producer():
 
 
 if __name__ == '__main__':
-    while True:
-        try:
-            producer = load_producer()
-
-            if os.getenv('USE_SOCKET', False):
-                producer.run_transaction_listener()
-            else:
-                producer.process_tasks()
-        except Exception as ex:
-            logger.info(ex)
+    producer = load_producer()
+    producer.process_tasks()

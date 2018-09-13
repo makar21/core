@@ -1,7 +1,7 @@
 import json
 
 from tatau_core import settings
-from tatau_core.db import exceptions, NodeDBInfo
+from tatau_core.db import exceptions
 from tatau_core.db.fields import Field, JsonField, EncryptedJsonField
 
 
@@ -24,35 +24,23 @@ class ModelBase(type):
 
 
 class Model(metaclass=ModelBase):
-    def __init__(self, db=None, encryption=None, asset_id=None, _address=None, _decrypt_values=False,
-                 created_at=None, modified_at=None, **kwargs):
+    def __init__(self, db, encryption, asset_id=None, _address=None, _decrypt_values=False,
+                 created_at=None, modified_at=None, public_key=None, **kwargs):
         # param "_decrypt_values" was added for using in methods get, history, because when data loads from db,
         # then data should be decrypted, but when new instance is creating, then data which passed to constructor
         # is not encrypted
-        self.db = db or NodeDBInfo.get_db()
-        self.encryption = encryption or NodeDBInfo.get_encryption()
+        self.db = db
+        self.encryption = encryption
         self.asset_id = asset_id
         self._address = _address
-        self._public_key = None
+        self._public_key = public_key
         self._created_at = created_at
         self._modified_at = modified_at
 
         for name, attr in self._attrs.items():
             if isinstance(attr, Field):
-                attr._name = name
                 value = kwargs[name] if name in kwargs else attr.initial
-                if value is not None:
-                    if attr.encrypted and _decrypt_values:
-                        value = self.encryption.decrypt_text(value)
-                    if isinstance(attr, JsonField) and isinstance(value, str):
-                        try:
-                            value = json.loads(value)
-                        except json.JSONDecodeError:
-                            if attr.encrypted:
-                                value = value
-                            else:
-                                raise
-                attr.__set__(self, value)
+                attr.set_value(self, value, name=name, encryption=self.encryption, decrypt=_decrypt_values)
 
     def __str__(self):
         return '<{}: {}>'.format(self.get_asset_name(), self.asset_id)
@@ -92,21 +80,7 @@ class Model(metaclass=ModelBase):
 
     def _prepare_value(self, name, attr):
         value = getattr(self, name)
-
-        if value is None and not attr.null and attr.required:
-            raise ValueError('{} is required'.format(name))
-
-        if attr.encrypted and value is not None:
-            if isinstance(attr, EncryptedJsonField):
-                value = self.encryption.encrypt_text(
-                    text=json.dumps(value),
-                    public_key=self.get_encryption_key()
-                )
-
-        if isinstance(attr, JsonField) and value is not None:
-            return json.dumps(value)
-
-        return value
+        return attr.prepare_value(value, public_key=self.get_encryption_key())
 
     def get_data(self):
         data = dict(asset_name=self.get_asset_name())
@@ -123,10 +97,7 @@ class Model(metaclass=ModelBase):
         return metadata or None
 
     @classmethod
-    def get(cls, asset_id, db=None, encryption=None):
-        db = db or NodeDBInfo.get_db()
-        encryption = encryption or NodeDBInfo.get_encryption()
-
+    def get(cls, asset_id, db, encryption):
         asset = db.retrieve_asset(asset_id)
         address = asset.last_tx['outputs'][0]['public_keys'][0]
 
@@ -162,10 +133,7 @@ class Model(metaclass=ModelBase):
             )
 
     @classmethod
-    def enumerate(cls, db=None, encryption=None, additional_match=None, created_by_user=True, limit=None, skip=None):
-        db = db or NodeDBInfo.get_db()
-        encryption = encryption or NodeDBInfo.get_encryption()
-
+    def enumerate(cls, db, encryption, additional_match=None, created_by_user=True, limit=None, skip=None):
         db.connect_to_mongodb()
         match = {
             'assets.data.asset_name': cls.get_asset_name(),
@@ -179,17 +147,15 @@ class Model(metaclass=ModelBase):
         )
 
     @classmethod
-    def list(cls, db=None, encryption=None, additional_match=None, created_by_user=True, limit=None, skip=None):
+    def list(cls, db, encryption, additional_match=None, created_by_user=True, limit=None, skip=None):
         return list(cls.enumerate(db, encryption, additional_match, created_by_user, limit, skip))
 
     @classmethod
-    def exists(cls, db=None, additional_match=None, created_by_user=True):
+    def exists(cls, db, additional_match=None, created_by_user=True):
         return cls.count(db, additional_match, created_by_user) > 0
 
     @classmethod
-    def count(cls, db=None, additional_match=None, created_by_user=True):
-        db = db or NodeDBInfo.get_db()
-
+    def count(cls, db, additional_match=None, created_by_user=True):
         db.connect_to_mongodb()
         match = {
             'assets.data.asset_name': cls.get_asset_name(),
@@ -201,10 +167,7 @@ class Model(metaclass=ModelBase):
         return db.retrieve_asset_count(match=match, created_by_user=created_by_user)
 
     @classmethod
-    def get_history(cls, asset_id, db=None, encryption=None):
-        db = db or NodeDBInfo.get_db()
-        encryption = encryption or NodeDBInfo.get_encryption()
-
+    def get_history(cls, asset_id, db, encryption):
         data = None
         created_at = None
         for transaction in db.retrieve_asset_transactions(asset_id):
@@ -223,4 +186,18 @@ class Model(metaclass=ModelBase):
             kwars['modified_at'] = transaction['generation_time']
             yield cls(db=db, encryption=encryption, asset_id=asset_id, _decrypt_values=True, _address=address, **kwars)
 
+    @classmethod
+    def get_with_initial_data(cls, asset_id, db, encryption):
+        asset = db.retrieve_asset_in_initial_state(asset_id)
+        address = asset.last_tx['outputs'][0]['public_keys'][0]
 
+        if asset.data['asset_name'] != cls.get_asset_name():
+            raise exceptions.Asset.WrongType()
+
+        kwars = dict(asset_id=asset_id)
+        kwars.update(asset.data)
+        if asset.metadata is not None:
+            kwars.update(asset.metadata)
+        kwars['created_at'] = asset.created_at
+        kwars['modified_at'] = asset.modified_at
+        return cls(db=db, encryption=encryption, _decrypt_values=True, _address=address, **kwars)

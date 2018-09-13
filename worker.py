@@ -3,7 +3,7 @@ import sys
 from logging import getLogger
 
 from tatau_core import settings
-from tatau_core.tatau.node.worker import Worker
+from tatau_core.node.worker import Worker
 from tatau_core.utils.logging import configure_logging
 
 configure_logging('worker')
@@ -41,13 +41,11 @@ if __name__ == '__main__':
                 rsa_pk=rsa_pk
             )
 
-            worker.perform_benchmark()
+            if not settings.DEBUG:
+                worker.perform_benchmark()
 
             logger.info('Start {} address: {}'.format(worker.asset, worker.asset.account_address))
-            if os.getenv('USE_SOCKET', False):
-                worker.run_transaction_listener()
-            else:
-                worker.search_tasks()
+            worker.search_tasks()
         except Exception as ex:
             logger.info(ex)
 
