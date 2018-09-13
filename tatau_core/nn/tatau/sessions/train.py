@@ -73,8 +73,6 @@ class TrainSession(Session):
 
         Downloader.download_all(list_download_params)
 
-
-
         x_train, y_train = self.concat_dataset(x_paths=train_x_paths, y_paths=train_y_paths)
 
         np.save(self.x_train_path, x_train)
