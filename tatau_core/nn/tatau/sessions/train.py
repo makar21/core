@@ -18,27 +18,6 @@ class TrainSession(Session):
     def __init__(self, uuid=None):
         super(TrainSession, self).__init__(module=__name__, uuid=uuid)
 
-    # TODO: refactor to iterable
-    @classmethod
-    def concat_dataset(cls, x_paths, y_paths):
-        x_train = None
-        for train_x_path in x_paths:
-            f = np.load(train_x_path)
-            if x_train is not None:
-                x_train = np.concatenate((x_train, f))
-            else:
-                x_train = f
-
-        y_train = None
-        for train_y_path in y_paths:
-            f = np.load(train_y_path)
-            if y_train is not None:
-                y_train = np.concatenate((y_train, f))
-            else:
-                y_train = f
-
-        return x_train, y_train
-
     @property
     def train_history_path(self):
         return os.path.join(self.base_dir, 'train_history.pkl')
@@ -94,11 +73,10 @@ class TrainSession(Session):
 
         Downloader.download_all(list_download_params)
 
-        x_train, y_train = self.concat_dataset(x_paths=train_x_paths, y_paths=train_y_paths)
+        self.save_x_train(train_x_paths)
+        self.save_y_train(train_y_paths)
 
-        np.save(self.x_train_path, x_train)
-        np.save(self.y_train_path, y_train)
-        logger.info('Dataset is loaded')
+        logger.info('Dataset downloaded')
 
         logger.info('Start training')
 
@@ -125,7 +103,7 @@ class TrainSession(Session):
 
         progress = TrainProgress()
         train_history = model.train(
-            x=np.load(self.x_train_path), y=np.load(self.y_train_path),
+            x_path_list=self.load_x_train(), y_path_list=self.load_y_train(),
             batch_size=batch_size, nb_epochs=nb_epochs,
             train_progress=progress, current_iteration=current_iteration
         )

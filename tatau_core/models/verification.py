@@ -9,9 +9,8 @@ logger = getLogger()
 
 class VerificationData(models.Model):
     # owner only producer, share data with verifier
-    x_test = fields.EncryptedCharField(immutable=True)
-    y_test = fields.EncryptedCharField(immutable=True)
-    model_code = fields.EncryptedCharField(immutable=True)
+    test_dir_ipfs = fields.EncryptedCharField(immutable=True)
+    model_code_ipfs = fields.EncryptedCharField(immutable=True)
 
     verification_assignment_id = fields.CharField()
     train_results = fields.EncryptedJsonField()

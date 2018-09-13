@@ -1,8 +1,6 @@
+import os
 import sys
 from logging import getLogger
-
-import numpy as np
-
 from tatau_core.nn.tatau.model import Model
 from tatau_core.nn.tatau.progress import TrainProgress
 from tatau_core.models import EstimationAssignment, EstimationResult
@@ -20,6 +18,9 @@ class EstimationSession(Session):
         assignment.estimation_result.state = EstimationResult.State.IN_PROGRESS
         assignment.estimation_result.save()
 
+        x_train_path = os.path.join(self.base_dir, 'x_train')
+        y_train_path = os.path.join(self.base_dir, 'y_train')
+
         list_download_params = [
             Downloader.DownloadParams(
                 multihash=assignment.estimation_data.model_code,
@@ -27,11 +28,11 @@ class EstimationSession(Session):
             ),
             Downloader.DownloadParams(
                 multihash=assignment.estimation_data.x_train,
-                target_path=self.x_train_path
+                target_path=x_train_path
             ),
             Downloader.DownloadParams(
                 multihash=assignment.estimation_data.y_train,
-                target_path=self.y_train_path
+                target_path=y_train_path
             ),
             Downloader.DownloadParams(
                 multihash=assignment.estimation_data.initial_weights,
@@ -42,6 +43,9 @@ class EstimationSession(Session):
         Downloader.download_all(list_download_params)
         assignment.estimation_result.progress = 20.0
         assignment.estimation_result.save()
+
+        self.save_x_train([x_train_path])
+        self.save_y_train([y_train_path])
 
         self._run(assignment.estimation_data.batch_size, 1, 1)
 
@@ -57,7 +61,7 @@ class EstimationSession(Session):
         progress = TrainProgress()
 
         model.train(
-            x=np.load(self.x_train_path), y=np.load(self.y_train_path),
+            x_path_list=self.load_x_train(), y_path_list=self.load_y_train(),
             batch_size=batch_size, nb_epochs=nb_epochs, current_iteration=current_iteration,
             train_progress=progress
         )
