@@ -8,6 +8,7 @@ import traceback
 from abc import ABC
 from logging import getLogger
 from uuid import uuid4
+from collections import Iterable
 
 from tatau_core.metrics import MetricsCollector
 
@@ -37,12 +38,21 @@ class Session(ABC):
         return os.path.join(self.base_dir, "model.py")
 
     @property
-    def x_train_path(self):
-        return os.path.join(self.base_dir, "x_train.npy")
+    def x_train_list_path(self):
+        return os.path.join(self.base_dir, "x_train_list.pkl")
 
     @property
-    def y_train_path(self):
-        return os.path.join(self.base_dir, "y_train.npy")
+    def y_train_list_path(self):
+        return os.path.join(self.base_dir, "y_train_list.pkl")
+
+    @property
+    def x_test_list_path(self):
+        return os.path.join(self.base_dir, 'x_test_list.pkl')
+
+    @property
+    def y_test_list_path(self):
+        return os.path.join(self.base_dir, 'y_test_list.pkl')
+
 
     @property
     def init_weights_path(self):
@@ -117,3 +127,27 @@ class Session(ABC):
     def load_exception(self):
         if os.path.exists(self.exception_path):
             return self.load_object(self.exception_path)
+
+    def save_x_train(self, paths_list: Iterable):
+        self.save_object(path=self.x_train_list_path, obj=paths_list)
+
+    def load_x_train(self)->Iterable:
+        return self.load_object(path=self.x_train_list_path)
+
+    def save_y_train(self, paths_list: Iterable):
+        self.save_object(path=self.y_train_list_path, obj=paths_list)
+
+    def load_y_train(self)->Iterable:
+        return self.load_object(path=self.y_train_list_path)
+
+    def save_x_test(self, paths_list: Iterable):
+        self.save_object(path=self.x_test_list_path, obj=paths_list)
+
+    def load_x_test(self)->Iterable:
+        return self.load_object(path=self.x_test_list_path)
+
+    def save_y_test(self, paths_list: Iterable):
+        self.save_object(path=self.y_test_list_path, obj=paths_list)
+
+    def load_y_test(self)->Iterable:
+        return self.load_object(path=self.y_test_list_path)

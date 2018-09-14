@@ -1,11 +1,10 @@
 import os
 from collections import deque
+from glob import glob
 from logging import getLogger
 
-import numpy as np
-
+from tatau_core.models import VerificationAssignment
 from tatau_core.nn.tatau.model import Model
-from tatau_core.tatau.models import VerificationAssignment
 from tatau_core.utils.ipfs import IPFS, Downloader
 from .session import Session
 
@@ -17,16 +16,8 @@ class SummarizeSession(Session):
         super(SummarizeSession, self).__init__(module=__name__, uuid=uuid)
 
     @property
-    def x_test_path(self):
-        return os.path.join(self.base_dir, "x_test.npy")
-
-    @property
-    def y_test_path(self):
-        return os.path.join(self.base_dir, "y_test.npy")
-
-    @property
     def results_list_path(self):
-        return os.path.join(self.base_dir, "results_list.pkl")
+        return os.path.join(self.base_dir, 'results_list.pkl')
 
     def save_results_list(self, result_list: list):
         self.save_object(self.results_list_path, result_list)
@@ -36,11 +27,11 @@ class SummarizeSession(Session):
 
     @property
     def summarized_weights_path(self):
-        return os.path.join(self.base_dir, "summarized_weights.pkl")
+        return os.path.join(self.base_dir, 'summarized_weights.pkl')
 
     @property
     def eval_result_path(self):
-        return os.path.join(self.base_dir, "eval.pkl")
+        return os.path.join(self.base_dir, 'eval.pkl')
 
     def save_eval_result(self, loss, acc):
         self.save_object(path=self.eval_result_path, obj=dict(loss=loss, acc=acc))
@@ -49,28 +40,27 @@ class SummarizeSession(Session):
         result = self.load_object(path=self.eval_result_path)
         return result['loss'], result['acc']
 
-    def process_assignment(self, assignment: VerificationAssignment):
+    def process_assignment(self, assignment: VerificationAssignment, *args, **kwargs):
         verification_assignment = assignment
+        verification_result = verification_assignment.verification_result
 
         list_download_params = [
             Downloader.DownloadParams(
-                multihash=verification_assignment.x_test_ipfs,
-                target_path=self.x_test_path
+                multihash=verification_assignment.verification_data.test_dir_ipfs,
+                target_path=self.base_dir,
+                directory=True
             ),
             Downloader.DownloadParams(
-                multihash=verification_assignment.y_test_ipfs,
-                target_path=self.y_test_path
-            ),
-            Downloader.DownloadParams(
-                multihash=verification_assignment.model_code_ipfs,
+                multihash=verification_assignment.verification_data.model_code_ipfs,
                 target_path=self.model_path
             ),
         ]
 
         downloaded_results = deque()
-        for worker_result in verification_assignment.train_results:
+        for worker_result in verification_assignment.verification_data.train_results:
             target_path = os.path.join(self.base_dir, worker_result['result'])
-            list_download_params.append(Downloader.DownloadParams(multihash=worker_result['result'], target_path=target_path))
+            list_download_params.append(Downloader.DownloadParams(
+                multihash=worker_result['result'], target_path=target_path))
             downloaded_results.append(target_path)
 
         if not len(downloaded_results):
@@ -80,14 +70,24 @@ class SummarizeSession(Session):
         Downloader.download_all(list_download_params)
         self.save_results_list(list(downloaded_results))
 
+        test_dir = os.path.join(self.base_dir, verification_assignment.verification_data.test_dir_ipfs)
+        x_test_paths = sorted(glob(os.path.join(test_dir, 'x_test*')))
+        y_test_paths = sorted(glob(os.path.join(test_dir, 'y_test*')))
+
+        self.save_x_test(x_test_paths)
+        self.save_y_test(y_test_paths)
+
         self._run()
 
         ipfs = IPFS()
-        verification_assignment.loss, verification_assignment.accuracy = self.load_eval_result()
-        verification_assignment.weights = ipfs.add_file(self.summarized_weights_path).multihash
+
+        loss, accuracy = self.load_eval_result()
+        verification_result.loss = loss
+        verification_result.accuracy = accuracy
+        verification_result.weights = ipfs.add_file(self.summarized_weights_path).multihash
 
     def main(self):
-        logger.info("Run Summarizer")
+        logger.info('Run Summarizer')
         results_list = self.load_results_list()
         model = Model.load_model(self.model_path)
 
@@ -102,7 +102,7 @@ class SummarizeSession(Session):
 
         model.set_weights(weights)
 
-        loss, acc = model.eval(x=np.load(self.x_test_path), y=np.load(self.y_test_path))
+        loss, acc = model.eval(x_path_list=self.load_x_test(), y_path_list=self.load_y_test())
         self.save_eval_result(loss=loss, acc=acc)
         model.save_weights(self.summarized_weights_path)
 

@@ -133,16 +133,20 @@ class IPFS:
 
 class Downloader:
     class DownloadParams:
-        def __init__(self, multihash, target_path):
+        def __init__(self, multihash, target_path, directory=False):
             self.multihash = multihash
             self.target_path = target_path
+            self.directory = directory
 
     @staticmethod
     def _download(download_params: DownloadParams):
         ipfs = IPFS()
-        ipfs.download_to(download_params.multihash, download_params.target_path)
+        if download_params.directory:
+            ipfs.download(download_params.multihash, download_params.target_path)
+        else:
+            ipfs.download_to(download_params.multihash, download_params.target_path)
 
     @classmethod
     def download_all(cls, list_download_params, pool_size=settings.DOWNLOAD_POOL_SIZE):
-        p = Pool(pool_size)
-        return p.map(cls._download, list_download_params)
+        with Pool(pool_size) as p:
+            return p.map(cls._download, list_download_params)

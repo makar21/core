@@ -1,4 +1,5 @@
-from tatau_core.tatau.models import EstimationAssignment
+from tatau_core.models import TaskDeclaration
+from tatau_core.models.task import ListEstimationAssignments
 from tatau_core.utils.ipfs import Directory
 
 
@@ -33,28 +34,19 @@ class Estimator:
         return estimate_data
 
     @staticmethod
-    def estimate(task_declaration):
-        estimation_assignments = task_declaration.get_estimation_assignments(
-            states=(
-                EstimationAssignment.State.DATA_IS_READY,
-                EstimationAssignment.State.IN_PROGRESS,
-                EstimationAssignment.State.FINISHED
-            )
-        )
-
+    def estimate(task_declaration: TaskDeclaration, finished_assignments: ListEstimationAssignments):
         failed = False
 
-        assert len(estimation_assignments)
+        assert len(finished_assignments)
 
         sum_tflops = 0.0
-        for estimation_assignment in estimation_assignments:
-            assert estimation_assignment.state == EstimationAssignment.State.FINISHED
-            sum_tflops += estimation_assignment.tflops
-            if estimation_assignment.error is not None:
+        for estimation_assignment in finished_assignments:
+            sum_tflops += estimation_assignment.estimation_result.tflops
+            if estimation_assignment.estimation_result.error is not None:
                 failed = True
                 return 0.0, failed
 
-        av_tflops = sum_tflops / len(estimation_assignments)
+        av_tflops = sum_tflops / len(finished_assignments)
         ipfs_dir = Directory(task_declaration.dataset.train_dir_ipfs)
         dirs, files = ipfs_dir.ls()
         batch_count = len(files) / 2
