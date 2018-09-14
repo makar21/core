@@ -16,6 +16,9 @@ class Model(ABC):
     weights_summarizer_class = 'tatau_core.nn.tatau.summarizer.Summarizer'
     weights_serializer_class = 'tatau_core.nn.tatau.serializer.WeightsSerializer'
 
+    transforms_train = None
+    transforms_eval = None
+
     @classmethod
     def load_model(cls, path):
         """
@@ -73,7 +76,7 @@ class Model(ABC):
         """
         pass
 
-    def data_preprocessing(self, x_path_list: Iterable, y_path_list: Iterable) -> Dataset:
+    def data_preprocessing(self, x_path_list: Iterable, y_path_list: Iterable, transforms: callable) -> Dataset:
         raise NotImplementedError()
 
     @abstractmethod

@@ -3,6 +3,7 @@ from torch.nn.modules import Module, Conv2d, Linear, MaxPool2d, CrossEntropyLoss
 # noinspection PyPep8Naming
 import torch.nn.functional as F
 import torch.optim as optim
+from torchvision import transforms
 
 
 class Net(Module):
@@ -26,6 +27,20 @@ class Net(Module):
 
 
 class Model(model.Model):
+    # TODO: update dataset to augmentation support
+    # transforms_train = transforms.Compose([
+    #     transforms.ToPILImage(),
+    #     transforms.RandomCrop(32, padding=4),
+    #     transforms.RandomHorizontalFlip(),
+    #     transforms.ToTensor(),
+    #     transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
+    # ])
+    #
+    # transforms_eval = transforms.Compose([
+    #     transforms.ToPILImage(),
+    #     transforms.ToTensor(),
+    #     transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
+    # ])
 
     @classmethod
     def native_model_factory(cls) -> Module:
