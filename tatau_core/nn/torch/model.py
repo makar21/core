@@ -66,8 +66,8 @@ class Model(model.Model):
         self.optimizer.load_state_dict(weights['optimizer'])
         # self._criterion.load_state_dict(weights['criterion'])
 
-    def data_preprocessing(self, x_path_list: Iterable, y_path_list: Iterable) -> Dataset:
-        chunks = [NumpyDataChunk(x_path, y_path, transform=None)
+    def data_preprocessing(self, x_path_list: Iterable, y_path_list: Iterable, transforms: callable) -> Dataset:
+        chunks = [NumpyDataChunk(x_path, y_path, transform=transforms)
                   for x_path, y_path in zip(x_path_list, y_path_list)]
         dataset = ConcatDataset(chunks)
         return dataset
@@ -76,7 +76,7 @@ class Model(model.Model):
               nb_epochs: int, train_progress: TrainProgress):
 
         self.native_model.train()
-        dataset = self.data_preprocessing(x_path_list, y_path_list)
+        dataset = self.data_preprocessing(x_path_list, y_path_list, transforms=self.transforms_train)
         loader = DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=0)
 
         train_history = {'loss': [], 'acc': []}
@@ -114,7 +114,7 @@ class Model(model.Model):
         self.native_model.eval()
         test_loss = 0
         correct = 0
-        dataset = self.data_preprocessing(x_path_list, y_path_list)
+        dataset = self.data_preprocessing(x_path_list, y_path_list, self.transforms_eval)
         loader = DataLoader(dataset, batch_size=128, shuffle=False, num_workers=0)
 
         with torch.no_grad():
