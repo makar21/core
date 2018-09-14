@@ -64,7 +64,7 @@ def train_remote(x_train_list, y_train_list, x_test_list, y_test_list, args):
     test_dir = tempfile.mkdtemp()
     
     try:
-        name_format = '{{:0{}d}}'.format(len(x_train_list) + 1)
+        name_format = '{{:0{}d}}'.format(len(str(len(x_train_list))) + 1)
         for index in range(len(x_train_list)):
             shutil.copy(x_train_list[index], os.path.join(train_dir, 'x_train_' + name_format.format(index)))
             shutil.copy(y_train_list[index], os.path.join(train_dir, 'y_train_' + name_format.format(index)))
