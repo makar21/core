@@ -1,7 +1,7 @@
 import os
 import tempfile
 from logging import getLogger
-from multiprocessing import Pool
+from multiprocessing.pool import ThreadPool
 
 import ipfsapi
 
@@ -148,5 +148,5 @@ class Downloader:
 
     @classmethod
     def download_all(cls, list_download_params, pool_size=settings.DOWNLOAD_POOL_SIZE):
-        with Pool(pool_size) as p:
+        with ThreadPool(pool_size) as p:
             return p.map(cls._download, list_download_params)
