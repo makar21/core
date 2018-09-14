@@ -23,6 +23,8 @@ class WhiteList:
 
     @classmethod
     def is_allowed_estimator(cls, estimator_asset_id):
+        if settings.DEBUG:
+            return True
         cls._load()
         if estimator_asset_id in cls._estimators:
             logger.info('Estimator: {} is allowed'.format(estimator_asset_id))
@@ -33,6 +35,9 @@ class WhiteList:
 
     @classmethod
     def is_allowed_verifier(cls, verifier_asset_id):
+        if settings.DEBUG:
+            return True
+
         cls._load()
         if verifier_asset_id in cls._verifiers:
             logger.info('Verifier: {} is allowed'.format(verifier_asset_id))
