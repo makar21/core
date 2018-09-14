@@ -1,8 +1,7 @@
 import os
 from collections import deque
+from glob import glob
 from logging import getLogger
-
-import numpy as np
 
 from tatau_core.models import VerificationAssignment
 from tatau_core.nn.tatau.model import Model
@@ -47,15 +46,12 @@ class SummarizeSession(Session):
 
         list_download_params = [
             Downloader.DownloadParams(
-                multihash=verification_assignment.verification_data.x_test,
-                target_path=self.x_test_list_path
+                multihash=verification_assignment.verification_data.test_dir_ipfs,
+                target_path=self.base_dir,
+                directory=True
             ),
             Downloader.DownloadParams(
-                multihash=verification_assignment.verification_data.y_test,
-                target_path=self.y_test_list_path
-            ),
-            Downloader.DownloadParams(
-                multihash=verification_assignment.verification_data.model_code,
+                multihash=verification_assignment.verification_data.model_code_ipfs,
                 target_path=self.model_path
             ),
         ]
@@ -74,6 +70,13 @@ class SummarizeSession(Session):
         Downloader.download_all(list_download_params)
         self.save_results_list(list(downloaded_results))
 
+        test_dir = os.path.join(self.base_dir, verification_assignment.verification_data.test_dir_ipfs)
+        x_test_paths = sorted(glob(os.path.join(test_dir, 'x_test*')))
+        y_test_paths = sorted(glob(os.path.join(test_dir, 'y_test*')))
+
+        self.save_x_test(x_test_paths)
+        self.save_y_test(y_test_paths)
+
         self._run()
 
         ipfs = IPFS()
@@ -84,7 +87,7 @@ class SummarizeSession(Session):
         verification_result.weights = ipfs.add_file(self.summarized_weights_path).multihash
 
     def main(self):
-        logger.info("Run Summarizer")
+        logger.info('Run Summarizer')
         results_list = self.load_results_list()
         model = Model.load_model(self.model_path)
 
