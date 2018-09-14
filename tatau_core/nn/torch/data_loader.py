@@ -23,6 +23,7 @@ class NumpyDataChunk(Dataset):
 
     def __getitem__(self, index):
         if self.transform:
+            # TODO: Move transpose to transform @etanchik
             x_normed = self.transform(np.transpose(self.x[index]))
         else:
             # noinspection PyUnresolvedReferences
@@ -33,4 +34,3 @@ class NumpyDataChunk(Dataset):
 
     def __len__(self):
         return len(self.x)
-
