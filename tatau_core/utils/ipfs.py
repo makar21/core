@@ -86,7 +86,12 @@ class IPFS:
         logger.info('Downloading {}'.format(multihash))
         self.api.get(multihash, filepath=target_dir, compress=False)
         target_path = os.path.join(target_dir, multihash)
-        logger.info('Downloaded file size: {}Mb'.format(os.path.getsize(target_path) / 1024. / 1024.))
+        if os.path.isfile(target_path):
+            logger.info('Downloaded file size: {}Mb'.format(os.path.getsize(target_path) / 1024. / 1024.))
+            return target_path
+
+        import urllib.request
+        urllib.request.urlretrieve('http://sandbox.ipfs.tatau.io/ipfs/{}'.format(multihash), target_path)
         return target_path
 
     def download_to(self, multihash, target_path):
