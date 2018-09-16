@@ -5,7 +5,6 @@ import os
 
 load_dotenv(find_dotenv(), override=True)
 
-
 DEBUG = os.getenv('TATAU_DEBUG').lower() == 'true'
 
 RAVEN_DSN = os.getenv(
@@ -22,13 +21,11 @@ VALID_TRANSACTIONS_STREAM_URL = 'ws://{}:9985/api/v1/streams/valid_transactions'
 
 BDB_ROOT_URL = 'http://{}:9984'.format(BDB_HOST)
 
-
 MONGO_DB_HOST = os.getenv('TATAU_MONGO_DB_HOST', 'mongodb')
 MONGO_DB_PORT = int(os.getenv('TATAU_MONGO_DB_PORT', 27017))
 
 IPFS_HOST = os.getenv('TATAU_IPFS_HOST', 'ipfs')
 IPFS_PORT = int(os.getenv('TATAU_IPFS_PORT', 5001))
-
 
 PRODUCER_PROCESS_INTERVAL = int(os.getenv('PRODUCER_PROCESS_INTERVAL', 5))
 WORKER_PROCESS_INTERVAL = int(os.getenv('WORKER_PROCESS_INTERVAL', 5))
@@ -48,9 +45,17 @@ NET = os.getenv('NET', 'sandbox')
 POA_DEFAULTS = {
     'sandbox': {
         # Sandbox v4
-        'CONTRACT_ADDRESS': '0x815d9f345e2f5b20b63650961b68775ce936f408'
+        'CONTRACT_ADDRESS': '0x815d9f345e2f5b20b63650961b68775ce936f408',
     }
 }
+
+IPFS_DEFAULTS = {
+    'sandbox': {
+        'IPFS_GATEWAY_HOST': 'sandbox.ipfs.tatau.io'
+    }
+}
+
+IPFS_GATEWAY_HOST = IPFS_DEFAULTS[NET]['IPFS_GATEWAY_HOST']
 
 CONTRACT_ADDRESS = POA_DEFAULTS[NET]['CONTRACT_ADDRESS']
 
@@ -60,7 +65,7 @@ KEYS_PATH = os.path.join(os.getenv('KEYS_ROOT'), NET)
 
 WHITELIST_JSON_PATH = os.getenv(
     'WHITELIST_JSON_PATH',
-    os.path.join(KEYS_PATH,  "whitelist.json")
+    os.path.join(KEYS_PATH, "whitelist.json")
 )
 
 DOWNLOAD_POOL_SIZE = int(os.getenv('DOWNLOAD_POOL_SIZE', 16))
