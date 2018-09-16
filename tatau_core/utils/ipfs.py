@@ -84,7 +84,7 @@ class IPFS:
         return self.api.id()['PublicKey']
 
     def download(self, multihash, target_dir):
-        logger.info('Downloading {}'.format(multihash))
+        logger.info('Downloading {} to {}'.format(multihash, target_dir))
         self.api.get(multihash, filepath=target_dir, compress=False)
         target_path = os.path.join(target_dir, multihash)
         if not os.path.exists(target_path):
@@ -97,8 +97,9 @@ class IPFS:
         return target_path
 
     def download_to(self, multihash, target_path):
-        downloaded_path = self.download(multihash, tempfile.gettempdir())
-        os.rename(downloaded_path, target_path)
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            downloaded_path = self.download(multihash, tmp_dir)
+            os.rename(downloaded_path, target_path)
 
     def read(self, multihash):
         logger.info('Reading {}'.format(multihash))
