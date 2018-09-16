@@ -8,14 +8,12 @@ from tatau_core.nn.torch import model
 class Model(model.Model):
     transforms_train = transforms.Compose([
         transforms.ToPILImage(),
-        transforms.RandomCrop(224, padding=4),
+        transforms.RandomCrop(224),
         transforms.RandomHorizontalFlip(),
         transforms.ToTensor(),
         transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])])
 
     transforms_eval = transforms.Compose([
-        transforms.ToPILImage(),
-        transforms.CenterCrop(224),
         transforms.ToTensor(),
         transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])])
 
