@@ -115,7 +115,7 @@ class Model(model.Model):
         test_loss = 0
         correct = 0
         dataset = self.data_preprocessing(x_path_list, y_path_list, self.transforms_eval)
-        loader = DataLoader(dataset, batch_size=128, shuffle=False, num_workers=0)
+        loader = DataLoader(dataset, batch_size=128, shuffle=False, num_workers=4)
 
         with torch.no_grad():
             for input_, target in loader:
