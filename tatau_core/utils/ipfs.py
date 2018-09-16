@@ -4,6 +4,7 @@ from logging import getLogger
 from multiprocessing.pool import ThreadPool
 import urllib.request
 import ipfsapi
+from tatau_core.settings import IPFS_GATEWAY_HOST
 
 from tatau_core import settings
 
@@ -88,9 +89,8 @@ class IPFS:
         target_path = os.path.join(target_dir, multihash)
         if not os.path.exists(target_path):
             logger.warning("IPFS download failed, try using gateway")
-            # TODO: add gateway host from .env
             target_path = urllib.request.urlretrieve(
-                'http://sandbox.ipfs.tatau.io/ipfs/{}'.format(multihash), target_path)
+                'http://{}/ipfs/{}'.format(IPFS_GATEWAY_HOST, multihash), target_path)
 
         logger.info('Downloaded file size: {}Mb'.format(os.path.getsize(target_path) / 1024. / 1024.))
         return target_path
