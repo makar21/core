@@ -74,6 +74,9 @@ class SummarizeSession(Session):
         x_test_paths = sorted(glob(os.path.join(test_dir, 'x_test*')))
         y_test_paths = sorted(glob(os.path.join(test_dir, 'y_test*')))
 
+        logger.info('X_test_paths: {}'.format(x_test_paths))
+        logger.info('Y_test_paths: {}'.format(y_test_paths))
+
         self.save_x_test(x_test_paths)
         self.save_y_test(y_test_paths)
 

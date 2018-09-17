@@ -101,10 +101,11 @@ class MetricsCollector:
         if self._process:
             logger.info('Wait for end of process collect metrics PID: {}'.format(self.get_pid()))
             self._process.join()
+            logger.info('Process of collect metrics is finished')
 
     def _collect_metrics(self):
         self.wait_for_start_collect_metrics()
-        logger.info('Start collect metrics')
+        logger.info('Start collect metrics PID: {}'.format(self.get_pid()))
         try:
             snapshot = ProcessSnapshot(self.get_pid())
             while not self.should_stop_collect_metrics(self.interval):
@@ -121,7 +122,7 @@ class MetricsCollector:
         except NoSuchProcess as ex:
             logger.exception(ex)
 
-        logger.info('Stop collect metrics')
+        logger.info('Stop collect metrics PID: {}'.format(self.get_pid()))
 
     @property
     def total_seconds(self):
