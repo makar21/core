@@ -83,6 +83,15 @@ class IPFS:
     def public_key(self):
         return self.api.id()['PublicKey']
 
+    def get_dir_size(self, start_path='.'):
+        total_size = 0
+        for dir_path, dir_names, file_names in os.walk(start_path):
+            for f in file_names:
+                fp = os.path.join(dir_path, f)
+                total_size += os.path.getsize(fp)
+                logger.info('{} size: {}'.format(fp, total_size))
+        return total_size
+
     def download(self, multihash, target_dir):
         logger.info('Downloading {} to {}'.format(multihash, target_dir))
         self.api.get(multihash, filepath=target_dir, compress=False)
@@ -93,7 +102,12 @@ class IPFS:
                 url='http://{}/ipfs/{}'.format(IPFS_GATEWAY_HOST, multihash), filename=target_path)
             logger.info('URL Retrieve: {}'.format(result))
 
-        logger.info('Downloaded file {} size: {}Mb'.format(target_path, os.path.getsize(target_path) / 1024. / 1024.))
+        if os.path.isfile(target_path):
+            logger.info(
+                'Downloaded file {} size: {}Mb'.format(target_path, os.path.getsize(target_path) / 1024. / 1024.))
+        else:
+            logger.info(
+                'Downloaded dir {} size: {}Mb'.format(target_path, self.get_dir_size(target_path) / 1024. / 1024.))
         return target_path
 
     def download_to(self, multihash, target_path):
