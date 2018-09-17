@@ -53,14 +53,14 @@ class TrainSession(Session):
         ]
 
         train_x_paths = deque()
-        for x_train in assignment.train_data.x_train:
-            target_path = os.path.join(self.base_dir, x_train)
+        for index, x_train in enumerate(assignment.train_data.x_train):
+            target_path = os.path.join(self.base_dir, 'x_{}'.format(index))
             list_download_params.append(Downloader.DownloadParams(multihash=x_train, target_path=target_path))
             train_x_paths.append(target_path)
 
         train_y_paths = deque()
-        for y_train in assignment.train_data.y_train:
-            target_path = os.path.join(self.base_dir, y_train)
+        for index, y_train in enumerate(assignment.train_data.y_train):
+            target_path = os.path.join(self.base_dir, 'y_{}'.format(index))
             list_download_params.append(Downloader.DownloadParams(multihash=y_train, target_path=target_path))
             train_y_paths.append(target_path)
 

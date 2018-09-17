@@ -75,6 +75,7 @@ class MetricsCollector:
         return self._event_stop.wait(wait)
 
     def _stop_collect_metrics(self):
+        logger.info('Signal for stop collect metrics')
         self._event_start_collect_metrics.set()
         self._event_stop.set()
         self._end_timestamp = time.time()
@@ -98,6 +99,7 @@ class MetricsCollector:
         self._stop_collect_metrics()
 
         if self._process:
+            logger.info('Wait for end of process collect metrics PID: {}'.format(self.get_pid()))
             self._process.join()
 
     def _collect_metrics(self):

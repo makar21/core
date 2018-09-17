@@ -1,9 +1,10 @@
 import os
 import sys
 from logging import getLogger
+
+from tatau_core.models import EstimationAssignment, EstimationResult
 from tatau_core.nn.tatau.model import Model
 from tatau_core.nn.tatau.progress import TrainProgress
-from tatau_core.models import EstimationAssignment, EstimationResult
 from tatau_core.utils.ipfs import Downloader
 from .session import Session
 

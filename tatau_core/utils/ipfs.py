@@ -88,10 +88,10 @@ class IPFS:
         self.api.get(multihash, filepath=target_dir, compress=False)
         target_path = os.path.join(target_dir, multihash)
         if not os.path.exists(target_path):
-            logger.warning("IPFS download failed, try using gateway")
+            logger.warning('IPFS download failed, try using gateway')
             result = urllib.request.urlretrieve(
                 url='http://{}/ipfs/{}'.format(IPFS_GATEWAY_HOST, multihash), filename=target_path)
-            logger.info("URL Retrieve: {}".format(result))
+            logger.info('URL Retrieve: {}'.format(result))
 
         logger.info('Downloaded file size: {}Mb'.format(os.path.getsize(target_path) / 1024. / 1024.))
         return target_path
