@@ -93,13 +93,14 @@ class IPFS:
                 url='http://{}/ipfs/{}'.format(IPFS_GATEWAY_HOST, multihash), filename=target_path)
             logger.info('URL Retrieve: {}'.format(result))
 
-        logger.info('Downloaded file size: {}Mb'.format(os.path.getsize(target_path) / 1024. / 1024.))
+        logger.info('Downloaded file {} size: {}Mb'.format(target_path, os.path.getsize(target_path) / 1024. / 1024.))
         return target_path
 
     def download_to(self, multihash, target_path):
         with tempfile.TemporaryDirectory() as tmp_dir:
             downloaded_path = self.download(multihash, tmp_dir)
             os.rename(downloaded_path, target_path)
+            logger.info('Moved {} -> {}'.format(downloaded_path, target_path))
 
     def read(self, multihash):
         logger.info('Reading {}'.format(multihash))
