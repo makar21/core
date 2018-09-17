@@ -163,13 +163,12 @@ class Verifier(Node):
                 error_dict['message'] = msg
 
             verification_assignment.verification_result.error = json.dumps(error_dict)
-            verification_assignment.verification_result.state = VerificationResult.State.FINISHED
+            verification_assignment.verification_result.state = VerificationResult.State.VERIFICATION_FINISHED
             verification_assignment.verification_result.save()
             logger.exception(e)
             failed = True
         finally:
             session.clean()
-
         return failed, session.get_tflops()
 
     def _is_fake_worker_present(self, verification_assignment):
@@ -201,6 +200,7 @@ class Verifier(Node):
         if not self._is_fake_worker_present(verification_assignment):
             failed, summarize_tflops = self._run_summarize_session(verification_assignment)
             if failed:
+                self._distribute(verification_assignment)
                 return
 
         verification_assignment.verification_result.progress = 100.0
