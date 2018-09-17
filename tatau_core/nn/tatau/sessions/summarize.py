@@ -58,7 +58,7 @@ class SummarizeSession(Session):
 
         downloaded_results = deque()
         for worker_result in verification_assignment.verification_data.train_results:
-            target_path = os.path.join(self.base_dir, worker_result['result'])
+            target_path = os.path.join(self.base_dir, worker_result['worker_id'])
             list_download_params.append(Downloader.DownloadParams(
                 multihash=worker_result['result'], target_path=target_path))
             downloaded_results.append(target_path)
