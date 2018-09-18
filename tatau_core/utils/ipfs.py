@@ -161,6 +161,10 @@ class Downloader:
     def __init__(self, storage_name, base_dir=None, pool_size=None):
         self.base_dir = base_dir or settings.TATAU_STORAGE_BASE_DIR
         self.storage_dir_path = os.path.join(self.base_dir, storage_name)
+        try:
+            os.mkdir(self.storage_dir_path)
+        except FileExistsError:
+            pass
         self.pool_size = pool_size or settings.DOWNLOAD_POOL_SIZE
         self._ipfs = IPFS()
         self._download_data = {}
