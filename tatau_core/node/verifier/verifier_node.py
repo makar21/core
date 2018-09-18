@@ -8,6 +8,7 @@ from tatau_core.models import VerifierNode, TaskDeclaration, VerificationAssignm
 from tatau_core.models.verification import VerificationResult, DistributeHistory
 from tatau_core.nn.tatau.sessions.summarize import SummarizeSession
 from tatau_core.node.node import Node
+from tatau_core.utils.ipfs import Downloader
 
 logger = getLogger()
 
@@ -20,6 +21,7 @@ class Verifier(Node):
     def _process_task_declaration(self, task_declaration):
         if task_declaration.in_finished_state:
             self._finish_job(task_declaration)
+            Downloader(task_declaration.asset_id).remove_storage()
             return
 
         if task_declaration.state in [TaskDeclaration.State.DEPLOYMENT, TaskDeclaration.State.DEPLOYMENT_VERIFICATION] \
