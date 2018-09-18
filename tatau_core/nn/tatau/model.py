@@ -104,6 +104,15 @@ class Model(ABC):
         """
         raise NotImplementedError()
 
+    @abstractmethod
+    def adjust_learning_rate(self, epoch: int):
+        """
+        Adjust learning rate over training process
+        :param epoch: training epoch
+        :return:
+        """
+        pass
+
     @classmethod
     def get_weights_serializer(cls):
         return load_class(cls.weights_serializer_class)()
