@@ -58,7 +58,7 @@ class SummarizeSession(Session):
 
         downloaded_results = deque()
         for worker_result in verification_assignment.verification_data.train_results:
-            target_path = os.path.join(self.base_dir, worker_result['result'])
+            target_path = os.path.join(self.base_dir, worker_result['worker_id'])
             list_download_params.append(Downloader.DownloadParams(
                 multihash=worker_result['result'], target_path=target_path))
             downloaded_results.append(target_path)
@@ -73,6 +73,9 @@ class SummarizeSession(Session):
         test_dir = os.path.join(self.base_dir, verification_assignment.verification_data.test_dir_ipfs)
         x_test_paths = sorted(glob(os.path.join(test_dir, 'x_test*')))
         y_test_paths = sorted(glob(os.path.join(test_dir, 'y_test*')))
+
+        logger.info('X_test_paths: {}'.format(x_test_paths))
+        logger.info('Y_test_paths: {}'.format(y_test_paths))
 
         self.save_x_test(x_test_paths)
         self.save_y_test(y_test_paths)

@@ -6,9 +6,9 @@ import sys
 import tempfile
 import traceback
 from abc import ABC
+from collections import Iterable
 from logging import getLogger
 from uuid import uuid4
-from collections import Iterable
 
 from tatau_core.metrics import MetricsCollector
 
@@ -35,15 +35,15 @@ class Session(ABC):
 
     @property
     def model_path(self):
-        return os.path.join(self.base_dir, "model.py")
+        return os.path.join(self.base_dir, 'model.py')
 
     @property
     def x_train_list_path(self):
-        return os.path.join(self.base_dir, "x_train_list.pkl")
+        return os.path.join(self.base_dir, 'x_train_list.pkl')
 
     @property
     def y_train_list_path(self):
-        return os.path.join(self.base_dir, "y_train_list.pkl")
+        return os.path.join(self.base_dir, 'y_train_list.pkl')
 
     @property
     def x_test_list_path(self):
@@ -53,16 +53,17 @@ class Session(ABC):
     def y_test_list_path(self):
         return os.path.join(self.base_dir, 'y_test_list.pkl')
 
-
     @property
     def init_weights_path(self):
-        return os.path.join(self.base_dir, "init_weights.pkl")
+        return os.path.join(self.base_dir, 'init_weights.pkl')
 
     def get_tflops(self):
         return self._metrics_collector.get_tflops()
 
     def clean(self):
+        logger.info('Cleanup session {}'.format(self.uuid))
         shutil.rmtree(self.base_dir)
+        logger.info('Base dir {} is removed'.format(self.base_dir))
         self._metrics_collector.clean()
 
     def process_assignment(self, assignment):
@@ -70,7 +71,7 @@ class Session(ABC):
 
     def _run(self, *args, async=False):
 
-        args_list = ["python", "-m", self._module, self.uuid]
+        args_list = ['python', '-m', self._module, self.uuid]
         args_list += [str(a) for a in args]
 
         if async:
@@ -102,18 +103,18 @@ class Session(ABC):
 
     @classmethod
     def save_object(cls, path, obj):
-        with open(path, "wb") as f:
+        with open(path, 'wb') as f:
             pickle.dump(obj, f, pickle.HIGHEST_PROTOCOL)
 
     @classmethod
     def load_object(cls, path):
-        with open(path, "rb") as f:
+        with open(path, 'rb') as f:
             obj = pickle.load(f)
         return obj
 
     @property
     def exception_path(self):
-        return os.path.join(self.base_dir, "exception.pkl")
+        return os.path.join(self.base_dir, 'exception.pkl')
 
     def save_exception(self, exception: Exception):
         self.save_object(
