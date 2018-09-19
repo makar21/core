@@ -1,4 +1,6 @@
 # noinspection PyPackageRequirements
+import tempfile
+
 from dotenv import load_dotenv, find_dotenv
 import pathlib
 import os
@@ -73,3 +75,6 @@ DOWNLOAD_POOL_SIZE = int(os.getenv('DOWNLOAD_POOL_SIZE', 16))
 WAIT_ESTIMATE_TIMEOUT = int(os.getenv('WAIT_ESTIMATE_TIMEOUT', 600))
 WAIT_TRAIN_TIMEOUT = int(os.getenv('WAIT_TRAIN_TIMEOUT', 1800))
 WAIT_VERIFY_TIMEOUT = int(os.getenv('WAIT_VERIFY_TIMEOUT', 1800))
+
+
+TATAU_STORAGE_BASE_DIR = os.path.join(tempfile.gettempdir(), 'tatau')

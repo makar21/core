@@ -25,6 +25,8 @@ class Net(Module):
 
 
 class Model(model.Model):
+    def adjust_learning_rate(self, epoch: int):
+        pass
 
     @classmethod
     def native_model_factory(cls) -> Module:

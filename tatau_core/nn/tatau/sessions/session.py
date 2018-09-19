@@ -34,7 +34,7 @@ class Session(ABC):
         return session_dir
 
     @property
-    def model_path(self):
+    def _model_path(self):
         return os.path.join(self.base_dir, 'model.py')
 
     @property
@@ -54,7 +54,7 @@ class Session(ABC):
         return os.path.join(self.base_dir, 'y_test_list.pkl')
 
     @property
-    def init_weights_path(self):
+    def _init_weights_path(self):
         return os.path.join(self.base_dir, 'init_weights.pkl')
 
     def get_tflops(self):
@@ -134,6 +134,18 @@ class Session(ABC):
 
     def load_x_train(self)->Iterable:
         return self.load_object(path=self.x_train_list_path)
+
+    def save_init_weights_path(self, path):
+        self.save_object(path=self._init_weights_path, obj=path)
+
+    def load_init_weights_path(self):
+        return self.load_object(path=self._init_weights_path)
+
+    def save_model_path(self, path):
+        self.save_object(path=self._model_path, obj=path)
+
+    def load_model_path(self):
+        return self.load_object(path=self._model_path)
 
     def save_y_train(self, paths_list: Iterable):
         self.save_object(path=self.y_train_list_path, obj=paths_list)

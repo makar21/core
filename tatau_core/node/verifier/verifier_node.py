@@ -8,6 +8,7 @@ from tatau_core.models import VerifierNode, TaskDeclaration, VerificationAssignm
 from tatau_core.models.verification import VerificationResult, DistributeHistory
 from tatau_core.nn.tatau.sessions.summarize import SummarizeSession
 from tatau_core.node.node import Node
+from tatau_core.utils.ipfs import Downloader
 
 logger = getLogger()
 
@@ -20,6 +21,7 @@ class Verifier(Node):
     def _process_task_declaration(self, task_declaration):
         if task_declaration.in_finished_state:
             self._finish_job(task_declaration)
+            Downloader(task_declaration.asset_id).remove_storage()
             return
 
         if task_declaration.state in [TaskDeclaration.State.DEPLOYMENT, TaskDeclaration.State.DEPLOYMENT_VERIFICATION] \
@@ -163,13 +165,12 @@ class Verifier(Node):
                 error_dict['message'] = msg
 
             verification_assignment.verification_result.error = json.dumps(error_dict)
-            verification_assignment.verification_result.state = VerificationResult.State.FINISHED
+            verification_assignment.verification_result.state = VerificationResult.State.VERIFICATION_FINISHED
             verification_assignment.verification_result.save()
             logger.exception(e)
             failed = True
         finally:
             session.clean()
-
         return failed, session.get_tflops()
 
     def _is_fake_worker_present(self, verification_assignment):
@@ -201,6 +202,7 @@ class Verifier(Node):
         if not self._is_fake_worker_present(verification_assignment):
             failed, summarize_tflops = self._run_summarize_session(verification_assignment)
             if failed:
+                self._distribute(verification_assignment)
                 return
 
         verification_assignment.verification_result.progress = 100.0

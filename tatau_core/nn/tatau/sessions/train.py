@@ -3,8 +3,6 @@ import sys
 from collections import deque
 from logging import getLogger
 
-import numpy as np
-
 from tatau_core.models import TaskAssignment
 from tatau_core.nn.tatau.model import Model
 from tatau_core.nn.tatau.progress import TrainProgress
@@ -38,41 +36,33 @@ class TrainSession(Session):
         train_result = assignment.train_result
         assert train_result
 
-        ipfs = IPFS()
-
         logger.info('Train data: {}'.format(assignment.train_data))
+
+        downloader = Downloader(assignment.task_declaration_id)
+        downloader.add_to_download_list(assignment.train_data.model_code, 'model.py')
+
+        initial_weight_file_name = 'initial_weight_{}'.format(assignment.train_data.current_iteration)
+        downloader.add_to_download_list(assignment.train_data.initial_weights, initial_weight_file_name)
 
         batch_size = assignment.train_data.batch_size
         epochs = assignment.train_data.epochs
 
-        list_download_params = [
-            Downloader.DownloadParams(
-                multihash=assignment.train_data.model_code,
-                target_path=self.model_path
-            )
-        ]
-
         train_x_paths = deque()
         for index, x_train in enumerate(assignment.train_data.x_train):
-            target_path = os.path.join(self.base_dir, 'x_{}'.format(index))
-            list_download_params.append(Downloader.DownloadParams(multihash=x_train, target_path=target_path))
-            train_x_paths.append(target_path)
+            file_name = 'x_{}'.format(index)
+            downloader.add_to_download_list(x_train, file_name)
+            train_x_paths.append(downloader.resolve_path(file_name))
 
         train_y_paths = deque()
         for index, y_train in enumerate(assignment.train_data.y_train):
-            target_path = os.path.join(self.base_dir, 'y_{}'.format(index))
-            list_download_params.append(Downloader.DownloadParams(multihash=y_train, target_path=target_path))
-            train_y_paths.append(target_path)
+            file_name = 'y_{}'.format(index)
+            downloader.add_to_download_list(y_train, file_name)
+            train_y_paths.append(downloader.resolve_path(file_name))
 
-        list_download_params.append(
-            Downloader.DownloadParams(
-                multihash=assignment.train_data.initial_weights,
-                target_path=self.init_weights_path
-            )
-        )
+        downloader.download_all()
 
-        Downloader.download_all(list_download_params)
-
+        self.save_model_path(downloader.resolve_path('model.py'))
+        self.save_init_weights_path(downloader.resolve_path(initial_weight_file_name))
         self.save_x_train(train_x_paths)
         self.save_y_train(train_y_paths)
 
@@ -87,6 +77,7 @@ class TrainSession(Session):
         train_result.loss = train_result.train_history['loss'][-1]
         train_result.accuracy = train_result.train_history['acc'][-1]
 
+        ipfs = IPFS()
         ipfs_file = ipfs.add_file(self.train_weights_path)
         logger.info('Result weights are uploaded')
 
@@ -98,8 +89,8 @@ class TrainSession(Session):
         nb_epochs = int(sys.argv[3])
         current_iteration = int(sys.argv[4])
 
-        model = Model.load_model(path=self.model_path)
-        model.load_weights(self.init_weights_path)
+        model = Model.load_model(path=self.load_model_path())
+        model.load_weights(self.load_init_weights_path())
 
         progress = TrainProgress()
         train_history = model.train(

@@ -8,6 +8,7 @@ from tatau_core.nn import benchmark
 from tatau_core.nn.tatau.sessions.train import TrainSession
 from tatau_core.models import WorkerNode, TaskDeclaration, TaskAssignment, BenchmarkInfo
 from tatau_core.node import Node
+from tatau_core.utils.ipfs import Downloader
 
 logger = getLogger()
 
@@ -17,6 +18,10 @@ class Worker(Node):
     asset_class = WorkerNode
 
     def _process_task_declaration(self, task_declaration):
+        if task_declaration.in_finished_state:
+            Downloader(task_declaration.asset_id).remove_storage()
+            return
+
         if task_declaration.state in [TaskDeclaration.State.DEPLOYMENT, TaskDeclaration.State.DEPLOYMENT_TRAIN] \
                 and task_declaration.workers_needed > 0:
             logger.info('Process {}'.format(task_declaration))
