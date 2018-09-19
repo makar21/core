@@ -14,6 +14,7 @@ from tatau_core.utils.ipfs import IPFS
 logger = getLogger()
 
 
+# noinspection PyMethodMayBeStatic
 class Node:
 
     # should be rename by child classes
@@ -90,3 +91,27 @@ class Node:
             logger.info('End download {}'.format(multihash))
         finally:
             shutil.rmtree(target_dir)
+
+    def _run_session(self, assignment, session):
+        failed = False
+
+        try:
+            session.process_assignment(assignment=assignment)
+        except Exception as ex:
+            self._dump_error(assignment, ex)
+            failed = True
+        finally:
+            session.clean()
+
+        return failed, session.get_tflops()
+
+    def _parse_exception(self, ex: Exception):
+        error_dict = {'exception': type(ex).__name__}
+        msg = str(ex)
+        if msg:
+            error_dict['message'] = msg
+
+        return error_dict
+
+    def _dump_error(self, assignment, ex: Exception):
+        raise NotImplemented

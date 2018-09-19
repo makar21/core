@@ -17,6 +17,10 @@ class TrainData(models.Model):
     x_train = fields.EncryptedJsonField()
     y_train = fields.EncryptedJsonField()
 
+    # data for evaluation
+    x_test = fields.EncryptedJsonField()
+    y_test = fields.EncryptedJsonField()
+
     task_assignment_id = fields.CharField(null=True, initial=None)
     initial_weights = fields.EncryptedCharField()
     epochs = fields.IntegerField()
@@ -44,6 +48,7 @@ class TrainResult(models.Model):
     loss = fields.FloatField(required=False)
     accuracy = fields.FloatField(required=False)
     train_history = fields.JsonField(required=False)
+    eval_results = fields.JsonField(required=False)
 
     @cached_property
     def task_assignment(self):
