@@ -77,7 +77,7 @@ class Model(model.Model):
 
         self.native_model.train()
         dataset = self.data_preprocessing(x_path_list, y_path_list, transforms=self.transforms_train)
-        loader = DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=0)
+        loader = DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=0, pin_memory=True)
 
         train_history = {'loss': [], 'acc': []}
         for epoch in range(1, nb_epochs + 1):
