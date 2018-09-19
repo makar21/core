@@ -14,7 +14,7 @@ logger = getLogger(__name__)
 
 class Model(model.Model):
     weights_serializer_class = 'tatau_core.nn.torch.serializer.WeightsSerializer'
-    weights_summarizer_class = 'tatau_core.nn.torch.summarizer.Mean'
+    weights_summarizer_class = 'tatau_core.nn.torch.summarizer.Median'
 
     def __init__(self, optimizer_class, optimizer_kwargs, criterion):
         super(Model, self).__init__()
@@ -116,7 +116,7 @@ class Model(model.Model):
         test_loss = 0
         correct = 0
         dataset = self.data_preprocessing(x_path_list, y_path_list, self.transforms_eval)
-        loader = DataLoader(dataset, batch_size=128, shuffle=False, num_workers=4)
+        loader = DataLoader(dataset, batch_size=128, shuffle=False, num_workers=0)
 
         with torch.no_grad():
             for input_, target in loader:
