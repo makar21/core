@@ -82,12 +82,7 @@ class Estimator(Node):
             try:
                 session.process_assignment(assignment=estimation_assignment)
             except Exception as e:
-                error_dict = {'exception': type(e).__name__}
-                msg = str(e)
-                if msg:
-                    error_dict['message'] = msg
-
-                estimation_assignment.estimation_result.error = json.dumps(error_dict)
+                estimation_assignment.estimation_result.error = json.dumps(self._parse_exception(ex))
                 logger.exception(e)
 
             estimation_assignment.estimation_result.tflops = session.get_tflops()
