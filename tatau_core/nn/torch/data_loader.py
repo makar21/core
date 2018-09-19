@@ -12,7 +12,6 @@ class NumpyDataChunk(Dataset):
 
     @classmethod
     def load_file(cls, path):
-        # TODO: check memory usage
         data = np.load(path, mmap_mode='r')
         if issubclass(np.lib.npyio.NpzFile, data.__class__):
             with data:
