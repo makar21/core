@@ -153,3 +153,6 @@ def distribute(task_declaration, verification_assignment):
         worker_payment.save()
 
     NodeContractInfo.get_contract().wait_for_transaction_mined(tx_hash)
+
+    logger.info('Job balance after distribute: {:.5f} ETH distribute: {:.5f} ETH'.format(
+        task_declaration.balance, distribute_total_amount))

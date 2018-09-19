@@ -4,7 +4,7 @@ from logging import getLogger
 
 from tatau_core.models import VerificationAssignment
 from tatau_core.nn.tatau.model import Model
-from tatau_core.utils.ipfs import IPFS, Downloader, Directory
+from tatau_core.utils.ipfs import IPFS, Downloader
 from .session import Session
 
 logger = getLogger(__name__)
@@ -45,20 +45,6 @@ class SummarizeSession(Session):
 
         downloader = Downloader(assignment.task_declaration_id)
         downloader.add_to_download_list(assignment.verification_data.model_code_ipfs, 'model.py')
-        dirs, files = Directory(assignment.verification_data.test_dir_ipfs).ls()
-
-        x_test_paths = deque()
-        y_test_paths = deque()
-
-        for ipfs_file in files:
-            file_name = 'test_{}'.format(ipfs_file.name)
-            downloader.add_to_download_list(ipfs_file.multihash, file_name)
-            if ipfs_file.name[0] == 'x':
-                x_test_paths.append(downloader.resolve_path(file_name))
-                continue
-
-            if ipfs_file.name[0] == 'y':
-                y_test_paths.append(downloader.resolve_path(file_name))
 
         downloaded_results = deque()
         for worker_result in assignment.verification_data.train_results:
@@ -76,16 +62,10 @@ class SummarizeSession(Session):
 
         self.save_model_path(downloader.resolve_path('model.py'))
         self.save_results_list(downloaded_results)
-        self.save_x_test(x_test_paths)
-        self.save_y_test(y_test_paths)
 
         self._run()
 
         ipfs = IPFS()
-
-        loss, accuracy = self.load_eval_result()
-        verification_result.loss = loss
-        verification_result.accuracy = accuracy
         verification_result.weights = ipfs.add_file(self.summarized_weights_path).multihash
 
     def main(self):
@@ -101,12 +81,7 @@ class SummarizeSession(Session):
             summarizer.update(weights=weights)
 
         weights = summarizer.commit()
-
-        model.set_weights(weights)
-
-        loss, acc = model.eval(x_path_list=self.load_x_test(), y_path_list=self.load_y_test())
-        self.save_eval_result(loss=loss, acc=acc)
-        model.save_weights(self.summarized_weights_path)
+        serializer.save(path=self.summarized_weights_path, weights=weights)
 
 
 if __name__ == '__main__':

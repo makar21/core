@@ -3,10 +3,11 @@ import time
 from logging import getLogger
 
 from tatau_core import settings
+from tatau_core.models import WorkerNode, TaskDeclaration, TaskAssignment, BenchmarkInfo
 from tatau_core.models.train import TrainResult
 from tatau_core.nn import benchmark
+from tatau_core.nn.tatau.sessions.eval_train import TrainEvalSession
 from tatau_core.nn.tatau.sessions.train import TrainSession
-from tatau_core.models import WorkerNode, TaskDeclaration, TaskAssignment, BenchmarkInfo
 from tatau_core.node import Node
 from tatau_core.utils.ipfs import Downloader
 
@@ -75,43 +76,42 @@ class Worker(Node):
             if not task_assignment.iteration_is_finished:
                 self._train(task_assignment)
 
+    def _dump_error(self, assignment, ex: Exception):
+        assignment.train_result.error = json.dumps(self._parse_exception(ex))
+        assignment.train_result.state = TrainResult.State.FINISHED
+        assignment.train_result.save()
+        logger.exception(ex)
+
+    def _run_eval_session(self, task_assignment: TaskAssignment):
+        # do not do eval on first iteration
+        if task_assignment.train_data.current_iteration <= 1:
+            return False, 0.0
+
+        return self._run_session(task_assignment, TrainEvalSession())
+
     def _train(self, task_assignment: TaskAssignment):
         task_declaration = task_assignment.task_declaration
         if task_declaration.balance_in_wei < task_declaration.iteration_cost_in_wei:
             logger.info('Ignore {}, does not have enough balance'.format(task_declaration))
             return
 
-        logger.info('Start of training for {}'.format(self, task_assignment.task_declaration))
+        task_assignment.train_result.clean()
+        task_assignment.train_result.state = TrainResult.State.IN_PROGRESS
+        task_assignment.train_result.current_iteration = task_assignment.train_data.current_iteration
+        task_assignment.train_result.save()
 
-        session = TrainSession()
-        try:
-            task_assignment.train_result.clean()
-            task_assignment.train_result.state = TrainResult.State.IN_PROGRESS
-            task_assignment.train_result.current_iteration = task_assignment.train_data.current_iteration
-            task_assignment.train_result.save()
+        failed, eval_tflops = self._run_eval_session(task_assignment)
+        if failed:
+            return
 
-            try:
-                session.process_assignment(assignment=task_assignment)
-            except Exception as e:
-                error_dict = {'exception': type(e).__name__}
-                msg = str(e)
-                if msg:
-                    error_dict['message'] = msg
+        failed, train_tflops = self._run_session(task_assignment, session=TrainSession())
+        if failed:
+            return
 
-                task_assignment.train_result.error = json.dumps(error_dict)
-                logger.exception(e)
-
-            task_assignment.train_result.tflops = session.get_tflops()
-            task_assignment.train_result.progress = 100.0
-            task_assignment.train_result.state = TrainResult.State.FINISHED
-            task_assignment.train_result.save()
-
-            logger.info('End of training for {}, tflops: {}, result: {}, error: {}'.format(
-                task_assignment.task_declaration, task_assignment.train_result.tflops,
-                task_assignment.train_result.weights, task_assignment.train_result.error
-            ))
-        finally:
-            session.clean()
+        task_assignment.train_result.tflops = eval_tflops + train_tflops
+        task_assignment.train_result.progress = 100.0
+        task_assignment.train_result.state = TrainResult.State.FINISHED
+        task_assignment.train_result.save()
 
     def _process_task_declarations(self):
         task_declarations = TaskDeclaration.enumerate(created_by_user=False, db=self.db, encryption=self.encryption)

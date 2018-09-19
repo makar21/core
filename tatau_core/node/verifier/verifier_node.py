@@ -6,6 +6,7 @@ from tatau_core import settings
 from tatau_core.contract import poa_wrapper
 from tatau_core.models import VerifierNode, TaskDeclaration, VerificationAssignment
 from tatau_core.models.verification import VerificationResult, DistributeHistory
+from tatau_core.nn.tatau.sessions.eval_verification import VerificationEvalSession
 from tatau_core.nn.tatau.sessions.summarize import SummarizeSession
 from tatau_core.node.node import Node
 from tatau_core.utils.ipfs import Downloader
@@ -130,48 +131,16 @@ class Verifier(Node):
         poa_wrapper.distribute(task_declaration, verification_assignment)
         poa_wrapper.finish_job(task_declaration)
 
+    def _dump_error(self, assignment, ex: Exception):
+        assignment.verification_result.error = json.dumps(self._parse_exception(ex))
+        assignment.verification_result.state = VerificationResult.State.FINISHED
+        assignment.verification_result.save()
+        logger.exception(ex)
+
     def _run_verification_session(self, verification_assignment: VerificationAssignment):
-        failed = False
+        # verifier repository can be absent
         from verifier.session import VerifySession
-        session = VerifySession()
-        try:
-            session.process_assignment(assignment=verification_assignment)
-        except Exception as e:
-            error_dict = {'step': 'verification', 'exception': type(e).__name__}
-            msg = str(e)
-            if msg:
-                error_dict['message'] = msg
-
-            verification_assignment.verification_result.error = json.dumps(error_dict)
-            verification_assignment.verification_result.state = VerificationResult.State.FINISHED
-            verification_assignment.verification_result.save()
-            logger.exception(e)
-            failed = True
-        finally:
-            session.clean()
-
-        return failed, session.get_tflops()
-
-    def _run_summarize_session(self, verification_assignment: VerificationAssignment):
-        failed = False
-
-        session = SummarizeSession()
-        try:
-            session.process_assignment(assignment=verification_assignment)
-        except Exception as e:
-            error_dict = {'step': 'summarization', 'exception': type(e).__name__}
-            msg = str(e)
-            if msg:
-                error_dict['message'] = msg
-
-            verification_assignment.verification_result.error = json.dumps(error_dict)
-            verification_assignment.verification_result.state = VerificationResult.State.VERIFICATION_FINISHED
-            verification_assignment.verification_result.save()
-            logger.exception(e)
-            failed = True
-        finally:
-            session.clean()
-        return failed, session.get_tflops()
+        return self._run_session(verification_assignment, session=VerifySession())
 
     def _is_fake_worker_present(self, verification_assignment):
         for result in verification_assignment.verification_result.result:
@@ -200,13 +169,20 @@ class Verifier(Node):
 
         summarize_tflops = 0.0
         if not self._is_fake_worker_present(verification_assignment):
-            failed, summarize_tflops = self._run_summarize_session(verification_assignment)
+            failed, summarize_tflops = self._run_session(verification_assignment, session=SummarizeSession())
+            if failed:
+                self._distribute(verification_assignment)
+                return
+
+        eval_tflops = 0.0
+        if task_declaration.last_iteration:
+            failed, eval_tflops = self._run_session(verification_assignment, session=VerificationEvalSession())
             if failed:
                 self._distribute(verification_assignment)
                 return
 
         verification_assignment.verification_result.progress = 100.0
-        verification_assignment.verification_result.tflops = verify_tflops + summarize_tflops
+        verification_assignment.verification_result.tflops = verify_tflops + summarize_tflops + eval_tflops
         verification_assignment.verification_result.state = VerificationResult.State.VERIFICATION_FINISHED
         verification_assignment.verification_result.save()
 

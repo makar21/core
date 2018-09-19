@@ -231,9 +231,9 @@ class TaskDeclaration(models.Model):
 
     def _add_history_info(self, data):
         for td in TaskDeclaration.get_history(self.asset_id, db=self.db, encryption=self.encryption):
-            if td.loss and td.accuracy and td.state in (TaskDeclaration.State.EPOCH_IN_PROGRESS,
+            if td.loss and td.accuracy and td.state in (TaskDeclaration.State.VERIFY_IN_PROGRESS,
                                                         TaskDeclaration.State.COMPLETED):
-                if td.state == TaskDeclaration.State.EPOCH_IN_PROGRESS:
+                if td.state == TaskDeclaration.State.VERIFY_IN_PROGRESS:
                     iteration = td.current_iteration - 1
                 else:
                     iteration = td.current_iteration

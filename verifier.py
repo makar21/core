@@ -34,6 +34,7 @@ def load_credentials(account_address_var_name):
 if __name__ == '__main__':
     try:
         index = '_{}'.format(sys.argv[1])
+        settings.TATAU_STORAGE_BASE_DIR += str(index)
     except IndexError:
         index = ''
 
