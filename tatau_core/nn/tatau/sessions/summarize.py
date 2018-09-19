@@ -1,11 +1,10 @@
 import os
-from collections import deque
-from glob import glob
+from collections import deque, Iterable
 from logging import getLogger
 
 from tatau_core.models import VerificationAssignment
 from tatau_core.nn.tatau.model import Model
-from tatau_core.utils.ipfs import IPFS, Downloader
+from tatau_core.utils.ipfs import IPFS, Downloader, Directory
 from .session import Session
 
 logger = getLogger(__name__)
@@ -19,7 +18,7 @@ class SummarizeSession(Session):
     def results_list_path(self):
         return os.path.join(self.base_dir, 'results_list.pkl')
 
-    def save_results_list(self, result_list: list):
+    def save_results_list(self, result_list: Iterable):
         self.save_object(self.results_list_path, result_list)
 
     def load_results_list(self):
@@ -44,39 +43,39 @@ class SummarizeSession(Session):
         verification_assignment = assignment
         verification_result = verification_assignment.verification_result
 
-        list_download_params = [
-            Downloader.DownloadParams(
-                multihash=verification_assignment.verification_data.test_dir_ipfs,
-                target_path=self.base_dir,
-                directory=True
-            ),
-            Downloader.DownloadParams(
-                multihash=verification_assignment.verification_data.model_code_ipfs,
-                target_path=self.model_path
-            ),
-        ]
+        downloader = Downloader(assignment.task_declaration_id)
+        downloader.add_to_download_list(assignment.verification_data.model_code_ipfs, 'model.py')
+        dirs, files = Directory(assignment.verification_data.test_dir_ipfs).ls()
+
+        x_test_paths = deque()
+        y_test_paths = deque()
+
+        for ipfs_file in files:
+            file_name = 'test_{}'.format(ipfs_file.name)
+            downloader.add_to_download_list(ipfs_file.multihash, file_name)
+            if ipfs_file.name[0] == 'x':
+                x_test_paths.append(downloader.resolve_path(file_name))
+                continue
+
+            if ipfs_file.name[0] == 'y':
+                y_test_paths.append(downloader.resolve_path(file_name))
 
         downloaded_results = deque()
-        for worker_result in verification_assignment.verification_data.train_results:
-            target_path = os.path.join(self.base_dir, worker_result['worker_id'])
-            list_download_params.append(Downloader.DownloadParams(
-                multihash=worker_result['result'], target_path=target_path))
-            downloaded_results.append(target_path)
+        for worker_result in assignment.verification_data.train_results:
+            file_name = 'tr_{}_{}_{}'.format(worker_result['worker_id'], assignment.verification_data.current_iteration,
+                                             assignment.verification_data.current_iteration_retry)
+
+            downloader.add_to_download_list(worker_result['result'], file_name)
+            downloaded_results.append(downloader.resolve_path(file_name))
 
         if not len(downloaded_results):
             logger.error('list of weights is empty')
             raise ValueError('list of weights is empty')
 
-        Downloader.download_all(list_download_params)
-        self.save_results_list(list(downloaded_results))
+        downloader.download_all()
 
-        test_dir = os.path.join(self.base_dir, verification_assignment.verification_data.test_dir_ipfs)
-        x_test_paths = sorted(glob(os.path.join(test_dir, 'x_test*')))
-        y_test_paths = sorted(glob(os.path.join(test_dir, 'y_test*')))
-
-        logger.info('X_test_paths: {}'.format(x_test_paths))
-        logger.info('Y_test_paths: {}'.format(y_test_paths))
-
+        self.save_model_path(downloader.resolve_path('model.py'))
+        self.save_results_list(downloaded_results)
         self.save_x_test(x_test_paths)
         self.save_y_test(y_test_paths)
 
@@ -92,7 +91,7 @@ class SummarizeSession(Session):
     def main(self):
         logger.info('Run Summarizer')
         results_list = self.load_results_list()
-        model = Model.load_model(self.model_path)
+        model = Model.load_model(self.load_model_path())
 
         summarizer = model.get_weights_summarizer()
         serializer = model.get_weights_serializer()

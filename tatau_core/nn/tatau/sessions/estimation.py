@@ -1,4 +1,3 @@
-import os
 import sys
 from logging import getLogger
 
@@ -19,34 +18,21 @@ class EstimationSession(Session):
         assignment.estimation_result.state = EstimationResult.State.IN_PROGRESS
         assignment.estimation_result.save()
 
-        x_train_path = os.path.join(self.base_dir, 'x_train')
-        y_train_path = os.path.join(self.base_dir, 'y_train')
+        downloader = Downloader(assignment.task_declaration_id)
+        downloader.add_to_download_list(assignment.estimation_data.model_code, 'model.py')
+        downloader.add_to_download_list(assignment.estimation_data.x_train, 'estimate_x_train')
+        downloader.add_to_download_list(assignment.estimation_data.y_train, 'estimate_y_train')
+        downloader.add_to_download_list(assignment.estimation_data.initial_weights, 'estimate_initial_weights')
 
-        list_download_params = [
-            Downloader.DownloadParams(
-                multihash=assignment.estimation_data.model_code,
-                target_path=self.model_path
-            ),
-            Downloader.DownloadParams(
-                multihash=assignment.estimation_data.x_train,
-                target_path=x_train_path
-            ),
-            Downloader.DownloadParams(
-                multihash=assignment.estimation_data.y_train,
-                target_path=y_train_path
-            ),
-            Downloader.DownloadParams(
-                multihash=assignment.estimation_data.initial_weights,
-                target_path=self.init_weights_path
-            )
-        ]
+        downloader.download_all()
 
-        Downloader.download_all(list_download_params)
+        self.save_model_path(downloader.resolve_path('model.py'))
+        self.save_x_train([downloader.resolve_path('estimate_x_train')])
+        self.save_y_train([downloader.resolve_path('estimate_y_train')])
+        self.save_init_weights_path(downloader.resolve_path('estimate_initial_weights'))
+
         assignment.estimation_result.progress = 20.0
         assignment.estimation_result.save()
-
-        self.save_x_train([x_train_path])
-        self.save_y_train([y_train_path])
 
         self._run(assignment.estimation_data.batch_size, 1, 1)
 
@@ -56,8 +42,8 @@ class EstimationSession(Session):
         nb_epochs = int(sys.argv[3])
         current_iteration = int(sys.argv[4])
 
-        model = Model.load_model(path=self.model_path)
-        model.load_weights(self.init_weights_path)
+        model = Model.load_model(path=self.load_model_path())
+        model.load_weights(self.load_init_weights_path())
 
         progress = TrainProgress()
 

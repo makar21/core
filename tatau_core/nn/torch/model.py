@@ -81,6 +81,7 @@ class Model(model.Model):
 
         train_history = {'loss': [], 'acc': []}
         for epoch in range(1, nb_epochs + 1):
+            self.adjust_learning_rate((current_iteration - 1) * nb_epochs + epoch)
             epoch_loss = 0.0
             # running_loss = 0.0
             correct = 0

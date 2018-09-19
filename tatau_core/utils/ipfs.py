@@ -1,12 +1,14 @@
 import os
+import shutil
 import tempfile
+import urllib.request
 from logging import getLogger
 from multiprocessing.pool import ThreadPool
-import urllib.request
+
 import ipfsapi
-from tatau_core.settings import IPFS_GATEWAY_HOST
 
 from tatau_core import settings
+from tatau_core.settings import IPFS_GATEWAY_HOST
 
 logger = getLogger()
 
@@ -155,21 +157,66 @@ class IPFS:
 
 
 class Downloader:
-    class DownloadParams:
-        def __init__(self, multihash, target_path, directory=False):
-            self.multihash = multihash
-            self.target_path = target_path
-            self.directory = directory
 
-    @staticmethod
-    def _download(download_params: DownloadParams):
-        ipfs = IPFS()
-        if download_params.directory:
-            ipfs.download(download_params.multihash, download_params.target_path)
+    def __init__(self, storage_name, base_dir=None, pool_size=None):
+        self.base_dir = base_dir or settings.TATAU_STORAGE_BASE_DIR
+        try:
+            os.mkdir(self.base_dir)
+        except FileExistsError:
+            pass
+
+        self.storage_dir_path = os.path.join(self.base_dir, storage_name)
+        try:
+            os.mkdir(self.storage_dir_path)
+        except FileExistsError:
+            pass
+        self.pool_size = pool_size or settings.DOWNLOAD_POOL_SIZE
+        self._ipfs = IPFS()
+        self._download_data = {}
+
+    def _download(self, multihash: str, file_names: list):
+        logger.info('Start download {}'.format(multihash))
+        target_path = os.path.join(self.storage_dir_path, multihash)
+
+        if os.path.isfile(target_path):
+            logger.info('File already exist: {}'.format(target_path))
         else:
-            ipfs.download_to(download_params.multihash, download_params.target_path)
+            self._ipfs.download(multihash, self.storage_dir_path)
 
-    @classmethod
-    def download_all(cls, list_download_params, pool_size=settings.DOWNLOAD_POOL_SIZE):
-        with ThreadPool(pool_size) as p:
-            return p.map(cls._download, list_download_params)
+        for file_name in file_names:
+            link_path = self.resolve_path(file_name)
+            try:
+                os.symlink(target_path, link_path)
+            except FileExistsError as ex:
+                if os.readlink(link_path) == target_path:
+                    pass
+                else:
+                    logger.exception(ex)
+                    raise
+
+    def _download_wrapper(self, kwargs: dict):
+        self._download(**kwargs)
+
+    def add_to_download_list(self, multihash, file_name):
+        try:
+            self._download_data[multihash].append(file_name)
+        except KeyError:
+            self._download_data[multihash] = [file_name]
+
+    def download_all(self):
+        with ThreadPool(self.pool_size) as p:
+            return p.map(self._download_wrapper, [
+                {
+                    'multihash': key,
+                    'file_names': value
+                } for key, value in self._download_data.items()
+            ])
+
+    def remove_storage(self):
+        try:
+            shutil.rmtree(self.storage_dir_path)
+        except FileNotFoundError:
+            pass
+
+    def resolve_path(self, file_name):
+        return os.path.join(self.storage_dir_path, file_name)
