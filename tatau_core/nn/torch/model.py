@@ -26,9 +26,11 @@ class Model(model.Model):
         logger.info("Model device: {}".format(self.device))
 
         self._model = self.native_model_factory()
+        self._gpu_count = torch.cuda.device_count() if torch.cuda.is_available() else 0
 
-        if torch.cuda.is_available() and torch.cuda.device_count() > 1:
-            logger.info("Gpu count: {}".format(torch.cuda.device_count()))
+        logger.info("GPU count: {}".format(self._gpu_count))
+
+        if self._gpu_count > 1:
             self._model = DataParallel(self._model)
 
         self._model = self._model.to(self.device)
@@ -76,6 +78,8 @@ class Model(model.Model):
 
         self.native_model.train()
         dataset = self.data_preprocessing(x_path_list, y_path_list, transforms=self.transforms_train)
+        batch_size = batch_size * self._gpu_count if self._gpu_count > 0 else batch_size
+        logger.info("Batch size: {}".format(batch_size))
         loader = DataLoader(dataset, batch_size=batch_size, shuffle=False, num_workers=0, pin_memory=False)
 
         train_history = {'loss': [], 'acc': []}
