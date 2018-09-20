@@ -171,8 +171,16 @@ class Downloader:
         except FileExistsError:
             pass
         self.pool_size = pool_size or settings.DOWNLOAD_POOL_SIZE
-        self._ipfs = IPFS()
+        self._ipfs_instance = None
         self._download_data = {}
+
+    @property
+    def _ipfs(self):
+        if self._ipfs_instance:
+            return self._ipfs_instance
+
+        self._ipfs_instance = IPFS()
+        return self._ipfs_instance
 
     def _download(self, multihash: str, file_names: list):
         logger.info('Start download {}'.format(multihash))
