@@ -91,13 +91,17 @@ def distribute(task_declaration, verification_assignment):
 
         tx_hash = HexBytes.fromhex(tx_hash_str)
         if NodeContractInfo.get_contract().is_transaction_mined(tx_hash):
-            logger.info('Distribute for {} for iteration {} already mined'.format(
+            logger.info('Distribute for {} for iteration {} is mined'.format(
                 task_declaration, task_declaration.current_iteration))
             return
         else:
-            NodeContractInfo.get_contract().wait_for_transaction_mined(tx_hash)
-            logger.info('Distribute for {} for iteration {} is mined'.format(
-                task_declaration, task_declaration.current_iteration))
+            if task_declaration.last_iteration:
+                NodeContractInfo.get_contract().wait_for_transaction_mined(tx_hash)
+                logger.info('Distribute for {} for iteration {} is mined'.format(
+                    task_declaration, task_declaration.current_iteration))
+            else:
+                logger.info('Distribute for {} for iteration {} is not mined'.format(
+                    task_declaration, task_declaration.current_iteration))
             return
 
     if len(good_worker_ids) == 0:
@@ -152,7 +156,9 @@ def distribute(task_declaration, verification_assignment):
     for worker_payment in worker_payments:
         worker_payment.save()
 
-    NodeContractInfo.get_contract().wait_for_transaction_mined(tx_hash)
+    if task_declaration.last_iteration:
+        logger.info(
+            'Wait for distribute of last iteration for task: {} balance: {:.5f} ETH distribute: {:.5f} ETH'.format(
+                task_declaration, task_declaration.balance, distribute_total_amount))
+        NodeContractInfo.get_contract().wait_for_transaction_mined(tx_hash)
 
-    logger.info('Job balance after distribute: {:.5f} ETH distribute: {:.5f} ETH'.format(
-        task_declaration.balance, distribute_total_amount))
