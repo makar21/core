@@ -1,7 +1,8 @@
 from torch import nn
 from tatau_core.nn.torch import model
 import torch.optim as optim
-from torchvision import transforms, models
+from tatau_core.nn.torch.models.resnet import ResNet18
+from torchvision import transforms
 
 
 class Model(model.Model):
@@ -20,7 +21,7 @@ class Model(model.Model):
 
     @classmethod
     def native_model_factory(cls) -> nn.Module:
-        return models.resnet18(num_classes=10)
+        return ResNet18(num_classes=10)
 
     def __init__(self):
         super(Model, self).__init__(
