@@ -21,7 +21,7 @@ class Dataset(TorchDataset):
         raise RuntimeError("Unsupported numpy format")
 
     def __getitem__(self, index):
-        x = self.x[index] if self.transform else self.transform(self.x[index])
+        x = self.x[index] if self.transform is None else self.transform(self.x[index])
         return x, self.y[index]
 
     def __len__(self):
