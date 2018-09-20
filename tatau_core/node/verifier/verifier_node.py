@@ -92,7 +92,9 @@ class Verifier(Node):
     def _distribute(self, verification_assignment):
         task_declaration = verification_assignment.task_declaration
         if task_declaration.balance_in_wei < task_declaration.iteration_cost_in_wei:
-            logger.info('Cant distribute iteration, {} does not have enouth balance'.format(task_declaration))
+            logger.info(
+                'Cant distribute iteration, {} does not have enough balance, job balance: {}, iteration cost: {}'.format(
+                    task_declaration, task_declaration.balance, task_declaration.iteration_cost))
             return
 
         poa_wrapper.distribute(task_declaration, verification_assignment)

@@ -81,9 +81,9 @@ class Estimator(Node):
         try:
             try:
                 session.process_assignment(assignment=estimation_assignment)
-            except Exception as e:
+            except Exception as ex:
                 estimation_assignment.estimation_result.error = json.dumps(self._parse_exception(ex))
-                logger.exception(e)
+                logger.exception(ex)
 
             estimation_assignment.estimation_result.tflops = session.get_tflops()
             estimation_assignment.estimation_result.progress = 100.0
