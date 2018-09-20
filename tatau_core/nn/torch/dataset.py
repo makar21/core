@@ -1,9 +1,9 @@
 import torch
 import numpy as np
-from torch.utils.data import Dataset
+from tatau_core.nn import tatau
 
 
-class NumpyDataChunk(Dataset):
+class Dataset(tatau.Dataset):
     def __init__(self, x_path, y_path, transform=None):
         self.x = self.load_file(x_path)
         self.y = self.load_file(y_path)
