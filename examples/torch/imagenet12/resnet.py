@@ -27,3 +27,10 @@ class Model(model.Model):
             optimizer_kwargs=dict(lr=0.1, momentum=0.9, weight_decay=1e-4),
             criterion=nn.CrossEntropyLoss()
         )
+
+    def adjust_learning_rate(self, epoch: int):
+        # epoch starts from 1, so we could simply check for remainder of the division
+        if epoch % 30 == 0:
+            for param_group in self.optimizer.param_groups:
+                if 'lr' in param_group:
+                    param_group['lr'] = param_group['lr'] * 0.1
