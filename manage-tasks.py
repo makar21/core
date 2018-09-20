@@ -253,10 +253,10 @@ def main():
     args = parser.parse_args()
 
     if args.command == 'add':
-        x_train_paths = glob(os.path.join(args.dataset, 'x_train', '*.np*'))
-        y_train_paths = glob(os.path.join(args.dataset, 'y_train', '*.np*'))
-        x_test_paths = glob(os.path.join(args.dataset, 'x_test', '*.np*'))
-        y_test_paths = glob(os.path.join(args.dataset, 'y_test', '*.np*'))
+        x_train_paths = sorted(glob(os.path.join(args.dataset, 'x_train*.np*')))
+        y_train_paths = sorted(glob(os.path.join(args.dataset, 'y_train*.np*')))
+        x_test_paths = sorted(glob(os.path.join(args.dataset, 'x_test*.np*')))
+        y_test_paths = sorted(glob(os.path.join(args.dataset, 'y_test*.np*')))
 
         if args.local:
             train_local(
