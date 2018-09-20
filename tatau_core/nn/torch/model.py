@@ -1,12 +1,13 @@
 from tatau_core.nn.tatau import model, TrainProgress
-from torch.utils.data import Dataset, ConcatDataset, DataLoader
+from torch.utils.data import ConcatDataset, DataLoader
 import torch
+import torchvision.transforms as transforms
 # noinspection PyUnresolvedReferences
 from torch import cuda, from_numpy
 from torch.nn import DataParallel
 from logging import getLogger
 from collections import Iterable
-from tatau_core.nn.torch.data_loader import NumpyDataChunk
+from tatau_core.nn.torch import Dataset
 
 
 logger = getLogger(__name__)
@@ -15,6 +16,9 @@ logger = getLogger(__name__)
 class Model(model.Model):
     weights_serializer_class = 'tatau_core.nn.torch.serializer.WeightsSerializer'
     weights_summarizer_class = 'tatau_core.nn.torch.summarizer.Median'
+
+    transforms_train = transforms.ToTensor()
+    transforms_eval = transforms.ToTensor()
 
     def __init__(self, optimizer_class, optimizer_kwargs, criterion):
         super(Model, self).__init__()
@@ -26,9 +30,11 @@ class Model(model.Model):
         logger.info("Model device: {}".format(self.device))
 
         self._model = self.native_model_factory()
+        self._gpu_count = torch.cuda.device_count() if torch.cuda.is_available() else 0
 
-        if torch.cuda.is_available() and torch.cuda.device_count() > 1:
-            logger.info("Gpu count: {}".format(torch.cuda.device_count()))
+        logger.info("GPU count: {}".format(self._gpu_count))
+
+        if self._gpu_count > 1:
             self._model = DataParallel(self._model)
 
         self._model = self._model.to(self.device)
@@ -66,17 +72,18 @@ class Model(model.Model):
         self.optimizer.load_state_dict(weights['optimizer'])
         # self._criterion.load_state_dict(weights['criterion'])
 
-    def data_preprocessing(self, x_path_list: Iterable, y_path_list: Iterable, transforms: callable) -> Dataset:
-        chunks = [NumpyDataChunk(x_path, y_path, transform=transforms)
+    def data_preprocessing(self, x_path_list: Iterable, y_path_list: Iterable, transforms: callable) -> ConcatDataset:
+        chunks = [Dataset(x_path, y_path, transform=transforms)
                   for x_path, y_path in zip(x_path_list, y_path_list)]
-        dataset = ConcatDataset(chunks)
-        return dataset
+        return ConcatDataset(chunks)
 
     def train(self, x_path_list: Iterable, y_path_list: Iterable, batch_size: int, current_iteration: int,
               nb_epochs: int, train_progress: TrainProgress):
 
         self.native_model.train()
         dataset = self.data_preprocessing(x_path_list, y_path_list, transforms=self.transforms_train)
+        batch_size = batch_size * max(1, self._gpu_count)
+        logger.info("Batch size: {}".format(batch_size))
         loader = DataLoader(dataset, batch_size=batch_size, shuffle=False, num_workers=0, pin_memory=False)
 
         train_history = {'loss': [], 'acc': []}
