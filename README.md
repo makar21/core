@@ -49,10 +49,10 @@ bin/compose exec producer bash
 
 cd examples/keras/cifar10/
 
-wget https://s3.amazonaws.com/tatau-public/datasets/cifar10/x_test.npy
-wget https://s3.amazonaws.com/tatau-public/datasets/cifar10/y_test.npy
-wget https://s3.amazonaws.com/tatau-public/datasets/cifar10/x_train.npy
-wget https://s3.amazonaws.com/tatau-public/datasets/cifar10/y_train.npy
+wget https://s3.amazonaws.com/tatau-public/datasets/cifar10_unnormalized/x_test.npy
+wget https://s3.amazonaws.com/tatau-public/datasets/cifar10_unnormalized/y_test.npy
+wget https://s3.amazonaws.com/tatau-public/datasets/cifar10_unnormalized/x_train.npy
+wget https://s3.amazonaws.com/tatau-public/datasets/cifar10_unnormalized/y_train.npy
 
 cd /app
 
