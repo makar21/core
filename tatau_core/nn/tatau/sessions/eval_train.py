@@ -37,6 +37,9 @@ class TrainEvalSession(Session):
 
     def _run_eval(self, task_declaration_id, model_ipfs, current_iteration, weights_ipfs, x_files_ipfs, y_files_ipfs):
         assert len(x_files_ipfs) == len(y_files_ipfs)
+        if len(x_files_ipfs) == 0:
+            # this worker is not involved in the evaluation
+            return
 
         downloader = Downloader(task_declaration_id)
         downloader.add_to_download_list(model_ipfs, 'model.py')
