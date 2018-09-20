@@ -1,6 +1,7 @@
 from tatau_core.nn.tatau import model, TrainProgress
 from torch.utils.data import Dataset, ConcatDataset, DataLoader
 import torch
+import torchvision.transforms as transforms
 # noinspection PyUnresolvedReferences
 from torch import cuda, from_numpy
 from torch.nn import DataParallel
@@ -15,6 +16,9 @@ logger = getLogger(__name__)
 class Model(model.Model):
     weights_serializer_class = 'tatau_core.nn.torch.serializer.WeightsSerializer'
     weights_summarizer_class = 'tatau_core.nn.torch.summarizer.Median'
+
+    transforms_train = transforms.ToTensor()
+    transforms_eval = transforms.ToTensor()
 
     def __init__(self, optimizer_class, optimizer_kwargs, criterion):
         super(Model, self).__init__()
