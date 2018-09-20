@@ -24,7 +24,7 @@ class NumpyDataChunk(Dataset):
     def __getitem__(self, index):
         if self.transform:
             # TODO: Move transpose to transform @etanchik
-            x_normed = self.transform(np.transpose(self.x[index]))
+            x_normed = self.transform(self.x[index])
         else:
             # noinspection PyUnresolvedReferences
             x_normed = torch.from_numpy(self.x[index])
