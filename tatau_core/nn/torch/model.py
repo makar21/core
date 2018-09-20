@@ -7,7 +7,7 @@ from torch import cuda, from_numpy
 from torch.nn import DataParallel
 from logging import getLogger
 from collections import Iterable
-from tatau_core.nn.torch import Dataset
+from tatau_core.nn.tatau import Dataset
 
 
 logger = getLogger(__name__)
