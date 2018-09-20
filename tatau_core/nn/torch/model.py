@@ -1,5 +1,5 @@
 from tatau_core.nn.tatau import model, TrainProgress
-from torch.utils.data import Dataset, ConcatDataset, DataLoader
+from torch.utils.data import ConcatDataset, DataLoader
 import torch
 import torchvision.transforms as transforms
 # noinspection PyUnresolvedReferences
@@ -7,7 +7,7 @@ from torch import cuda, from_numpy
 from torch.nn import DataParallel
 from logging import getLogger
 from collections import Iterable
-from tatau_core.nn.torch.data_loader import NumpyDataChunk
+from tatau_core.nn.torch import Dataset
 
 
 logger = getLogger(__name__)
@@ -70,11 +70,10 @@ class Model(model.Model):
         self.optimizer.load_state_dict(weights['optimizer'])
         # self._criterion.load_state_dict(weights['criterion'])
 
-    def data_preprocessing(self, x_path_list: Iterable, y_path_list: Iterable, transforms: callable) -> Dataset:
-        chunks = [NumpyDataChunk(x_path, y_path, transform=transforms)
+    def data_preprocessing(self, x_path_list: Iterable, y_path_list: Iterable, transforms: callable) -> ConcatDataset:
+        chunks = [Dataset(x_path, y_path, transform=transforms)
                   for x_path, y_path in zip(x_path_list, y_path_list)]
-        dataset = ConcatDataset(chunks)
-        return dataset
+        return ConcatDataset(chunks)
 
     def train(self, x_path_list: Iterable, y_path_list: Iterable, batch_size: int, current_iteration: int,
               nb_epochs: int, train_progress: TrainProgress):

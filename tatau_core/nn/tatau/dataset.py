@@ -1,9 +1,8 @@
-import torch
 import numpy as np
-from torch.utils.data import Dataset
+from torch.utils.data import Dataset as TorchDataset
 
 
-class NumpyDataChunk(Dataset):
+class Dataset(TorchDataset):
     def __init__(self, x_path, y_path, transform=None):
         self.x = self.load_file(x_path)
         self.y = self.load_file(y_path)
@@ -22,14 +21,8 @@ class NumpyDataChunk(Dataset):
         raise RuntimeError("Unsupported numpy format")
 
     def __getitem__(self, index):
-        if self.transform:
-            x_normed = self.transform(self.x[index])
-        else:
-            # noinspection PyUnresolvedReferences
-            x_normed = torch.from_numpy(self.x[index])
-        # noinspection PyUnresolvedReferences
-        # x_normed = x_normed.type(torch.FloatTensor)
-        return x_normed, self.y[index]
+        x = self.x[index] if self.transform else self.transform(self.x[index])
+        return x, self.y[index]
 
     def __len__(self):
         return len(self.x)

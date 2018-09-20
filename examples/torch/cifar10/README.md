@@ -4,8 +4,10 @@
 
 ```shell
 cd examples/torch/cifar10
-curl https://s3.amazonaws.com/tatau-public/datasets/torch/cifar10/cifar10.zip -O
-unzip cifar10.zip
+wget https://s3.amazonaws.com/tatau-public/datasets/cifar10_unnormalized/x_test.npy
+wget https://s3.amazonaws.com/tatau-public/datasets/cifar10_unnormalized/y_test.npy
+wget https://s3.amazonaws.com/tatau-public/datasets/cifar10_unnormalized/x_train.npy
+wget https://s3.amazonaws.com/tatau-public/datasets/cifar10_unnormalized/y_train.npy
 cd ../../../
 ```
 

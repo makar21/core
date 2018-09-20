@@ -37,4 +37,3 @@ class Model(model.Model):
             for param_group in self.optimizer.param_groups:
                 if 'lr' in param_group:
                     param_group['lr'] = param_group['lr'] * 0.1
-
