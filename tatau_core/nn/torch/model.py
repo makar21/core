@@ -78,7 +78,7 @@ class Model(model.Model):
 
         self.native_model.train()
         dataset = self.data_preprocessing(x_path_list, y_path_list, transforms=self.transforms_train)
-        batch_size = batch_size * self._gpu_count if self._gpu_count > 0 else batch_size
+        batch_size = batch_size * max(1, self._gpu_count)
         logger.info("Batch size: {}".format(batch_size))
         loader = DataLoader(dataset, batch_size=batch_size, shuffle=False, num_workers=0, pin_memory=False)
 
