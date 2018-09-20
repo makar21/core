@@ -667,9 +667,11 @@ class Producer(Node):
         # collect loss and accuracy for prev iteration
         iteration = str(task_declaration.current_iteration - 1)
         for ta in finished_task_assignments:
-            loss.append(ta.train_result.eval_results[iteration]['loss'])
-            accuracy.append(ta.train_result.eval_results[iteration]['accuracy'])
+            if ta.train_result.eval_results.get(iteration):
+                loss.append(ta.train_result.eval_results[iteration]['loss'])
+                accuracy.append(ta.train_result.eval_results[iteration]['accuracy'])
 
+        assert len(loss) and len(accuracy)
         task_declaration.loss = sum(loss)/len(loss)
         task_declaration.accuracy = sum(accuracy)/len(accuracy)
         logger.info('Save avr iteration: {} loss: {} and accuracy: {}'.format(

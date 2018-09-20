@@ -37,6 +37,9 @@ class TrainEvalSession(Session):
 
     def _run_eval(self, task_declaration_id, model_ipfs, current_iteration, weights_ipfs, x_files_ipfs, y_files_ipfs):
         assert len(x_files_ipfs) == len(y_files_ipfs)
+        if len(x_files_ipfs) == 0:
+            # this worker is not involved in the evaluation
+            return None, None
 
         downloader = Downloader(task_declaration_id)
         downloader.add_to_download_list(model_ipfs, 'model.py')
@@ -70,6 +73,10 @@ class TrainEvalSession(Session):
         return self.load_eval_result()
 
     def process_assignment(self, assignment: TaskAssignment, *args, **kwargs):
+        if len(assignment.train_data.x_test) == 0:
+            # this worker is not involved in the evaluation
+            return
+
         iteration = assignment.train_data.current_iteration - 1
         loss, accuracy = self._run_eval(
             task_declaration_id=assignment.task_declaration_id,
