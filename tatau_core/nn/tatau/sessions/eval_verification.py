@@ -10,7 +10,7 @@ logger = getLogger(__name__)
 
 class VerificationEvalSession(TrainEvalSession):
     def process_assignment(self, assignment: VerificationAssignment, *args, **kwargs):
-        dirs, files = Directory(assignment.verification_data.test_dir_ipfs)
+        dirs, files = Directory(assignment.verification_data.test_dir_ipfs).ls()
 
         loss, accuracy = self._run_eval(
             task_declaration_id=assignment.task_declaration_id,
