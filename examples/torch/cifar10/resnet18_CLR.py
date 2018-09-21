@@ -103,3 +103,6 @@ class Model(model.Model):
             train_history['loss'].append(epoch_loss)
             train_history['acc'].append(epoch_acc)
         return train_history
+
+    def adjust_learning_rate(self, epoch: int):
+        pass
