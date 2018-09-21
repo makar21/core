@@ -87,26 +87,24 @@ class Model(model.Model, metaclass=ABCMeta):
         for epoch in range(1, nb_epochs + 1):
             self.adjust_learning_rate((current_iteration - 1) * nb_epochs + epoch)
             epoch_loss = 0.0
-            # running_loss = 0.0
             correct = 0
             for batch_idx, (input_, target) in enumerate(loader, 0):
                 input_, target = input_.to(self.device), target.to(self.device)
                 self.optimizer.zero_grad()
                 output = self.native_model(input_)
                 loss = self._criterion(output, target)
-                epoch_loss += loss.item()
+                loss_item = loss.item()
+                epoch_loss += loss_item
                 # noinspection PyUnresolvedReferences
                 _, predicted = torch.max(output.data, 1)
                 correct += predicted.eq(target).sum().item()
                 loss.backward()
                 self.optimizer.step()
-                # running_loss += loss.item()
 
-                # if batch_idx >0 and batch_idx % 200 == 0:
-                #     print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
-                #         epoch, batch_idx * len(data), len(loader.dataset),
-                #                100. * batch_idx / len(loader), loss.item()))
-                #     running_loss = 0.0
+                logger.info('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
+                    epoch, (batch_idx + 1) * len(input_), len(loader.dataset),
+                           100. * batch_idx / len(loader), epoch_loss / (batch_idx + 1)))
+
             epoch_loss = epoch_loss / len(loader)
             epoch_acc = correct / len(loader.dataset)
             logger.info("Epoch #{}: Loss: {:.4f} Acc: {:.2f}".format(epoch, epoch_loss, 100 * epoch_acc))

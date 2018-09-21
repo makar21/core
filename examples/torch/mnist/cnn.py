@@ -29,6 +29,7 @@ class Net(Module):
         x = self.fc2(x)
         return F.log_softmax(x, dim=1)
 
+
 class Model(model.Model):
 
     def adjust_learning_rate(self, epoch: int):
