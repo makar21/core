@@ -26,7 +26,7 @@ class Model(model.Model):
 
     @classmethod
     def native_model_factory(cls) -> nn.Module:
-        return models.resnet18()
+        return models.resnet50()
 
     def __init__(self):
         super(Model, self).__init__(
