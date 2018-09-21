@@ -30,7 +30,7 @@ class TrainEvalSession(Session):
 
         chunk_dirs = deque()
         for index, chunk_ipfs in enumerate(test_chunks_ipfs):
-            dir_name = 'chunk_test_{}'.format(index)
+            dir_name = '{}_chunk_test_{}'.format(current_iteration, index)
             downloader.add_to_download_list(chunk_ipfs, dir_name)
             chunk_dirs.append(downloader.resolve_path(dir_name))
 
