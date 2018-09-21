@@ -252,23 +252,23 @@ class Producer(Node):
         logger.info('Accept {} for {}'.format(verification_assignment, task_declaration))
         return True
 
-    def _get_file_indexes(self, worker_index, train_files_count, workers_requested):
-        files_count_for_worker = int(train_files_count / (2 * workers_requested))
-        return [x + files_count_for_worker * worker_index for x in range(files_count_for_worker)]
+    def _get_chunk_indexes(self, worker_index, chunks_count, workers_requested):
+        chunks_count_for_worker = int(chunks_count / (2 * workers_requested))
+        return [x + chunks_count_for_worker * worker_index for x in range(chunks_count_for_worker)]
 
     def _get_chunks(self, worker_index, workers_requested, chunk_dir_ipfs):
         dirs, files = Directory(chunk_dir_ipfs).ls()
-        file_indexes = self._get_file_indexes(
+        chunk_indexes = self._get_chunk_indexes(
             worker_index=worker_index,
-            train_files_count=len(dirs),
+            chunks_count=len(dirs),
             workers_requested=workers_requested
         )
 
         chunks_ipfs = []
-        for chunk_dir in dirs:
-            index = int(re.findall('\d+', chunk_dir.name)[0])
-            if index in file_indexes:
-                chunks_ipfs.append(chunk_dir)
+        for chunk_ipfs_dir in dirs:
+            index = int(re.findall('\d+', chunk_ipfs_dir.name)[0])
+            if index in chunk_indexes:
+                chunks_ipfs.append(chunk_ipfs_dir.multihash)
 
         return chunks_ipfs
 
@@ -294,7 +294,7 @@ class Producer(Node):
             test_chunks_ipfs=test_chunks_ipfs,
             data_index=worker_index,
             batch_size=task_declaration.batch_size,
-            initial_weights_ipfs=task_declaration.weights,
+            initial_weights_ipfs=task_declaration.weights_ipfs,
             epochs=task_declaration.epochs_in_current_iteration,
             db=self.db,
             encryption=self.encryption

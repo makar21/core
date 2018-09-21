@@ -3,18 +3,21 @@ from logging import getLogger
 from tatau_core.models import VerificationAssignment
 from tatau_core.nn.tatau.model import Model
 from tatau_core.nn.tatau.sessions.eval_train import TrainEvalSession
+from tatau_core.utils.ipfs import Directory
 
 logger = getLogger(__name__)
 
 
 class VerificationEvalSession(TrainEvalSession):
     def process_assignment(self, assignment: VerificationAssignment, *args, **kwargs):
+        dirs, files = Directory(assignment.verification_data.test_dir_ipfs)
+
         loss, accuracy = self._run_eval(
             task_declaration_id=assignment.task_declaration_id,
             model_ipfs=assignment.verification_data.model_code_ipfs,
             current_iteration=assignment.verification_data.current_iteration,
             weights_ipfs=assignment.verification_result.weights,
-            test_chunks_ipfs=assignment.verification_data.test_chunks_ipfs
+            test_chunks_ipfs=[d.multihash for d in dirs]
         )
 
         assignment.verification_result.loss = loss

@@ -32,7 +32,7 @@ class Estimator:
         av_tflops = sum_tflops / len(finished_assignments)
         ipfs_dir = Directory(task_declaration.dataset.train_dir_ipfs)
         dirs, files = ipfs_dir.ls()
-        batch_count = len(files) / 2
-        return av_tflops * batch_count * task_declaration.epochs, failed
+        chunks_count = len(dirs)
+        return av_tflops * chunks_count * task_declaration.epochs, failed
 
 
