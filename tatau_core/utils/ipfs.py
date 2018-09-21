@@ -155,6 +155,10 @@ class IPFS:
     def send_message(self, topic, data):
         self.api.pubsub_pub(topic, data)
 
+    def ls(self, multihash, **kwargs):
+        """Returns a list of objects linked to by the given hash."""
+        return self.api.ls(multihash=multihash, **kwargs)
+
 
 class Downloader:
 

@@ -252,54 +252,49 @@ class Producer(Node):
         logger.info('Accept {} for {}'.format(verification_assignment, task_declaration))
         return True
 
-    def _get_file_indexes(self, worker_index, train_files_count, workers_requested):
-        files_count_for_worker = int(train_files_count / (2 * workers_requested))
-        return [x + files_count_for_worker * worker_index for x in range(files_count_for_worker)]
+    def _get_chunk_indexes(self, worker_index, chunks_count, workers_requested):
+        chunks_count_for_worker = int(chunks_count / (2 * workers_requested))
+        return [x + chunks_count_for_worker * worker_index for x in range(chunks_count_for_worker)]
 
-    def _get_x_y_ipfs_files(self, worker_index, workers_requested, ipfs_files):
-        file_indexes = self._get_file_indexes(
+    def _get_chunks(self, worker_index, workers_requested, chunk_dir_ipfs):
+        dirs, files = Directory(chunk_dir_ipfs).ls()
+        chunk_indexes = self._get_chunk_indexes(
             worker_index=worker_index,
-            train_files_count=len(ipfs_files),
+            chunks_count=len(dirs),
             workers_requested=workers_requested
         )
 
-        x_ipfs = []
-        y_ipfs = []
-        for ipfs_file in ipfs_files:
-            index = int(re.findall('\d+', ipfs_file.name)[0])
-            if index in file_indexes:
-                if ipfs_file.name[0] == 'x':
-                    x_ipfs.append(ipfs_file.multihash)
-                elif ipfs_file.name[0] == 'y':
-                    y_ipfs.append(ipfs_file.multihash)
+        chunks_ipfs = []
+        for chunk_ipfs_dir in dirs:
+            index = int(re.findall('\d+', chunk_ipfs_dir.name)[0])
+            if index in chunk_indexes:
+                chunks_ipfs.append(chunk_ipfs_dir.multihash)
 
-        return x_ipfs, y_ipfs
+        return chunks_ipfs
 
-    def _create_train_data(self, worker_index, train_ipfs_files, test_ipfs_files, task_assignment: TaskAssignment):
+    def _create_train_data(self, worker_index, train_dir_ipfs, test_dir_ipfs, task_assignment: TaskAssignment):
         task_declaration = task_assignment.task_declaration
 
-        x_train_ipfs, y_train_ipfs = self._get_x_y_ipfs_files(
+        train_chunks_ipfs = self._get_chunks(
             worker_index=worker_index,
             workers_requested=task_declaration.workers_requested,
-            ipfs_files=train_ipfs_files
+            chunk_dir_ipfs=train_dir_ipfs
         )
 
-        x_test_ipfs, y_test_ipfs = self._get_x_y_ipfs_files(
+        test_chunks_ipfs = self._get_chunks(
             worker_index=worker_index,
             workers_requested=task_declaration.workers_requested,
-            ipfs_files=test_ipfs_files
+            chunk_dir_ipfs=test_dir_ipfs
         )
 
         # create initial state with encrypted data which producer will be able to decrypt
         td = TrainData.create(
-            model_code=task_declaration.train_model.code_ipfs,
-            x_train=x_train_ipfs,
-            y_train=y_train_ipfs,
-            x_test=x_test_ipfs,
-            y_test=y_test_ipfs,
+            model_code_ipfs=task_declaration.train_model.code_ipfs,
+            train_chunks_ipfs=train_chunks_ipfs,
+            test_chunks_ipfs=test_chunks_ipfs,
             data_index=worker_index,
             batch_size=task_declaration.batch_size,
-            initial_weights=task_declaration.weights,
+            initial_weights_ipfs=task_declaration.weights_ipfs,
             epochs=task_declaration.epochs_in_current_iteration,
             db=self.db,
             encryption=self.encryption
@@ -312,11 +307,11 @@ class Producer(Node):
 
         return td
 
-    def _assign_train_data_to_worker(self, task_assignment, worker_index, test_ipfs_files, train_ipfs_files):
+    def _assign_train_data_to_worker(self, task_assignment, worker_index, train_dir_ipfs, test_dir_ipfs):
         train_data = self._create_train_data(
             worker_index=worker_index,
-            test_ipfs_files=test_ipfs_files,
-            train_ipfs_files=train_ipfs_files,
+            train_dir_ipfs=train_dir_ipfs,
+            test_dir_ipfs=test_dir_ipfs,
             task_assignment=task_assignment
         )
 
@@ -332,19 +327,13 @@ class Producer(Node):
 
         accepted_task_assignment = task_declaration.get_task_assignments(states=(TaskAssignment.State.ACCEPTED,))
 
-        train_ipfs_dir = Directory(multihash=task_declaration.dataset.train_dir_ipfs)
-        dirs, train_files = train_ipfs_dir.ls()
-
-        test_ipfs_dir = Directory(multihash=task_declaration.dataset.test_dir_ipfs)
-        dirs, test_files = test_ipfs_dir.ls()
-
         count_ta = 0
         for index, ta in enumerate(accepted_task_assignment):
             self._assign_train_data_to_worker(
                 task_assignment=ta,
                 worker_index=index,
-                train_ipfs_files=train_files,
-                test_ipfs_files=test_files
+                train_dir_ipfs=task_declaration.dataset.train_dir_ipfs,
+                test_dir_ipfs=task_declaration.dataset.test_dir_ipfs
             )
             count_ta += 1
 
@@ -368,7 +357,7 @@ class Producer(Node):
             train_data = ta.train_data
             train_data.current_iteration = task_declaration.current_iteration
             train_data.epochs = task_declaration.epochs_in_current_iteration
-            train_data.initial_weights = task_declaration.weights
+            train_data.initial_weights_ipfs = task_declaration.weights_ipfs
             # share data to worker
             train_data.set_encryption_key(ta.worker.enc_key)
             train_data.save()
@@ -532,7 +521,7 @@ class Producer(Node):
         for ta in task_assignments:
             train_results.append({
                 'worker_id': ta.worker_id,
-                'result': ta.train_result.weights
+                'result': ta.train_result.weights_ipfs
             })
             task_declaration.tflops += ta.train_result.tflops
 
@@ -595,7 +584,7 @@ class Producer(Node):
         train_results = [
             {
                 'worker_id': ta.worker_id,
-                'result': ta.train_result.weights
+                'result': ta.train_result.weights_ipfs
             }
             for ta in task_declaration.get_task_assignments(states=(TaskAssignment.State.FINISHED,))
         ]
@@ -762,7 +751,7 @@ class Producer(Node):
             task_declaration.tflops += va.verification_result.tflops
 
             # what to do if many verifiers ?
-            task_declaration.weights = va.verification_result.weights
+            task_declaration.weights_ipfs = va.verification_result.weights
             if task_declaration.last_iteration:
                 task_declaration.loss = va.verification_result.loss
                 task_declaration.accuracy = va.verification_result.accuracy

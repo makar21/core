@@ -13,16 +13,14 @@ class TrainData(models.Model):
     batch_size = fields.IntegerField(immutable=True)
 
     # this data may be encrypted for different workers
-    model_code = fields.EncryptedCharField()
-    x_train = fields.EncryptedJsonField()
-    y_train = fields.EncryptedJsonField()
+    model_code_ipfs = fields.EncryptedCharField()
+    train_chunks_ipfs = fields.EncryptedJsonField()
 
     # data for evaluation
-    x_test = fields.EncryptedJsonField()
-    y_test = fields.EncryptedJsonField()
+    test_chunks_ipfs = fields.EncryptedJsonField()
 
     task_assignment_id = fields.CharField(null=True, initial=None)
-    initial_weights = fields.EncryptedCharField()
+    initial_weights_ipfs = fields.EncryptedCharField()
     epochs = fields.IntegerField()
     # train data will be always created for 1st iteration
     current_iteration = fields.IntegerField(initial=1)
@@ -42,7 +40,7 @@ class TrainResult(models.Model):
     tflops = fields.FloatField(initial=0.0)
     current_iteration = fields.IntegerField(initial=0)
 
-    weights = fields.EncryptedCharField(required=False)
+    weights_ipfs = fields.EncryptedCharField(required=False)
     error = fields.EncryptedCharField(required=False)
 
     loss = fields.FloatField(required=False)
@@ -57,7 +55,7 @@ class TrainResult(models.Model):
     def clean(self):
         self.progress = 0.0
         self.tflops = 0.0
-        self.weights = None
+        self.weights_ipfs = None
         self.error = None
         self.loss = 0.0
         self.accuracy = 0.0
