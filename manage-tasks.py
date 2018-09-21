@@ -4,85 +4,75 @@ import shutil
 import tempfile
 import time
 from logging import getLogger
+
 from termcolor import colored
+
 from producer import load_producer
 from tatau_core import settings
 from tatau_core.contract import NodeContractInfo, poa_wrapper
+from tatau_core.models import TaskDeclaration, TrainModel, Dataset
 from tatau_core.nn.tatau.model import Model, TrainProgress
 from tatau_core.utils.ipfs import IPFS
 from tatau_core.utils.logging import configure_logging
-from glob import glob
-from tatau_core.models import TaskDeclaration, TrainModel, Dataset
 
 configure_logging(__name__)
 
 logger = getLogger(__name__)
 
 
-def train_local(x_train_list, y_train_list, x_test_list, y_test_list, model_path, batch_size, epochs):
+def train_local(train_ipfs, test_ipfs, model_path, batch_size, epochs):
     model = Model.load_model(path=model_path)
 
     class LocalProgress(TrainProgress):
         def progress_callback(self, progress):
             logger.info("Progress: {:.2f}".format(progress))
 
-    history = model.train(
-        x_path_list=x_train_list, y_path_list=y_train_list,
-        batch_size=batch_size,
-        current_iteration=1,
-        nb_epochs=epochs,
-        train_progress=LocalProgress())
+    ipfs = IPFS()
+    temp_dir = tempfile.mktemp()
+    try:
+        train_dir = ipfs.download(train_ipfs, temp_dir)
+        test_dir = ipfs.download(test_ipfs, temp_dir)
 
-    loss, acc = model.eval(x_path_list=x_test_list, y_path_list=y_test_list)
+        model.train(
+            x_path_list=train_dir, y_path_list=train_dir,
+            batch_size=batch_size,
+            current_iteration=1,
+            nb_epochs=epochs,
+            train_progress=LocalProgress())
 
-    print('loss({}):{}, acc({}):{}'.format(loss.__class__.__name__, loss, acc.__class__.__name__, acc))
+        loss, acc = model.eval(x_path_list=test_dir, y_path_list=test_dir)
+
+        print('loss({}):{}, acc({}):{}'.format(loss.__class__.__name__, loss, acc.__class__.__name__, acc))
+    finally:
+        shutil.rmtree(temp_dir)
 
 
-def train_remote(x_train_list, y_train_list, x_test_list, y_test_list, args):
-    assert len(x_train_list) == len(y_train_list)
-    assert len(x_test_list) == len(y_test_list)
-
-    logger.info("Start remote train")
+def train_remote(train_ipfs, test_ipfs, args):
+    logger.info('Start remote train')
 
     producer = load_producer()
 
-    logger.info("Generate initial model weights")
+    logger.info('Generate initial model weights_ipfs')
     model = Model.load_model(path=args.path)
 
-    initial_weights_path = "/tmp/tatau_initial_weights"
+    initial_weights_path = '/tmp/tatau_initial_weights'
     model.save_weights(initial_weights_path)
 
     ipfs = IPFS()
-    logger.info("Upload weights to IPFS")
+    logger.info('Upload weights_ipfs to IPFS')
     initial_weights_file = ipfs.add_file(initial_weights_path)
 
     os.unlink(initial_weights_path)
 
-    dataset_name = os.path.basename(args.dataset)
+    dataset_name = os.path.basename(args.name)
 
-    train_dir = tempfile.mkdtemp()
-    test_dir = tempfile.mkdtemp()
-    
-    try:
-        name_format = '{{:0{}d}}'.format(len(str(len(x_train_list))) + 1)
-        for index in range(len(x_train_list)):
-            shutil.copy(x_train_list[index], os.path.join(train_dir, 'x_train_' + name_format.format(index)))
-            shutil.copy(y_train_list[index], os.path.join(train_dir, 'y_train_' + name_format.format(index)))
-
-        for index in range(len(x_test_list)):
-            shutil.copy(x_test_list[index], os.path.join(test_dir, 'x_test_' + name_format.format(index)))
-            shutil.copy(y_test_list[index], os.path.join(test_dir, 'y_test_' + name_format.format(index)))
-
-        dataset = Dataset.upload_and_create(
-            db=producer.db,
-            encryption=producer.encryption,
-            name=dataset_name,
-            train_dir=train_dir,
-            test_dir=test_dir
-        )
-    finally:
-        shutil.rmtree(train_dir)
-        shutil.rmtree(test_dir)
+    dataset = Dataset.create(
+        db=producer.db,
+        encryption=producer.encryption,
+        name=dataset_name,
+        train_dir_ipfs=train_ipfs,
+        test_dir_ipfs=test_ipfs
+    )
 
     # logger.info('Dataset created: {}'.format(dataset))
     logger.info('Create model')
@@ -238,14 +228,14 @@ def main():
     parser.add_argument('-c', '--command', required=True, metavar='KEY', help='add|stop|cancel|issue|deposit|monitor')
     parser.add_argument('-k', '--key', default="producer", metavar='KEY', help='RSA key name')
     parser.add_argument('-n', '--name', default='mnist_mlp', metavar='NAME', help='model name')
-    parser.add_argument('-p', '--path', default='examples/torch/cifar10/cnn.py', metavar='PATH', help='model path')
-    parser.add_argument('-d', '--dataset', default='examples/torch/cifar10', metavar='dataset', help='dataset dir')
+    parser.add_argument('-p', '--path', default='examples/torch/mnist/cnn.py', metavar='PATH', help='model path')
+    parser.add_argument('-train', '--dataset_train', default='QmR8scAnnzQRvPV23a6MgTTVWQQ3yhxc6mSXksKMx6YTRy', metavar='dataset', help='dataset dir')
+    parser.add_argument('-test', '--dataset_test', default='QmXJD9uVTLpvTeLPCgRzZHscZQWyG8LeWQ1Hecw3dfjNzn',metavar='dataset', help='dataset dir')
     parser.add_argument('-w', '--workers', default=1, type=int, metavar='WORKERS', help='workers count')
     parser.add_argument('-v', '--verifiers', default=1, type=int, metavar='VERIFIERS', help='verifiers count')
     parser.add_argument('-b', '--batch', default=128, type=int, metavar='BATCH_SIZE', help='batch size')
     parser.add_argument('-e', '--epochs', default=3, type=int, metavar='EPOCHS', help='epochs')
-    parser.add_argument('-ei', '--epochs_in_iteration', default=1, type=int, metavar='EPOCHS IN ITERATION',
-                        help='epochs in iteration')
+    parser.add_argument('-ei', '--epochs_in_iteration', default=1, type=int, metavar='EPOCHS IN ITERATION', help='epochs in iteration')
     parser.add_argument('-l', '--local', default=0, type=int, metavar='LOCAL', help='train model local')
     parser.add_argument('-t', '--task', default=None, type=str, metavar='TASK_ID', help='task declaration asset id')
     parser.add_argument('-eth', '--eth', default=None, type=float, metavar='ETH', help='ETH for deposit or issue')
@@ -253,21 +243,14 @@ def main():
     args = parser.parse_args()
 
     if args.command == 'add':
-        x_train_paths = sorted(glob(os.path.join(args.dataset, 'x_train*.np*')))
-        y_train_paths = sorted(glob(os.path.join(args.dataset, 'y_train*.np*')))
-        x_test_paths = sorted(glob(os.path.join(args.dataset, 'x_test*.np*')))
-        y_test_paths = sorted(glob(os.path.join(args.dataset, 'y_test*.np*')))
-
         if args.local:
             train_local(
-                x_train_list=x_train_paths, y_train_list=y_train_paths, x_test_list=x_test_paths,
-                y_test_list=y_test_paths,
+                train_ipfs=args.dataset_train, test_ipfs=args.dataset_test,
                 model_path=args.path, batch_size=args.batch, epochs=args.epochs
             )
         else:
             train_remote(
-                x_train_list=x_train_paths, y_train_list=y_train_paths,
-                x_test_list=x_test_paths, y_test_list=y_test_paths,
+                train_ipfs=args.dataset_train, test_ipfs=args.dataset_test,
                 args=args
             )
         return
