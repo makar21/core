@@ -77,7 +77,7 @@ class Dataset(models.Model):
             logger.info('Train part is uploaded: {}'.format(kwargs['train_dir_ipfs']))
 
             kwargs['test_dir_ipfs'] = Dataset.parse_csv_and_upload_to_ipfs(test_csv_text, train_part=True)
-            logger.info('Test part is uploaded: {}'.format(kwargs['test_dir_ipfs']))
+            logger.info('Test part is uploaded: {}'.format(kwargs['test_chunks_ipfs']))
         finally:
             shutil.rmtree(train_dir)
             shutil.rmtree(test_dir)
@@ -97,9 +97,14 @@ class Dataset(models.Model):
             end_idx = start_idx + minibatch_size
             x_batch = x_train[start_idx: end_idx]
             y_batch = y_train[start_idx: end_idx]
-            x_path = os.path.join(target_dir, 'x_' + name_format.format(batch_idx))
+
+            chunk_dir = os.path.join(target_dir, 'chunk_' + name_format.format(batch_idx))
+            os.mkdir(chunk_dir)
+
+            x_path = os.path.join(chunk_dir, 'x')
             np.save(x_path, x_batch)
-            y_path = os.path.join(target_dir, 'y_' + name_format.format(batch_idx))
+
+            y_path = os.path.join(chunk_dir, 'y')
             np.save(y_path, y_batch)
 
     @classmethod
@@ -132,8 +137,8 @@ class Dataset(models.Model):
                 minibatch_size=minibatch_size,
                 target_dir=test_dir
             )
-            kwargs['test_dir_ipfs'] = ipfs.add_dir(test_dir, recursive=True).multihash
-            logger.info('Test part is uploaded: {}'.format(kwargs['test_dir_ipfs']))
+            kwargs['test_chunks_ipfs'] = ipfs.add_dir(test_dir, recursive=True).multihash
+            logger.info('Test part is uploaded: {}'.format(kwargs['test_chunks_ipfs']))
 
             cls._split_files(
                 x_path=x_train_path,
