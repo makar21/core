@@ -17,8 +17,8 @@ class Model(ABC):
     weights_summarizer_class = 'tatau_core.nn.tatau.summarizer.Summarizer'
     weights_serializer_class = 'tatau_core.nn.tatau.serializer.WeightsSerializer'
 
-    transforms_train = None
-    transforms_eval = None
+    transform_train = None
+    transform_eval = None
 
     @classmethod
     def load_model(cls, path):

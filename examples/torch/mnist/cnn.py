@@ -1,7 +1,10 @@
 from collections import Iterable
+
+from torchvision import transforms
+
 from tatau_core.nn.torch import model
 from tatau_core.nn.tatau.dataset import NumpyChunkedDataset
-from torch.utils.data import ConcatDataset, DataLoader
+from torch.utils.data import DataLoader
 from torch.nn.modules import Module, Conv2d, Linear, Dropout2d, CrossEntropyLoss
 # noinspection PyPep8Naming
 import torch.nn.functional as F
@@ -28,6 +31,7 @@ class Net(Module):
 
 
 class Model(model.Model):
+
     def adjust_learning_rate(self, epoch: int):
         pass
 
