@@ -1,4 +1,7 @@
+from collections import Iterable
 from tatau_core.nn.torch import model
+from tatau_core.nn.tatau.dataset import NumpyChunkedDataset
+from torch.utils.data import ConcatDataset, DataLoader
 from torch.nn.modules import Module, Conv2d, Linear, Dropout2d, CrossEntropyLoss
 # noinspection PyPep8Naming
 import torch.nn.functional as F
@@ -39,3 +42,8 @@ class Model(model.Model):
             criterion=CrossEntropyLoss()
         )
 
+    def data_preprocessing(self, chunk_dirs: Iterable, batch_size, transform: callable) -> DataLoader:
+        dataset = ConcatDataset(
+            [NumpyChunkedDataset(chunk_dir=chunk_dir, transform=transform) for chunk_dir in chunk_dirs]
+        )
+        return DataLoader(dataset=dataset, batch_size=batch_size, shuffle=True, pin_memory=True)

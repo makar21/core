@@ -1,28 +1,32 @@
+import abc
 import numpy as np
 from torch.utils.data import Dataset as TorchDataset
+import os
 
 
-class Dataset(TorchDataset):
-    def __init__(self, x_path, y_path, transform=None):
-        self.x = self.load_file(x_path)
-        self.y = self.load_file(y_path)
-        assert len(self.x) == len(self.y)
-        self.transform = transform
+class ChunkedDataset(TorchDataset):
+    def __init__(self, chunk_dir, transform=None):
+        self._transform = transform
+        self._x, self._y = self.open_chunk(chunk_dir)
 
-    @classmethod
-    def load_file(cls, path):
-        data = np.load(path, mmap_mode='r')
-        if issubclass(np.lib.npyio.NpzFile, data.__class__):
-            with data:
-                return data['arr_0']
-        elif isinstance(data, np.core.memmap):
-            return data
+    @abc.abstractmethod
+    def open_chunk(self, chunk_dir):
+        pass
 
-        raise RuntimeError("Unsupported numpy format")
+
+class NumpyChunkedDataset(ChunkedDataset):
+    def __init__(self, chunk_dir, mmap_mode='r', transform=None):
+        self._mmap_mode = mmap_mode
+        super(NumpyChunkedDataset, self).__init__(chunk_dir=chunk_dir, transform=transform)
+
+    def open_chunk(self, chunk_dir):
+        x = np.load(os.path.join(chunk_dir, "x.npy"), mmap_mode=self._mmap_mode)
+        y = np.load(os.path.join(chunk_dir, "y.npy"), mmap_mode=self._mmap_mode)
+        return x, y
 
     def __getitem__(self, index):
-        x = self.x[index] if self.transform is None else self.transform(self.x[index])
-        return x, self.y[index]
+        x = self._x[index] if self._transform is None else self._transform(self._x[index])
+        return x, self._y[index]
 
     def __len__(self):
-        return len(self.x)
+        return len(self._x)
