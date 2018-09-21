@@ -1,7 +1,8 @@
 # Torch CIFAR10 Example
 
 ## IPFS Dataset
-`val` QmPqETuYEdAEhh1ryWhfbhg5KTdQ53RGahS4RXvnCJkg94 val
+`val` QmPqETuYEdAEhh1ryWhfbhg5KTdQ53RGahS4RXvnCJkg94
+`train` QmWf5zwtYUvhD5qUpNKzwQZyJ6B8w6gA7h7aBALX1KHVWu
 
 ## Download Dataset
 
