@@ -80,7 +80,7 @@ class Model(model.Model, metaclass=ABCMeta):
 
         # dataset = self.data_preprocessing(chunk_dirs=chunk_dirs, transforms=self.transforms_train)
 
-        loader = self.data_preprocessing(chunk_dirs=chunk_dirs, batch_size=batch_size, transform=self.transforms_train)
+        loader = self.data_preprocessing(chunk_dirs=chunk_dirs, batch_size=batch_size, transform=self.transform_train)
         # DataLoader(dataset, batch_size=batch_size, shuffle=False, num_workers=0, pin_memory=False)
 
         train_history = {'loss': [], 'acc': []}
