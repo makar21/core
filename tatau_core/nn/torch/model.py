@@ -1,24 +1,22 @@
+from abc import ABCMeta
 from tatau_core.nn.tatau import model, TrainProgress
-from torch.utils.data import ConcatDataset, DataLoader
 import torch
-import torchvision.transforms as transforms
 # noinspection PyUnresolvedReferences
 from torch import cuda, from_numpy
 from torch.nn import DataParallel
 from logging import getLogger
 from collections import Iterable
-from tatau_core.nn.torch import Dataset
 
 
 logger = getLogger(__name__)
 
 
-class Model(model.Model):
+class Model(model.Model, metaclass=ABCMeta):
     weights_serializer_class = 'tatau_core.nn.torch.serializer.WeightsSerializer'
     weights_summarizer_class = 'tatau_core.nn.torch.summarizer.Median'
 
-    transforms_train = transforms.ToTensor()
-    transforms_eval = transforms.ToTensor()
+    transform_train = None
+    transform_eval = None
 
     def __init__(self, optimizer_class, optimizer_kwargs, criterion):
         super(Model, self).__init__()
@@ -72,19 +70,18 @@ class Model(model.Model):
         self.optimizer.load_state_dict(weights['optimizer'])
         # self._criterion.load_state_dict(weights['criterion'])
 
-    def data_preprocessing(self, x_path_list: Iterable, y_path_list: Iterable, transforms: callable) -> ConcatDataset:
-        chunks = [Dataset(x_path, y_path, transform=transforms)
-                  for x_path, y_path in zip(x_path_list, y_path_list)]
-        return ConcatDataset(chunks)
-
-    def train(self, x_path_list: Iterable, y_path_list: Iterable, batch_size: int, current_iteration: int,
+    def train(self, chunk_dirs: Iterable, batch_size: int, current_iteration: int,
               nb_epochs: int, train_progress: TrainProgress):
 
         self.native_model.train()
-        dataset = self.data_preprocessing(x_path_list, y_path_list, transforms=self.transforms_train)
+
         batch_size = batch_size * max(1, self._gpu_count)
         logger.info("Batch size: {}".format(batch_size))
-        loader = DataLoader(dataset, batch_size=batch_size, shuffle=False, num_workers=0, pin_memory=False)
+
+        # dataset = self.data_preprocessing(chunk_dirs=chunk_dirs, transforms=self.transforms_train)
+
+        loader = self.data_preprocessing(chunk_dirs=chunk_dirs, batch_size=batch_size, transform=self.transforms_train)
+        # DataLoader(dataset, batch_size=batch_size, shuffle=False, num_workers=0, pin_memory=False)
 
         train_history = {'loss': [], 'acc': []}
         for epoch in range(1, nb_epochs + 1):
@@ -98,6 +95,7 @@ class Model(model.Model):
                 output = self.native_model(input_)
                 loss = self._criterion(output, target)
                 epoch_loss += loss.item()
+                # noinspection PyUnresolvedReferences
                 _, predicted = torch.max(output.data, 1)
                 correct += predicted.eq(target).sum().item()
                 loss.backward()
@@ -116,14 +114,17 @@ class Model(model.Model):
             train_history['acc'].append(epoch_acc)
         return train_history
 
-    def eval(self, x_path_list: Iterable, y_path_list: Iterable):
+    def eval(self, chunk_dirs: Iterable):
         # noinspection PyUnresolvedReferences
         # from torch import from_numpy
         self.native_model.eval()
         test_loss = 0
         correct = 0
-        dataset = self.data_preprocessing(x_path_list, y_path_list, self.transforms_eval)
-        loader = DataLoader(dataset, batch_size=128, shuffle=False, num_workers=0)
+
+        # dataset = self.data_preprocessing(x_path_list, y_path_list, self.transforms_eval)
+        # loader = DataLoader(dataset, batch_size=128, shuffle=False, num_workers=0)
+
+        loader = self.data_preprocessing(chunk_dirs=chunk_dirs, batch_size=128, transform=self.transform_eval)
 
         with torch.no_grad():
             for input_, target in loader:

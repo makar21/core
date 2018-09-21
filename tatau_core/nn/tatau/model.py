@@ -1,9 +1,10 @@
 from collections import Iterable
 from abc import abstractmethod, ABC
 from logging import getLogger
+from tatau_core.nn.tatau.dataset import NumpyChunkedDataset
 from .progress import TrainProgress
 from tatau_core.utils.class_loader import load_class
-from torch.utils.data import Dataset
+from torch.utils.data import DataLoader
 
 logger = getLogger(__name__)
 
@@ -76,18 +77,19 @@ class Model(ABC):
         """
         pass
 
-    def data_preprocessing(self, x_path_list: Iterable, y_path_list: Iterable, transforms: callable) -> Dataset:
-        raise NotImplementedError()
+    def data_preprocessing(self, chunk_dirs: Iterable, batch_size, transform: callable) -> DataLoader:
+        return DataLoader(
+            dataset=NumpyChunkedDataset(chunk_dirs=chunk_dirs, transform=transform),
+            batch_size=batch_size, shuffle=True, pin_memory=False)
 
     @abstractmethod
-    def train(self, x_path_list: Iterable, y_path_list: Iterable, batch_size: int, current_iteration: int,
-              nb_epochs: int, train_progress: TrainProgress):
+    def train(self, chunk_dirs: Iterable, batch_size: int, current_iteration: int,
+              nb_epochs: int, train_progress: TrainProgress)-> list:
         """
         Train model
         :param train_progress: Task Progress Callback
         :param batch_size: batch_size
-        :param x_path_list: inputs chunks paths
-        :param y_path_list: outputs chunks paths
+        :param chunk_dirs: chunk dirs
         :param current_iteration: iteration
         :param nb_epochs: number of epochs
         :return: loss history list((loss, acc))
@@ -95,11 +97,10 @@ class Model(ABC):
         pass
 
     @abstractmethod
-    def eval(self, x_path_list: Iterable, y_path_list: Iterable):
+    def eval(self, chunk_dirs: Iterable):
         """
         Evaluate  model
-        :param x_path_list: inputs
-        :param y_path_list: outputs
+        :param chunk_dirs: chunk dirs
         :return: tuple(loss, acc)
         """
         raise NotImplementedError()

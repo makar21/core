@@ -6,7 +6,7 @@ import time
 from logging import getLogger
 
 from termcolor import colored
-
+import glob
 from producer import load_producer
 from tatau_core import settings
 from tatau_core.contract import NodeContractInfo, poa_wrapper
@@ -14,37 +14,33 @@ from tatau_core.models import TaskDeclaration, TrainModel, Dataset
 from tatau_core.nn.tatau.model import Model, TrainProgress
 from tatau_core.utils.ipfs import IPFS
 from tatau_core.utils.logging import configure_logging
+from glob import glob
 
 configure_logging(__name__)
 
 logger = getLogger(__name__)
 
 
-def train_local(train_ipfs, test_ipfs, model_path, batch_size, epochs):
+def train_local(train_dir, test_dir, model_path, batch_size, epochs):
     model = Model.load_model(path=model_path)
 
     class LocalProgress(TrainProgress):
         def progress_callback(self, progress):
             logger.info("Progress: {:.2f}".format(progress))
 
-    ipfs = IPFS()
-    temp_dir = tempfile.mktemp()
-    try:
-        train_dir = ipfs.download(train_ipfs, temp_dir)
-        test_dir = ipfs.download(test_ipfs, temp_dir)
+    train_chunks = [os.path.join(train_dir, chunk_dir) for chunk_dir in os.listdir(train_dir)]
+    test_chunks = [os.path.join(test_dir, chunk_dir) for chunk_dir in os.listdir(test_dir)]
 
-        model.train(
-            x_path_list=train_dir, y_path_list=train_dir,
-            batch_size=batch_size,
-            current_iteration=1,
-            nb_epochs=epochs,
-            train_progress=LocalProgress())
+    model.train(
+        chunk_dirs=train_chunks,
+        batch_size=batch_size,
+        current_iteration=1,
+        nb_epochs=epochs,
+        train_progress=LocalProgress())
 
-        loss, acc = model.eval(x_path_list=test_dir, y_path_list=test_dir)
+    loss, acc = model.eval(chunk_dirs=test_chunks)
 
-        print('loss({}):{}, acc({}):{}'.format(loss.__class__.__name__, loss, acc.__class__.__name__, acc))
-    finally:
-        shutil.rmtree(temp_dir)
+    print('loss({}):{}, acc({}):{}'.format(loss.__class__.__name__, loss, acc.__class__.__name__, acc))
 
 
 def train_remote(train_ipfs, test_ipfs, args):
@@ -231,12 +227,14 @@ def main():
     parser.add_argument('-p', '--path', default='examples/torch/mnist/cnn.py', metavar='PATH', help='model path')
     parser.add_argument('-train', '--dataset_train', default='QmR8scAnnzQRvPV23a6MgTTVWQQ3yhxc6mSXksKMx6YTRy', metavar='dataset', help='dataset dir')
     parser.add_argument('-test', '--dataset_test', default='QmWJyj6zYpV9vFGKUb65tz66j884fgAqPdYiKmRr97NYKe',metavar='dataset', help='dataset dir')
+    parser.add_argument('-train', '--dataset_train', default='QmR8scAnnzQRvPV23a6MgTTVWQQ3yhxc6mSXksKMx6YTRy', metavar='dataset_train', help='dataset dir')
+    parser.add_argument('-test', '--dataset_test', default='QmXJD9uVTLpvTeLPCgRzZHscZQWyG8LeWQ1Hecw3dfjNzn', metavar='dataset_test', help='dataset dir')
     parser.add_argument('-w', '--workers', default=1, type=int, metavar='WORKERS', help='workers count')
     parser.add_argument('-v', '--verifiers', default=1, type=int, metavar='VERIFIERS', help='verifiers count')
     parser.add_argument('-b', '--batch', default=128, type=int, metavar='BATCH_SIZE', help='batch size')
     parser.add_argument('-e', '--epochs', default=3, type=int, metavar='EPOCHS', help='epochs')
     parser.add_argument('-ei', '--epochs_in_iteration', default=1, type=int, metavar='EPOCHS IN ITERATION', help='epochs in iteration')
-    parser.add_argument('-l', '--local', default=0, type=int, metavar='LOCAL', help='train model local')
+    parser.add_argument('-l', '--local', default=1, type=int, metavar='LOCAL', help='train model local')
     parser.add_argument('-t', '--task', default=None, type=str, metavar='TASK_ID', help='task declaration asset id')
     parser.add_argument('-eth', '--eth', default=None, type=float, metavar='ETH', help='ETH for deposit or issue')
 
@@ -245,7 +243,7 @@ def main():
     if args.command == 'add':
         if args.local:
             train_local(
-                train_ipfs=args.dataset_train, test_ipfs=args.dataset_test,
+                train_dir=args.dataset_train, test_dir=args.dataset_test,
                 model_path=args.path, batch_size=args.batch, epochs=args.epochs
             )
         else:
