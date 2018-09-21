@@ -58,11 +58,9 @@ class Model(model.Model):
             criterion=nn.CrossEntropyLoss()
         )
         self.scheduler = None
-        self.initialize_clr_scheduler(0.01, 0.1, 5)
 
     def initialize_clr_scheduler(self, min_lr, max_lr, stepsize):
         clr_lambda = cyclic_learning_rate(min_lr, max_lr, stepsize)
-        self.optimizer.lr = 1
         self.scheduler = optim.lr_scheduler.LambdaLR(self.optimizer, lr_lambda=[clr_lambda])
 
     def train(self, x_path_list: Iterable, y_path_list: Iterable, batch_size: int, current_iteration: int,
@@ -75,8 +73,9 @@ class Model(model.Model):
 
         train_history = {'loss': [], 'acc': []}
         for epoch in range(1, nb_epochs + 1):
-            if self.scheduler is not None:
-                self.scheduler.step()
+            self.adjust_learning_rate((current_iteration - 1) * nb_epochs + epoch)
+            if current_iteration == 1 and epoch == 1:
+                self.initialize_clr_scheduler(0.1, 1., len(loader)*2)
             epoch_loss = 0.0
             # running_loss = 0.0
             correct = 0
@@ -90,6 +89,8 @@ class Model(model.Model):
                 correct += predicted.eq(target).sum().item()
                 loss.backward()
                 self.optimizer.step()
+                if self.scheduler is not None:
+                    self.scheduler.step()
                 # running_loss += loss.item()
 
                 # if batch_idx >0 and batch_idx % 200 == 0:
