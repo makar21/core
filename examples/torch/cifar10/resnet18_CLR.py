@@ -1,19 +1,10 @@
-import torch
 from torch import nn
 from tatau_core.nn.torch import model
 import torch.optim as optim
 from tatau_core.nn.torch.models.resnet import ResNet18
 from torchvision import transforms
 
-from tatau_core.nn.tatau import TrainProgress
-from torch.utils.data import DataLoader
-from logging import getLogger
-
-from collections import Iterable
-
 from math import floor
-
-logger = getLogger(__name__)
 
 
 # Cyclic learning rate
@@ -57,11 +48,8 @@ class Model(model.Model):
             optimizer_kwargs=dict(lr=0.1, momentum=0.9, weight_decay=1e-4),
             criterion=nn.CrossEntropyLoss()
         )
-        self.scheduler = None
-        self.initialize_clr_scheduler(0.1, 1., 5)
 
-    def initialize_clr_scheduler(self, min_lr, max_lr, stepsize):
-        clr_lambda = cyclic_learning_rate(min_lr, max_lr, stepsize)
+        clr_lambda = cyclic_learning_rate(0.1, 1., 5)
         self.scheduler = optim.lr_scheduler.LambdaLR(self.optimizer, lr_lambda=[clr_lambda])
 
     def adjust_learning_rate(self, epoch: int):
