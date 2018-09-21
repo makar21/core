@@ -9,29 +9,12 @@ class Estimator:
         dataset = task_declaration.dataset
         ipfs_dir = Directory(dataset.train_dir_ipfs)
         dirs, files = ipfs_dir.ls()
-        estimate_data = {
-            'x_train': None,
-            'y_train': None,
-            'model_code': task_declaration.train_model.code_ipfs,
+        return {
+            'chunk_ipfs': dirs[0].multihash,
+            'model_code_ipfs': task_declaration.train_model.code_ipfs,
             'batch_size': task_declaration.batch_size,
-            'initial_weights': task_declaration.weights
+            'initial_weights_ipfs': task_declaration.weights_ipfs
         }
-
-        y_file_name = None
-        for f in files:
-            if estimate_data['x_train'] and estimate_data['y_train']:
-                break
-
-            if estimate_data['x_train'] is None and f.name[0] == 'x':
-                y_file_name = 'y' + f.name[1:]
-                estimate_data['x_train'] = f.multihash
-                continue
-
-            if f.name == y_file_name:
-                estimate_data['y_train'] = f.multihash
-                continue
-
-        return estimate_data
 
     @staticmethod
     def estimate(task_declaration: TaskDeclaration, finished_assignments: ListEstimationAssignments):

@@ -5,8 +5,7 @@ import subprocess
 import sys
 import tempfile
 import traceback
-from abc import ABC
-from collections import Iterable
+from abc import ABCMeta
 from logging import getLogger
 from uuid import uuid4
 
@@ -15,7 +14,52 @@ from tatau_core.metrics import MetricsCollector
 logger = getLogger(__name__)
 
 
-class Session(ABC):
+class SessionValue:
+    def __init__(self):
+        self._name = None
+
+    def _make_path(self, base_dir):
+        return os.path.join(base_dir, self._name + '.pkl')
+
+    def __get__(self, instance, owner):
+        path = self._make_path(instance.base_dir)
+        if not os.path.exists(path):
+            return None
+        
+        with open(self._make_path(instance.base_dir), 'rb') as f:
+            return pickle.load(f)
+
+    def __set__(self, instance, value):
+        with open(self._make_path(instance.base_dir), 'wb') as f:
+            pickle.dump(value, f, pickle.HIGHEST_PROTOCOL)
+
+
+class ExceptionValue(SessionValue):
+    def __set__(self, instance, value):
+        assert isinstance(value, Exception)
+        with open(self._make_path(instance.base_dir), 'wb') as f:
+            pickle.dump({
+                'exception': value,
+                'traceback': traceback.format_tb(value.__traceback__)
+            }, f, pickle.HIGHEST_PROTOCOL)
+
+
+class SessionBase(ABCMeta):
+    """Metaclass for all sesstions."""
+    def __new__(mcs, name, bases, attrs):
+        super_new = super().__new__
+        # Create the class.
+        new_class = super_new(mcs, name, bases, attrs)
+        for name, attr_obj in attrs.items():
+            if isinstance(attr_obj, SessionValue):
+                attr_obj._name = name
+        return new_class
+
+
+class Session(metaclass=SessionBase):
+    model_path = SessionValue()
+    exception = ExceptionValue()
+
     def __init__(self, module, uuid=None):
         self._uuid = uuid or str(uuid4())
         self._module = module
@@ -32,30 +76,6 @@ class Session(ABC):
         if not os.path.exists(session_dir):
             os.mkdir(session_dir)
         return session_dir
-
-    @property
-    def _model_path(self):
-        return os.path.join(self.base_dir, 'model.py')
-
-    @property
-    def x_train_list_path(self):
-        return os.path.join(self.base_dir, 'x_train_list.pkl')
-
-    @property
-    def y_train_list_path(self):
-        return os.path.join(self.base_dir, 'y_train_list.pkl')
-
-    @property
-    def x_test_list_path(self):
-        return os.path.join(self.base_dir, 'x_test_list.pkl')
-
-    @property
-    def y_test_list_path(self):
-        return os.path.join(self.base_dir, 'y_test_list.pkl')
-
-    @property
-    def _init_weights_path(self):
-        return os.path.join(self.base_dir, 'init_weights.pkl')
 
     def get_tflops(self):
         return self._metrics_collector.get_tflops()
@@ -84,10 +104,9 @@ class Session(ABC):
             with self._metrics_collector:
                 process.wait()
 
-        error_data = self.load_exception()
-
-        if error_data:
-            raise RuntimeError('{}'.format(error_data))
+        exception = self.exception
+        if exception:
+            raise RuntimeError('{}'.format(exception))
 
     def main(self):
         raise NotImplementedError()
@@ -97,70 +116,98 @@ class Session(ABC):
         session = cls(uuid=sys.argv[1])
         try:
             session.main()
-        except Exception as e:
-            session.save_exception(exception=e)
+        except Exception as ex:
+            session.exception = ex
             exit(1)
-
-    @classmethod
-    def save_object(cls, path, obj):
-        with open(path, 'wb') as f:
-            pickle.dump(obj, f, pickle.HIGHEST_PROTOCOL)
-
-    @classmethod
-    def load_object(cls, path):
-        with open(path, 'rb') as f:
-            obj = pickle.load(f)
-        return obj
-
-    @property
-    def exception_path(self):
-        return os.path.join(self.base_dir, 'exception.pkl')
-
-    def save_exception(self, exception: Exception):
-        self.save_object(
-            self.exception_path,
-            obj={
-                'exception': exception,
-                'traceback': traceback.format_tb(exception.__traceback__)
-            }
-        )
-
-    def load_exception(self):
-        if os.path.exists(self.exception_path):
-            return self.load_object(self.exception_path)
-
-    def save_x_train(self, paths_list: Iterable):
-        self.save_object(path=self.x_train_list_path, obj=paths_list)
-
-    def load_x_train(self)->Iterable:
-        return self.load_object(path=self.x_train_list_path)
-
-    def save_init_weights_path(self, path):
-        self.save_object(path=self._init_weights_path, obj=path)
-
-    def load_init_weights_path(self):
-        return self.load_object(path=self._init_weights_path)
-
-    def save_model_path(self, path):
-        self.save_object(path=self._model_path, obj=path)
-
-    def load_model_path(self):
-        return self.load_object(path=self._model_path)
-
-    def save_y_train(self, paths_list: Iterable):
-        self.save_object(path=self.y_train_list_path, obj=paths_list)
-
-    def load_y_train(self)->Iterable:
-        return self.load_object(path=self.y_train_list_path)
-
-    def save_x_test(self, paths_list: Iterable):
-        self.save_object(path=self.x_test_list_path, obj=paths_list)
-
-    def load_x_test(self)->Iterable:
-        return self.load_object(path=self.x_test_list_path)
-
-    def save_y_test(self, paths_list: Iterable):
-        self.save_object(path=self.y_test_list_path, obj=paths_list)
-
-    def load_y_test(self)->Iterable:
-        return self.load_object(path=self.y_test_list_path)
+    #
+    #
+    #
+    #
+    #
+    # @property
+    # def _model_path(self):
+    #     return os.path.join(self.base_dir, 'model.py')
+    #
+    # @property
+    # def x_train_list_path(self):
+    #     return os.path.join(self.base_dir, 'x_train_list.pkl')
+    #
+    # @property
+    # def y_train_list_path(self):
+    #     return os.path.join(self.base_dir, 'y_train_list.pkl')
+    #
+    # @property
+    # def x_test_list_path(self):
+    #     return os.path.join(self.base_dir, 'x_test_list.pkl')
+    #
+    # @property
+    # def y_test_list_path(self):
+    #     return os.path.join(self.base_dir, 'y_test_list.pkl')
+    #
+    # @property
+    # def _init_weights_path(self):
+    #     return os.path.join(self.base_dir, 'init_weights.pkl')
+    #
+    # @classmethod
+    # def save_object(cls, path, obj):
+    #     with open(path, 'wb') as f:
+    #         pickle.dump(obj, f, pickle.HIGHEST_PROTOCOL)
+    #
+    # @classmethod
+    # def load_object(cls, path):
+    #     with open(path, 'rb') as f:
+    #         obj = pickle.load(f)
+    #     return obj
+    #
+    # @property
+    # def exception_path(self):
+    #     return os.path.join(self.base_dir, 'exception.pkl')
+    #
+    # def save_exception(self, exception: Exception):
+    #     self.save_object(
+    #         self.exception_path,
+    #         obj={
+    #             'exception': exception,
+    #             'traceback': traceback.format_tb(exception.__traceback__)
+    #         }
+    #     )
+    #
+    # def load_exception(self):
+    #     if os.path.exists(self.exception_path):
+    #         return self.load_object(self.exception_path)
+    #
+    # def save_x_train(self, paths_list: Iterable):
+    #     self.save_object(path=self.x_train_list_path, obj=paths_list)
+    #
+    # def load_x_train(self)->Iterable:
+    #     return self.load_object(path=self.x_train_list_path)
+    #
+    # def save_init_weights_path(self, path):
+    #     self.save_object(path=self._init_weights_path, obj=path)
+    #
+    # def load_init_weights_path(self):
+    #     return self.load_object(path=self._init_weights_path)
+    #
+    # def save_model_path(self, path):
+    #     self.save_object(path=self._model_path, obj=path)
+    #
+    # def load_model_path(self):
+    #     return self.load_object(path=self._model_path)
+    #
+    # def save_y_train(self, paths_list: Iterable):
+    #     self.save_object(path=self.y_train_list_path, obj=paths_list)
+    #
+    # def load_y_train(self)->Iterable:
+    #     return self.load_object(path=self.y_train_list_path)
+    #
+    # def save_x_test(self, paths_list: Iterable):
+    #     self.save_object(path=self.x_test_list_path, obj=paths_list)
+    #
+    # def load_x_test(self)->Iterable:
+    #     return self.load_object(path=self.x_test_list_path)
+    #
+    # def save_y_test(self, paths_list: Iterable):
+    #     self.save_object(path=self.y_test_list_path, obj=paths_list)
+    #
+    # def load_y_test(self)->Iterable:
+    #     return self.load_object(path=self.y_test_list_path)

@@ -1,43 +1,24 @@
-import os
 from collections import deque
 from logging import getLogger
 
 from tatau_core.models import TaskAssignment
 from tatau_core.nn.tatau.model import Model
 from tatau_core.utils.ipfs import Downloader
-from .session import Session
+from .session import Session, SessionValue
 
 logger = getLogger(__name__)
 
 
 class TrainEvalSession(Session):
+    weights_path = SessionValue()
+    chunk_dirs = SessionValue()
+    eval_results = SessionValue()
+
     def __init__(self, uuid=None):
         super(TrainEvalSession, self).__init__(module=__name__, uuid=uuid)
 
-    @property
-    def _weights_path(self):
-        return os.path.join(self.base_dir, 'weights.pkl')
-
-    def _save_weights_path(self, path):
-        self.save_object(path=self._weights_path, obj=path)
-
-    def _load_weights_path(self):
-        return self.load_object(path=self._weights_path)
-
-    @property
-    def _eval_result_path(self):
-        return os.path.join(self.base_dir, 'eval.pkl')
-
-    def save_eval_result(self, loss, acc):
-        self.save_object(path=self._eval_result_path, obj=dict(loss=loss, acc=acc))
-
-    def load_eval_result(self):
-        result = self.load_object(path=self._eval_result_path)
-        return result['loss'], result['acc']
-
-    def _run_eval(self, task_declaration_id, model_ipfs, current_iteration, weights_ipfs, x_files_ipfs, y_files_ipfs):
-        assert len(x_files_ipfs) == len(y_files_ipfs)
-        if len(x_files_ipfs) == 0:
+    def _run_eval(self, task_declaration_id, model_ipfs, current_iteration, weights_ipfs, test_chunks_ipfs):
+        if len(test_chunks_ipfs) == 0:
             # this worker is not involved in the evaluation
             return None, None
 
@@ -47,44 +28,35 @@ class TrainEvalSession(Session):
         weights_file_name = 'eval_weights_{}'.format(current_iteration)
         downloader.add_to_download_list(weights_ipfs, weights_file_name)
 
-        x_test_paths = deque()
-        y_test_paths = deque()
-
-        for index, x_ipfs in enumerate(x_files_ipfs):
-            y_ipfs = y_files_ipfs[index]
-
-            x_file_name = 'x_test_{}'.format(index)
-            y_file_name = 'y_test_{}'.format(index)
-
-            downloader.add_to_download_list(x_ipfs, x_file_name)
-            x_test_paths.append(downloader.resolve_path(x_file_name))
-            downloader.add_to_download_list(y_ipfs, y_file_name)
-            y_test_paths.append(downloader.resolve_path(y_file_name))
+        chunk_dirs = deque()
+        for index, chunk_ipfs in enumerate(test_chunks_ipfs):
+            dir_name = 'chunk_test_{}'.format(index)
+            downloader.add_to_download_list(chunk_ipfs, dir_name)
+            chunk_dirs.append(downloader.resolve_path(dir_name))
 
         downloader.download_all()
 
-        self.save_model_path(downloader.resolve_path('model.py'))
-        self._save_weights_path(downloader.resolve_path(weights_file_name))
-        self.save_x_test(x_test_paths)
-        self.save_y_test(y_test_paths)
+        self.model_path = downloader.resolve_path('model.py')
+        self.weights_path = downloader.resolve_path(weights_file_name)
+        self.chunk_dirs = chunk_dirs
 
         self._run()
 
-        return self.load_eval_result()
+        eval_results = self.eval_results
+        return eval_results['loss'], eval_results['acc']
 
     def process_assignment(self, assignment: TaskAssignment, *args, **kwargs):
-        if len(assignment.train_data.x_test) == 0:
+        if len(assignment.train_data.test_chunks_ipfs) == 0:
             # this worker is not involved in the evaluation
             return
 
         iteration = assignment.train_data.current_iteration - 1
         loss, accuracy = self._run_eval(
             task_declaration_id=assignment.task_declaration_id,
-            model_ipfs=assignment.train_data.model_code,
+            model_ipfs=assignment.train_data.model_code_ipfs,
             current_iteration=iteration,
-            weights_ipfs=assignment.train_data.initial_weights,
-            x_files_ipfs=assignment.train_data.x_test,
-            y_files_ipfs=assignment.train_data.y_test
+            weights_ipfs=assignment.train_data.initial_weights_ipfs,
+            test_chunks_ipfs=assignment.train_data.test_chunks_ipfs
         )
 
         logger.info('loss: {}, accuracy: {}'.format(loss, accuracy))
@@ -102,11 +74,14 @@ class TrainEvalSession(Session):
     def main(self):
         logger.info('Run evaluation')
 
-        model = Model.load_model(path=self.load_model_path())
-        model.load_weights(self._load_weights_path())
+        model = Model.load_model(path=self.model_path)
+        model.load_weights(self.weights_path)
 
-        loss, acc = model.eval(x_path_list=self.load_x_test(), y_path_list=self.load_y_test())
-        self.save_eval_result(loss=loss, acc=acc)
+        loss, acc = model.eval(chunk_dirs=self.chunk_dirs)
+        self.eval_results = {
+            'loss': loss,
+            'acc': acc
+        }
 
 
 if __name__ == '__main__':

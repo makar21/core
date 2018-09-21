@@ -94,7 +94,7 @@ def train_remote(train_ipfs, test_ipfs, args):
         verifiers_needed=args.verifiers,
         batch_size=args.batch,
         epochs=args.epochs,
-        weights=initial_weights_file.multihash,
+        weights_ipfs=initial_weights_file.multihash,
         db=producer.db,
         encryption=producer.encryption,
         epochs_in_iteration=args.epochs_in_iteration
@@ -230,7 +230,7 @@ def main():
     parser.add_argument('-n', '--name', default='mnist_mlp', metavar='NAME', help='model name')
     parser.add_argument('-p', '--path', default='examples/torch/mnist/cnn.py', metavar='PATH', help='model path')
     parser.add_argument('-train', '--dataset_train', default='QmR8scAnnzQRvPV23a6MgTTVWQQ3yhxc6mSXksKMx6YTRy', metavar='dataset', help='dataset dir')
-    parser.add_argument('-test', '--dataset_test', default='QmXJD9uVTLpvTeLPCgRzZHscZQWyG8LeWQ1Hecw3dfjNzn',metavar='dataset', help='dataset dir')
+    parser.add_argument('-test', '--dataset_test', default='QmWJyj6zYpV9vFGKUb65tz66j884fgAqPdYiKmRr97NYKe',metavar='dataset', help='dataset dir')
     parser.add_argument('-w', '--workers', default=1, type=int, metavar='WORKERS', help='workers count')
     parser.add_argument('-v', '--verifiers', default=1, type=int, metavar='VERIFIERS', help='verifiers count')
     parser.add_argument('-b', '--batch', default=128, type=int, metavar='BATCH_SIZE', help='batch size')
