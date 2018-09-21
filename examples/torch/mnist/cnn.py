@@ -43,7 +43,6 @@ class Model(model.Model):
         )
 
     def data_preprocessing(self, chunk_dirs: Iterable, batch_size, transform: callable) -> DataLoader:
-        dataset = ConcatDataset(
-            [NumpyChunkedDataset(chunk_dir=chunk_dir, transform=transform) for chunk_dir in chunk_dirs]
-        )
-        return DataLoader(dataset=dataset, batch_size=batch_size, shuffle=True, pin_memory=True)
+        return DataLoader(
+            dataset=NumpyChunkedDataset(chunk_dirs=chunk_dirs, transform=transform, mmap_mode=None),
+            batch_size=batch_size, shuffle=True, pin_memory=True)

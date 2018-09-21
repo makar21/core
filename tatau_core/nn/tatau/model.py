@@ -1,10 +1,10 @@
 from collections import Iterable
 from abc import abstractmethod, ABC
 from logging import getLogger
+from tatau_core.nn.tatau.dataset import NumpyChunkedDataset
 from .progress import TrainProgress
 from tatau_core.utils.class_loader import load_class
 from torch.utils.data import DataLoader
-
 
 logger = getLogger(__name__)
 
@@ -78,7 +78,9 @@ class Model(ABC):
         pass
 
     def data_preprocessing(self, chunk_dirs: Iterable, batch_size, transform: callable) -> DataLoader:
-        raise NotImplementedError()
+        return DataLoader(
+            dataset=NumpyChunkedDataset(chunk_dirs=chunk_dirs, transform=transform),
+            batch_size=batch_size, shuffle=True, pin_memory=False)
 
     @abstractmethod
     def train(self, chunk_dirs: Iterable, batch_size: int, current_iteration: int,

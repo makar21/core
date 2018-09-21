@@ -1,6 +1,6 @@
 import abc
 import numpy as np
-from torch.utils.data import Dataset as TorchDataset
+from torch.utils.data import Dataset as TorchDataset, ConcatDataset
 import os
 
 
@@ -14,10 +14,10 @@ class ChunkedDataset(TorchDataset):
         pass
 
 
-class NumpyChunkedDataset(ChunkedDataset):
+class NumpyDataset(ChunkedDataset):
     def __init__(self, chunk_dir, mmap_mode='r', transform=None):
         self._mmap_mode = mmap_mode
-        super(NumpyChunkedDataset, self).__init__(chunk_dir=chunk_dir, transform=transform)
+        super(NumpyDataset, self).__init__(chunk_dir=chunk_dir, transform=transform)
 
     def open_chunk(self, chunk_dir):
         x = np.load(os.path.join(chunk_dir, "x.npy"), mmap_mode=self._mmap_mode)
@@ -30,3 +30,13 @@ class NumpyChunkedDataset(ChunkedDataset):
 
     def __len__(self):
         return len(self._x)
+
+
+class NumpyChunkedDataset(ConcatDataset):
+    def __init__(self, chunk_dirs, mmap_mode='r', transform=None):
+        super(NumpyChunkedDataset, self).__init__(
+            datasets=[
+                NumpyDataset(chunk_dir=chunk_dir, mmap_mode=mmap_mode, transform=transform)
+                for chunk_dir in chunk_dirs
+            ]
+        )

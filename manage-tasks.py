@@ -21,28 +21,26 @@ configure_logging(__name__)
 logger = getLogger(__name__)
 
 
-def train_local(train_ipfs, test_ipfs, model_path, batch_size, epochs):
+def train_local(train_dir, test_dir, model_path, batch_size, epochs):
     model = Model.load_model(path=model_path)
 
     class LocalProgress(TrainProgress):
         def progress_callback(self, progress):
             logger.info("Progress: {:.2f}".format(progress))
 
-    ipfs = IPFS()
-    with tempfile.TemporaryDirectory() as temp_dir:
-        train_dir = ipfs.download(train_ipfs, temp_dir)
-        test_dir = ipfs.download(test_ipfs, temp_dir)
+    train_chunks = [os.path.join(train_dir, chunk_dir) for chunk_dir in os.listdir(train_dir)]
+    test_chunks = [os.path.join(test_dir, chunk_dir) for chunk_dir in os.listdir(test_dir)]
 
-        model.train(
-            chunk_dirs=glob(train_dir),
-            batch_size=batch_size,
-            current_iteration=1,
-            nb_epochs=epochs,
-            train_progress=LocalProgress())
+    model.train(
+        chunk_dirs=train_chunks,
+        batch_size=batch_size,
+        current_iteration=1,
+        nb_epochs=epochs,
+        train_progress=LocalProgress())
 
-        loss, acc = model.eval(chunk_dirs=glob(test_dir))
+    loss, acc = model.eval(chunk_dirs=test_chunks)
 
-        print('loss({}):{}, acc({}):{}'.format(loss.__class__.__name__, loss, acc.__class__.__name__, acc))
+    print('loss({}):{}, acc({}):{}'.format(loss.__class__.__name__, loss, acc.__class__.__name__, acc))
 
 
 def train_remote(train_ipfs, test_ipfs, args):
@@ -227,8 +225,8 @@ def main():
     parser.add_argument('-k', '--key', default="producer", metavar='KEY', help='RSA key name')
     parser.add_argument('-n', '--name', default='mnist_mlp', metavar='NAME', help='model name')
     parser.add_argument('-p', '--path', default='examples/torch/mnist/cnn.py', metavar='PATH', help='model path')
-    parser.add_argument('-train', '--dataset_train', default='QmR8scAnnzQRvPV23a6MgTTVWQQ3yhxc6mSXksKMx6YTRy', metavar='dataset', help='dataset dir')
-    parser.add_argument('-test', '--dataset_test', default='QmXJD9uVTLpvTeLPCgRzZHscZQWyG8LeWQ1Hecw3dfjNzn',metavar='dataset', help='dataset dir')
+    parser.add_argument('-train', '--dataset_train', default='QmR8scAnnzQRvPV23a6MgTTVWQQ3yhxc6mSXksKMx6YTRy', metavar='dataset_train', help='dataset dir')
+    parser.add_argument('-test', '--dataset_test', default='QmXJD9uVTLpvTeLPCgRzZHscZQWyG8LeWQ1Hecw3dfjNzn', metavar='dataset_test', help='dataset dir')
     parser.add_argument('-w', '--workers', default=1, type=int, metavar='WORKERS', help='workers count')
     parser.add_argument('-v', '--verifiers', default=1, type=int, metavar='VERIFIERS', help='verifiers count')
     parser.add_argument('-b', '--batch', default=128, type=int, metavar='BATCH_SIZE', help='batch size')
@@ -243,7 +241,7 @@ def main():
     if args.command == 'add':
         if args.local:
             train_local(
-                train_ipfs=args.dataset_train, test_ipfs=args.dataset_test,
+                train_dir=args.dataset_train, test_dir=args.dataset_test,
                 model_path=args.path, batch_size=args.batch, epochs=args.epochs
             )
         else:
