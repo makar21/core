@@ -1,12 +1,14 @@
+import time
 from abc import ABCMeta
-from tatau_core.nn.tatau import model, TrainProgress
+from collections import Iterable
+from logging import getLogger
+
 import torch
 # noinspection PyUnresolvedReferences
 from torch import cuda, from_numpy
 from torch.nn import DataParallel
-from logging import getLogger
-from collections import Iterable
 
+from tatau_core.nn.tatau import model, TrainProgress
 
 logger = getLogger(__name__)
 
@@ -89,6 +91,7 @@ class Model(model.Model, metaclass=ABCMeta):
             epoch_loss = 0.0
             correct = 0
             for batch_idx, (input_, target) in enumerate(loader, 0):
+                start_time = time.time()
                 input_, target = input_.to(self.device), target.to(self.device)
                 self.optimizer.zero_grad()
                 output = self.native_model(input_)
@@ -100,10 +103,16 @@ class Model(model.Model, metaclass=ABCMeta):
                 correct += predicted.eq(target).sum().item()
                 loss.backward()
                 self.optimizer.step()
-
-                logger.info('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
-                    epoch, (batch_idx + 1) * len(input_), len(loader.dataset),
-                           100. * batch_idx / len(loader), epoch_loss / (batch_idx + 1)))
+                batch_time = time.time() - start_time
+                logger.info(
+                    'Train Epoch: {epoch} [{it}/{total_it} ({progress:.0f}%)]\tLoss: {loss:.6f} Time: {time:.2f} secs'.format(
+                        epoch=epoch,
+                        it=(batch_idx + 1) * len(input_),
+                        total_it=len(loader.dataset),
+                        progress=100. * batch_idx / len(loader),
+                        loss=epoch_loss / (batch_idx + 1),
+                        time=batch_time
+                    ))
 
             epoch_loss = epoch_loss / len(loader)
             epoch_acc = correct / len(loader.dataset)
