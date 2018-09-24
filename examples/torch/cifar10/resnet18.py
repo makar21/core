@@ -1,12 +1,8 @@
-from torch import nn
-from torch.utils.data import DataLoader
-
-from tatau_core.nn.tatau.dataset import NumpyChunkedDataset
-from tatau_core.nn.torch import model
 import torch.optim as optim
-from tatau_core.nn.torch.models.resnet import ResNet18
+from torch import nn
 from torchvision import transforms
-from collections import Iterable
+from tatau_core.nn.torch import model
+from tatau_core.nn.torch.models.resnet import ResNet18
 
 
 class Model(model.Model):
@@ -30,7 +26,7 @@ class Model(model.Model):
     def __init__(self):
         super(Model, self).__init__(
             optimizer_class=optim.SGD,
-            optimizer_kwargs=dict(lr=0.1, momentum=0.9, weight_decay=1e-4),
+            optimizer_kwargs=dict(lr=0.2, momentum=0.9, weight_decay=1e-4),
             criterion=nn.CrossEntropyLoss()
         )
 
