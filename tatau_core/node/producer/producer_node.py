@@ -275,7 +275,8 @@ class Producer(Node):
         td.set_encryption_key(task_assignment.worker.enc_key)
         td.save()
 
-        logger.info('Created {}, train chunks: {}, test chunks: {}'.format(td, train_chunks_ipfs, test_chunks_ipfs))
+        logger.info('Created {}, train chunks: {}, count:{}, test chunks: {}, count:{}'.format(
+            td, train_chunks_ipfs, len(train_chunks_ipfs), test_chunks_ipfs, len(test_chunks_ipfs)))
         return td
 
     def _assign_train_data_to_worker(self, task_assignment, worker_index, train_chunks_ipfs, test_chunks_ipfs):
