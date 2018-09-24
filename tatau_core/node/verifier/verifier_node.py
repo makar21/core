@@ -199,6 +199,8 @@ class Verifier(Node):
         for verification_assignment in VerificationAssignment.enumerate(db=self.db, encryption=self.encryption):
             try:
                 self._process_verification_assignment(verification_assignment)
+            except TimeoutError as ex:
+                logger.info(ex)
             except Exception as ex:
                 logger.exception(ex)
 
