@@ -656,7 +656,7 @@ class Producer(Node):
         # collect loss and accuracy for prev iteration
         iteration = str(task_declaration.current_iteration - 1)
         for ta in finished_task_assignments:
-            if ta.train_result.eval_results.get(iteration):
+            if ta.train_result.eval_results is not None and ta.train_result.eval_results.get(iteration):
                 loss.append(ta.train_result.eval_results[iteration]['loss'])
                 accuracy.append(ta.train_result.eval_results[iteration]['accuracy'])
 
