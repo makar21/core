@@ -88,7 +88,8 @@ class Model(model.Model, metaclass=ABCMeta):
         train_history = {'loss': [], 'acc': []}
         for epoch in range(1, nb_epochs + 1):
             epoch_started_at = time.time()
-            self.adjust_learning_rate((current_iteration - 1) * nb_epochs + epoch)
+            nb_epoch = (current_iteration - 1) * nb_epochs + epoch
+            self.adjust_learning_rate(nb_epoch)
             epoch_loss = 0.0
             correct = 0
             for batch_idx, (input_, target) in enumerate(loader, 0):
@@ -119,7 +120,7 @@ class Model(model.Model, metaclass=ABCMeta):
             epoch_loss = epoch_loss / len(loader)
             epoch_acc = correct / len(loader.dataset)
             logger.info("Epoch #{}: Loss: {:.4f} Acc: {:.2f} Time: {:.2f} secs".format(
-                epoch, epoch_loss, 100 * epoch_acc, epoch_time))
+                nb_epoch, epoch_loss, 100 * epoch_acc, epoch_time))
             train_history['loss'].append(epoch_loss)
             train_history['acc'].append(epoch_acc)
         return train_history
