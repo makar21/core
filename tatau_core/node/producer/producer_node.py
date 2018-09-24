@@ -1,5 +1,4 @@
 import datetime
-import re
 import time
 from logging import getLogger
 
@@ -253,7 +252,7 @@ class Producer(Node):
         return True
 
     def _get_chunk_indexes(self, worker_index, chunks_count, workers_requested):
-        chunks_count_for_worker = int(chunks_count / (2 * workers_requested))
+        chunks_count_for_worker = int(chunks_count / workers_requested)
         return [x + chunks_count_for_worker * worker_index for x in range(chunks_count_for_worker)]
 
     def _get_chunks(self, worker_index, workers_requested, chunk_dir_ipfs):
@@ -265,8 +264,7 @@ class Producer(Node):
         )
 
         chunks_ipfs = []
-        for chunk_ipfs_dir in dirs:
-            index = int(re.findall('\d+', chunk_ipfs_dir.name)[0])
+        for index, chunk_ipfs_dir in enumerate(dirs):
             if index in chunk_indexes:
                 chunks_ipfs.append(chunk_ipfs_dir.multihash)
 
@@ -656,7 +654,7 @@ class Producer(Node):
         # collect loss and accuracy for prev iteration
         iteration = str(task_declaration.current_iteration - 1)
         for ta in finished_task_assignments:
-            if ta.train_result.eval_results.get(iteration):
+            if ta.train_result.eval_results is not None and ta.train_result.eval_results.get(iteration):
                 loss.append(ta.train_result.eval_results[iteration]['loss'])
                 accuracy.append(ta.train_result.eval_results[iteration]['accuracy'])
 
