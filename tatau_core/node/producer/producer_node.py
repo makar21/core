@@ -251,39 +251,11 @@ class Producer(Node):
         logger.info('Accept {} for {}'.format(verification_assignment, task_declaration))
         return True
 
-    def _get_chunk_indexes(self, worker_index, chunks_count, workers_requested):
-        chunks_count_for_worker = int(chunks_count / workers_requested)
-        return [x + chunks_count_for_worker * worker_index for x in range(chunks_count_for_worker)]
+    def _chunk_it(self, iterable, count):
+        return [iterable[i::count] for i in range(count)]
 
-    def _get_chunks(self, worker_index, workers_requested, chunk_dir_ipfs):
-        dirs, files = Directory(chunk_dir_ipfs).ls()
-        chunk_indexes = self._get_chunk_indexes(
-            worker_index=worker_index,
-            chunks_count=len(dirs),
-            workers_requested=workers_requested
-        )
-
-        chunks_ipfs = []
-        for index, chunk_ipfs_dir in enumerate(dirs):
-            if index in chunk_indexes:
-                chunks_ipfs.append(chunk_ipfs_dir.multihash)
-
-        return chunks_ipfs
-
-    def _create_train_data(self, worker_index, train_dir_ipfs, test_dir_ipfs, task_assignment: TaskAssignment):
+    def _create_train_data(self, worker_index, train_chunks_ipfs, test_chunks_ipfs, task_assignment: TaskAssignment):
         task_declaration = task_assignment.task_declaration
-
-        train_chunks_ipfs = self._get_chunks(
-            worker_index=worker_index,
-            workers_requested=task_declaration.workers_requested,
-            chunk_dir_ipfs=train_dir_ipfs
-        )
-
-        test_chunks_ipfs = self._get_chunks(
-            worker_index=worker_index,
-            workers_requested=task_declaration.workers_requested,
-            chunk_dir_ipfs=test_dir_ipfs
-        )
 
         # create initial state with encrypted data which producer will be able to decrypt
         td = TrainData.create(
@@ -303,13 +275,14 @@ class Producer(Node):
         td.set_encryption_key(task_assignment.worker.enc_key)
         td.save()
 
+        logger.info('Created {}, train chunks: {}, test chunks: {}'.format(td, train_chunks_ipfs, test_chunks_ipfs))
         return td
 
-    def _assign_train_data_to_worker(self, task_assignment, worker_index, train_dir_ipfs, test_dir_ipfs):
+    def _assign_train_data_to_worker(self, task_assignment, worker_index, train_chunks_ipfs, test_chunks_ipfs):
         train_data = self._create_train_data(
             worker_index=worker_index,
-            train_dir_ipfs=train_dir_ipfs,
-            test_dir_ipfs=test_dir_ipfs,
+            train_chunks_ipfs=train_chunks_ipfs,
+            test_chunks_ipfs=test_chunks_ipfs,
             task_assignment=task_assignment
         )
 
@@ -326,12 +299,30 @@ class Producer(Node):
         accepted_task_assignment = task_declaration.get_task_assignments(states=(TaskAssignment.State.ACCEPTED,))
 
         count_ta = 0
+
+        train_dirs_ipfs, files = Directory(multihash=task_declaration.dataset.train_dir_ipfs).ls()
+        test_dirs_ipfs, files = Directory(multihash=task_declaration.dataset.test_dir_ipfs).ls()
+
+        all_train_chunks_ipfs = self._chunk_it(
+            iterable=[x.multihash for x in train_dirs_ipfs],
+            count=task_declaration.workers_requested
+        )
+
+        assert len(all_train_chunks_ipfs) == task_declaration.workers_requested
+
+        all_test_chunks_ipfs = self._chunk_it(
+            iterable=[x.multihash for x in test_dirs_ipfs],
+            count=task_declaration.workers_requested
+        )
+
+        assert len(all_test_chunks_ipfs) == task_declaration.workers_requested
+
         for index, ta in enumerate(accepted_task_assignment):
             self._assign_train_data_to_worker(
                 task_assignment=ta,
                 worker_index=index,
-                train_dir_ipfs=task_declaration.dataset.train_dir_ipfs,
-                test_dir_ipfs=task_declaration.dataset.test_dir_ipfs
+                train_chunks_ipfs=all_train_chunks_ipfs[index],
+                test_chunks_ipfs=all_test_chunks_ipfs[index]
             )
             count_ta += 1
 
