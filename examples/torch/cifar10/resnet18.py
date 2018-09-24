@@ -1,8 +1,12 @@
 from torch import nn
+from torch.utils.data import DataLoader
+
+from tatau_core.nn.tatau.dataset import NumpyChunkedDataset
 from tatau_core.nn.torch import model
 import torch.optim as optim
 from tatau_core.nn.torch.models.resnet import ResNet18
 from torchvision import transforms
+from collections import Iterable
 
 
 class Model(model.Model):
@@ -36,3 +40,8 @@ class Model(model.Model):
             for param_group in self.optimizer.param_groups:
                 if 'lr' in param_group:
                     param_group['lr'] = param_group['lr'] * 0.1
+
+    def data_preprocessing(self, chunk_dirs: Iterable, batch_size, transform: callable) -> DataLoader:
+        return DataLoader(
+            dataset=NumpyChunkedDataset(chunk_dirs=chunk_dirs, transform=transform, mmap_mode=None),
+            batch_size=batch_size, shuffle=True, pin_memory=False)
