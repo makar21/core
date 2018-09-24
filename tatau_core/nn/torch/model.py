@@ -1,12 +1,14 @@
+import time
 from abc import ABCMeta
-from tatau_core.nn.tatau import model, TrainProgress
+from collections import Iterable
+from logging import getLogger
+
 import torch
 # noinspection PyUnresolvedReferences
 from torch import cuda, from_numpy
 from torch.nn import DataParallel
-from logging import getLogger
-from collections import Iterable
 
+from tatau_core.nn.tatau import model, TrainProgress
 
 logger = getLogger(__name__)
 
@@ -85,11 +87,14 @@ class Model(model.Model, metaclass=ABCMeta):
 
         train_history = {'loss': [], 'acc': []}
         for epoch in range(1, nb_epochs + 1):
+            epoch_started_at = time.time()
             self.adjust_learning_rate((current_iteration - 1) * nb_epochs + epoch)
             epoch_loss = 0.0
             correct = 0
             for batch_idx, (input_, target) in enumerate(loader, 0):
-                input_, target = input_.to(self.device), target.to(self.device)
+                batch_started_at = time.time()
+                if self._gpu_count:
+                    input_, target = input_.to(self.device), target.to(self.device)
                 self.optimizer.zero_grad()
                 output = self.native_model(input_)
                 loss = self._criterion(output, target)
@@ -100,14 +105,21 @@ class Model(model.Model, metaclass=ABCMeta):
                 correct += predicted.eq(target).sum().item()
                 loss.backward()
                 self.optimizer.step()
-
-                logger.info('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
-                    epoch, (batch_idx + 1) * len(input_), len(loader.dataset),
-                           100. * batch_idx / len(loader), epoch_loss / (batch_idx + 1)))
-
+                batch_time = time.time() - batch_started_at
+                logger.info(
+                    'Train Epoch: {epoch} [{it}/{total_it} ({progress:.0f}%)]\tLoss: {loss:.4f}\tTime: {time:.2f} secs'.format(
+                        epoch=epoch,
+                        it=(batch_idx + 1) * len(input_),
+                        total_it=len(loader.dataset),
+                        progress=100. * batch_idx / len(loader),
+                        loss=epoch_loss / (batch_idx + 1),
+                        time=batch_time
+                    ))
+            epoch_time = time.time() - epoch_started_at
             epoch_loss = epoch_loss / len(loader)
             epoch_acc = correct / len(loader.dataset)
-            logger.info("Epoch #{}: Loss: {:.4f} Acc: {:.2f}".format(epoch, epoch_loss, 100 * epoch_acc))
+            logger.info("Epoch #{}: Loss: {:.4f} Acc: {:.2f} Time: {:.2f} secs".format(
+                epoch, epoch_loss, 100 * epoch_acc, epoch_time))
             train_history['loss'].append(epoch_loss)
             train_history['acc'].append(epoch_acc)
         return train_history
@@ -126,7 +138,8 @@ class Model(model.Model, metaclass=ABCMeta):
 
         with torch.no_grad():
             for input_, target in loader:
-                input_, target = input_.to(self.device), target.to(self.device)
+                if self._gpu_count:
+                    input_, target = input_.to(self.device), target.to(self.device)
                 outputs = self.native_model(input_)
                 loss = self._criterion(outputs, target)
                 test_loss += loss.item()
