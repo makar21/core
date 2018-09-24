@@ -30,6 +30,8 @@ class VerifierEstimator(Verifier, Estimator):
                 logger.info(ex)
             else:
                 raise
+        except TimeoutError:
+            logger.info(ex)
         except Exception as ex:
             logger.exception(ex)
 
