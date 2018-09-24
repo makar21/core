@@ -105,7 +105,6 @@ class Model(ABC):
         """
         raise NotImplementedError()
 
-    @abstractmethod
     def adjust_learning_rate(self, epoch: int):
         """
         Adjust learning rate over training process
