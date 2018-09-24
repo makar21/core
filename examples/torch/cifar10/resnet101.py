@@ -6,7 +6,7 @@ from torchvision import transforms
 
 
 class Model(model.Model):
-    transforms_train = transforms.Compose([
+    transform_train = transforms.Compose([
         transforms.ToPILImage(),
         transforms.RandomCrop(32, padding=4),
         transforms.RandomHorizontalFlip(),
@@ -14,7 +14,7 @@ class Model(model.Model):
         transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
     ])
 
-    transforms_eval = transforms.Compose([
+    transform_eval = transforms.Compose([
         transforms.ToTensor(),
         transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
     ])

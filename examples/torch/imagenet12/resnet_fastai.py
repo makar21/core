@@ -163,14 +163,14 @@ def res_net152():
 
 
 class Model(model.Model):
-    transforms_train = transforms.Compose([
+    transform_train = transforms.Compose([
         transforms.ToPILImage(),
         transforms.RandomCrop(224, padding=4),
         transforms.RandomHorizontalFlip(),
         transforms.ToTensor(),
         transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])])
 
-    transforms_eval = transforms.Compose([
+    transform_eval = transforms.Compose([
         transforms.ToPILImage(),
         transforms.CenterCrop(224),
         transforms.ToTensor(),

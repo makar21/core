@@ -10,7 +10,7 @@ from collections import Iterable
 
 
 class Model(model.Model):
-    transforms_train = transforms.Compose([
+    transform_train = transforms.Compose([
         transforms.ToPILImage(),
         transforms.RandomCrop(32, padding=4),
         transforms.RandomHorizontalFlip(),
@@ -18,7 +18,7 @@ class Model(model.Model):
         transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
     ])
 
-    transforms_eval = transforms.Compose([
+    transform_eval = transforms.Compose([
         transforms.ToTensor(),
         transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
     ])
@@ -40,8 +40,3 @@ class Model(model.Model):
             for param_group in self.optimizer.param_groups:
                 if 'lr' in param_group:
                     param_group['lr'] = param_group['lr'] * 0.1
-
-    def data_preprocessing(self, chunk_dirs: Iterable, batch_size, transform: callable) -> DataLoader:
-        return DataLoader(
-            dataset=NumpyChunkedDataset(chunk_dirs=chunk_dirs, transform=transform, mmap_mode=None),
-            batch_size=batch_size, shuffle=True, pin_memory=False)

@@ -33,7 +33,7 @@ class NumpyDataset(ChunkedDataset):
 
 
 class NumpyChunkedDataset(ConcatDataset):
-    def __init__(self, chunk_dirs, mmap_mode='r', transform=None):
+    def __init__(self, chunk_dirs, mmap_mode=None, transform=None):
         super(NumpyChunkedDataset, self).__init__(
             datasets=[
                 NumpyDataset(chunk_dir=chunk_dir, mmap_mode=mmap_mode, transform=transform)
