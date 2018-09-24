@@ -2,6 +2,8 @@ import json
 import time
 from logging import getLogger
 
+import requests
+
 from tatau_core import settings
 from tatau_core.contract import poa_wrapper
 from tatau_core.models import VerifierNode, TaskDeclaration, VerificationAssignment
@@ -192,6 +194,13 @@ class Verifier(Node):
         for task_declaration in task_declarations:
             try:
                 self._process_task_declaration(task_declaration)
+            except requests.exceptions.ConnectionError as ex:
+                # hide from sentry connection errors to parity
+                parity_ports = [settings.PARITY_JSONRPC_PORT, settings.PARITY_WEBSOCKET_PORT]
+                if ex.args[0].pool.port in parity_ports and ex.args[0].pool.host == settings.PARITY_HOST:
+                    logger.info(ex)
+                else:
+                    raise
             except Exception as ex:
                 logger.exception(ex)
 
@@ -199,6 +208,15 @@ class Verifier(Node):
         for verification_assignment in VerificationAssignment.enumerate(db=self.db, encryption=self.encryption):
             try:
                 self._process_verification_assignment(verification_assignment)
+            except requests.exceptions.ConnectionError as ex:
+                # hide from sentry connection errors to parity
+                parity_ports = [settings.PARITY_JSONRPC_PORT, settings.PARITY_WEBSOCKET_PORT]
+                if ex.args[0].pool.port in parity_ports and ex.args[0].pool.host == settings.PARITY_HOST:
+                    logger.info(ex)
+                else:
+                    raise
+            except TimeoutError as ex:
+                logger.info(ex)
             except Exception as ex:
                 logger.exception(ex)
 

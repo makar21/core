@@ -2,6 +2,8 @@ import json
 import time
 from logging import getLogger
 
+import requests
+
 from tatau_core import settings
 from tatau_core.models import WorkerNode, TaskDeclaration, TaskAssignment, BenchmarkInfo
 from tatau_core.models.train import TrainResult
@@ -125,6 +127,13 @@ class Worker(Node):
         for task_assignment in TaskAssignment.enumerate(db=self.db, encryption=self.encryption):
             try:
                 self._process_task_assignment(task_assignment)
+            except requests.exceptions.ConnectionError as ex:
+                # hide from sentry connection errors to parity
+                parity_ports = [settings.PARITY_JSONRPC_PORT, settings.PARITY_WEBSOCKET_PORT]
+                if ex.args[0].pool.port in parity_ports and ex.args[0].pool.host == settings.PARITY_HOST:
+                    logger.info(ex)
+                else:
+                    raise
             except Exception as ex:
                 logger.exception(ex)
 
