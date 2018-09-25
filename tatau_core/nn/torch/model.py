@@ -34,8 +34,7 @@ class Model(model.Model, metaclass=ABCMeta):
 
         logger.info("GPU count: {}".format(self._gpu_count))
 
-        if self._gpu_count > 1:
-            self._model = DataParallel(self._model)
+        self._model = DataParallel(self._model)
 
         self._model = self._model.to(self.device)
 
