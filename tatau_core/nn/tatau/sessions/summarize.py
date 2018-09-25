@@ -1,43 +1,21 @@
 import os
-from collections import deque, Iterable
+from collections import deque
 from logging import getLogger
 
 from tatau_core.models import VerificationAssignment
 from tatau_core.nn.tatau.model import Model
 from tatau_core.utils.ipfs import IPFS, Downloader
-from .session import Session
+from .session import Session, SessionValue
 
 logger = getLogger(__name__)
 
 
 class SummarizeSession(Session):
+    results_list = SessionValue()
+    summarized_weights_path = SessionValue()
+
     def __init__(self, uuid=None):
         super(SummarizeSession, self).__init__(module=__name__, uuid=uuid)
-
-    @property
-    def results_list_path(self):
-        return os.path.join(self.base_dir, 'results_list.pkl')
-
-    def save_results_list(self, result_list: Iterable):
-        self.save_object(self.results_list_path, result_list)
-
-    def load_results_list(self):
-        return self.load_object(self.results_list_path)
-
-    @property
-    def summarized_weights_path(self):
-        return os.path.join(self.base_dir, 'summarized_weights.pkl')
-
-    @property
-    def eval_result_path(self):
-        return os.path.join(self.base_dir, 'eval.pkl')
-
-    def save_eval_result(self, loss, acc):
-        self.save_object(path=self.eval_result_path, obj=dict(loss=loss, acc=acc))
-
-    def load_eval_result(self):
-        result = self.load_object(path=self.eval_result_path)
-        return result['loss'], result['acc']
 
     def process_assignment(self, assignment: VerificationAssignment, *args, **kwargs):
         verification_assignment = assignment
@@ -55,13 +33,13 @@ class SummarizeSession(Session):
             downloaded_results.append(downloader.resolve_path(file_name))
 
         if not len(downloaded_results):
-            logger.error('list of weights is empty')
-            raise ValueError('list of weights is empty')
+            logger.error('list of weights_ipfs is empty')
+            raise ValueError('list of weights_ipfs is empty')
 
         downloader.download_all()
 
-        self.save_model_path(downloader.resolve_path('model.py'))
-        self.save_results_list(downloaded_results)
+        self.model_path = downloader.resolve_path('model.py')
+        self.results_list = downloaded_results
 
         self._run()
 
@@ -70,8 +48,8 @@ class SummarizeSession(Session):
 
     def main(self):
         logger.info('Run Summarizer')
-        results_list = self.load_results_list()
-        model = Model.load_model(self.load_model_path())
+        results_list = self.results_list
+        model = Model.load_model(self.model_path)
 
         summarizer = model.get_weights_summarizer()
         serializer = model.get_weights_serializer()
@@ -81,7 +59,10 @@ class SummarizeSession(Session):
             summarizer.update(weights=weights)
 
         weights = summarizer.commit()
-        serializer.save(path=self.summarized_weights_path, weights=weights)
+        summarized_weights_path = os.path.join(self.base_dir, 'summarized_weights')
+        serializer.save(path=summarized_weights_path, weights=weights)
+
+        self.summarized_weights_path = summarized_weights_path
 
 
 if __name__ == '__main__':

@@ -38,7 +38,7 @@ class TaskDeclaration(models.Model):
     dataset_id = fields.CharField(immutable=True)
     train_model_id = fields.CharField(immutable=True)
 
-    weights = fields.EncryptedCharField(required=False)
+    weights_ipfs = fields.EncryptedCharField(required=False)
     loss = fields.FloatField(required=False)
     accuracy = fields.FloatField(required=False)
 
@@ -85,7 +85,13 @@ class TaskDeclaration(models.Model):
         # Use only one verifier
         kwargs['estimators_needed'] = 1
         kwargs['estimators_requested'] = kwargs['estimators_needed']
+
+        cls._validate_data(**kwargs)
         return super(TaskDeclaration, cls).create(**kwargs)
+
+    @classmethod
+    def _validate_data(cls, **kwargs):
+        pass
 
     @property
     def in_finished_state(self):
@@ -489,7 +495,7 @@ class TaskDeclaration(models.Model):
         }
 
         if self.state == TaskDeclaration.State.COMPLETED:
-            data['train_result'] = self.weights
+            data['train_result'] = self.weights_ipfs
 
         self._add_history_info(data)
         self._add_estimation_info(data)

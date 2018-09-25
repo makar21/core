@@ -97,9 +97,14 @@ class Dataset(models.Model):
             end_idx = start_idx + minibatch_size
             x_batch = x_train[start_idx: end_idx]
             y_batch = y_train[start_idx: end_idx]
-            x_path = os.path.join(target_dir, 'x_' + name_format.format(batch_idx))
+
+            chunk_dir = os.path.join(target_dir, 'chunk_' + name_format.format(batch_idx))
+            os.mkdir(chunk_dir)
+
+            x_path = os.path.join(chunk_dir, 'x')
             np.save(x_path, x_batch)
-            y_path = os.path.join(target_dir, 'y_' + name_format.format(batch_idx))
+
+            y_path = os.path.join(chunk_dir, 'y')
             np.save(y_path, y_batch)
 
     @classmethod

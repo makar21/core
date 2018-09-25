@@ -5,12 +5,15 @@ from tatau_core.models import EstimationAssignment, EstimationResult
 from tatau_core.nn.tatau.model import Model
 from tatau_core.nn.tatau.progress import TrainProgress
 from tatau_core.utils.ipfs import Downloader
-from .session import Session
+from .session import Session, SessionValue
 
 logger = getLogger(__name__)
 
 
 class EstimationSession(Session):
+    train_chunk_dir = SessionValue()
+    init_weights_path = SessionValue()
+
     def __init__(self, uuid=None):
         super(EstimationSession, self).__init__(module=__name__, uuid=uuid)
 
@@ -19,17 +22,15 @@ class EstimationSession(Session):
         assignment.estimation_result.save()
 
         downloader = Downloader(assignment.task_declaration_id)
-        downloader.add_to_download_list(assignment.estimation_data.model_code, 'model.py')
-        downloader.add_to_download_list(assignment.estimation_data.x_train, 'estimate_x_train')
-        downloader.add_to_download_list(assignment.estimation_data.y_train, 'estimate_y_train')
-        downloader.add_to_download_list(assignment.estimation_data.initial_weights, 'estimate_initial_weights')
+        downloader.add_to_download_list(assignment.estimation_data.model_code_ipfs, 'model.py')
+        downloader.add_to_download_list(assignment.estimation_data.chunk_ipfs, 'estimate_train')
+        downloader.add_to_download_list(assignment.estimation_data.initial_weights_ipfs, 'estimate_initial_weights')
 
         downloader.download_all()
 
-        self.save_model_path(downloader.resolve_path('model.py'))
-        self.save_x_train([downloader.resolve_path('estimate_x_train')])
-        self.save_y_train([downloader.resolve_path('estimate_y_train')])
-        self.save_init_weights_path(downloader.resolve_path('estimate_initial_weights'))
+        self.model_path = downloader.resolve_path('model.py')
+        self.train_chunk_dir = downloader.resolve_path('estimate_train')
+        self.init_weights_path = downloader.resolve_path('estimate_initial_weights')
 
         assignment.estimation_result.progress = 20.0
         assignment.estimation_result.save()
@@ -42,13 +43,13 @@ class EstimationSession(Session):
         nb_epochs = int(sys.argv[3])
         current_iteration = int(sys.argv[4])
 
-        model = Model.load_model(path=self.load_model_path())
-        model.load_weights(self.load_init_weights_path())
+        model = Model.load_model(path=self.model_path)
+        model.load_weights(self.init_weights_path)
 
         progress = TrainProgress()
 
         model.train(
-            x_path_list=self.load_x_train(), y_path_list=self.load_y_train(),
+            chunk_dirs=[self.train_chunk_dir],
             batch_size=batch_size, nb_epochs=nb_epochs, current_iteration=current_iteration,
             train_progress=progress
         )

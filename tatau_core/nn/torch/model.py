@@ -1,24 +1,24 @@
-from tatau_core.nn.tatau import model, TrainProgress
-from torch.utils.data import ConcatDataset, DataLoader
+import time
+from abc import ABCMeta
+from collections import Iterable
+from logging import getLogger
+
 import torch
-import torchvision.transforms as transforms
 # noinspection PyUnresolvedReferences
 from torch import cuda, from_numpy
 from torch.nn import DataParallel
-from logging import getLogger
-from collections import Iterable
-from tatau_core.nn.torch import Dataset
 
+from tatau_core.nn.tatau import model, TrainProgress
 
 logger = getLogger(__name__)
 
 
-class Model(model.Model):
+class Model(model.Model, metaclass=ABCMeta):
     weights_serializer_class = 'tatau_core.nn.torch.serializer.WeightsSerializer'
     weights_summarizer_class = 'tatau_core.nn.torch.summarizer.Median'
 
-    transforms_train = transforms.ToTensor()
-    transforms_eval = transforms.ToTensor()
+    transform_train = None
+    transform_eval = None
 
     def __init__(self, optimizer_class, optimizer_kwargs, criterion):
         super(Model, self).__init__()
@@ -72,62 +72,75 @@ class Model(model.Model):
         self.optimizer.load_state_dict(weights['optimizer'])
         # self._criterion.load_state_dict(weights['criterion'])
 
-    def data_preprocessing(self, x_path_list: Iterable, y_path_list: Iterable, transforms: callable) -> ConcatDataset:
-        chunks = [Dataset(x_path, y_path, transform=transforms)
-                  for x_path, y_path in zip(x_path_list, y_path_list)]
-        return ConcatDataset(chunks)
-
-    def train(self, x_path_list: Iterable, y_path_list: Iterable, batch_size: int, current_iteration: int,
+    def train(self, chunk_dirs: Iterable, batch_size: int, current_iteration: int,
               nb_epochs: int, train_progress: TrainProgress):
 
         self.native_model.train()
-        dataset = self.data_preprocessing(x_path_list, y_path_list, transforms=self.transforms_train)
+
         batch_size = batch_size * max(1, self._gpu_count)
         logger.info("Batch size: {}".format(batch_size))
-        loader = DataLoader(dataset, batch_size=batch_size, shuffle=False, num_workers=0, pin_memory=False)
+
+        # dataset = self.data_preprocessing(chunk_dirs=chunk_dirs, transforms=self.transforms_train)
+
+        loader = self.data_preprocessing(chunk_dirs=chunk_dirs, batch_size=batch_size, transform=self.transform_train)
+        # DataLoader(dataset, batch_size=batch_size, shuffle=False, num_workers=0, pin_memory=False)
 
         train_history = {'loss': [], 'acc': []}
         for epoch in range(1, nb_epochs + 1):
-            self.adjust_learning_rate((current_iteration - 1) * nb_epochs + epoch)
+            epoch_started_at = time.time()
+            nb_epoch = (current_iteration - 1) * nb_epochs + epoch
+            self.adjust_learning_rate(nb_epoch)
             epoch_loss = 0.0
-            # running_loss = 0.0
             correct = 0
             for batch_idx, (input_, target) in enumerate(loader, 0):
-                input_, target = input_.to(self.device), target.to(self.device)
+                batch_started_at = time.time()
+                if self._gpu_count:
+                    input_, target = input_.to(self.device), target.to(self.device)
                 self.optimizer.zero_grad()
                 output = self.native_model(input_)
                 loss = self._criterion(output, target)
-                epoch_loss += loss.item()
+                loss_item = loss.item()
+                epoch_loss += loss_item
+                # noinspection PyUnresolvedReferences
                 _, predicted = torch.max(output.data, 1)
                 correct += predicted.eq(target).sum().item()
                 loss.backward()
                 self.optimizer.step()
-                # running_loss += loss.item()
-
-                # if batch_idx >0 and batch_idx % 200 == 0:
-                #     print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
-                #         epoch, batch_idx * len(data), len(loader.dataset),
-                #                100. * batch_idx / len(loader), loss.item()))
-                #     running_loss = 0.0
+                batch_time = time.time() - batch_started_at
+                logger.info(
+                    'Train Epoch: {epoch} [{it}/{total_it} ({progress:.0f}%)]\tLoss: {loss:.4f}\tTime: {time:.2f} secs'.format(
+                        epoch=epoch,
+                        it=(batch_idx + 1) * len(input_),
+                        total_it=len(loader.dataset),
+                        progress=100. * batch_idx / len(loader),
+                        loss=epoch_loss / (batch_idx + 1),
+                        time=batch_time
+                    ))
+            epoch_time = time.time() - epoch_started_at
             epoch_loss = epoch_loss / len(loader)
             epoch_acc = correct / len(loader.dataset)
-            logger.info("Epoch #{}: Loss: {:.4f} Acc: {:.2f}".format(epoch, epoch_loss, 100 * epoch_acc))
+            logger.info("Epoch #{}: Loss: {:.4f} Acc: {:.2f} Time: {:.2f} secs".format(
+                nb_epoch, epoch_loss, 100 * epoch_acc, epoch_time))
             train_history['loss'].append(epoch_loss)
             train_history['acc'].append(epoch_acc)
         return train_history
 
-    def eval(self, x_path_list: Iterable, y_path_list: Iterable):
+    def eval(self, chunk_dirs: Iterable):
         # noinspection PyUnresolvedReferences
         # from torch import from_numpy
         self.native_model.eval()
         test_loss = 0
         correct = 0
-        dataset = self.data_preprocessing(x_path_list, y_path_list, self.transforms_eval)
-        loader = DataLoader(dataset, batch_size=128, shuffle=False, num_workers=0)
+
+        # dataset = self.data_preprocessing(x_path_list, y_path_list, self.transforms_eval)
+        # loader = DataLoader(dataset, batch_size=128, shuffle=False, num_workers=0)
+
+        loader = self.data_preprocessing(chunk_dirs=chunk_dirs, batch_size=128, transform=self.transform_eval)
 
         with torch.no_grad():
             for input_, target in loader:
-                input_, target = input_.to(self.device), target.to(self.device)
+                if self._gpu_count:
+                    input_, target = input_.to(self.device), target.to(self.device)
                 outputs = self.native_model(input_)
                 loss = self._criterion(outputs, target)
                 test_loss += loss.item()

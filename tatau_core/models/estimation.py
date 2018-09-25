@@ -12,10 +12,9 @@ class EstimationData(models.Model):
     batch_size = fields.IntegerField(immutable=True)
 
     # this data may be encrypted for different estimators
-    x_train = fields.EncryptedCharField()
-    y_train = fields.EncryptedCharField()
-    model_code = fields.EncryptedCharField()
-    initial_weights = fields.EncryptedCharField()
+    chunk_ipfs = fields.EncryptedCharField()
+    model_code_ipfs = fields.EncryptedCharField()
+    initial_weights_ipfs = fields.EncryptedCharField()
 
     estimation_assignment_id = fields.CharField(null=True, initial=None)
 

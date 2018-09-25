@@ -1,17 +1,12 @@
-import json
 import os
-import shutil
-import tempfile
 import time
-import zipfile
 from logging import getLogger
-
-import numpy as np
 
 from tatau_core.metrics import MetricsCollector
 from tatau_core.nn.tatau.model import Model, TrainProgress
-from tatau_core.utils.ipfs import IPFS
+from tatau_core.utils.ipfs import IPFS, Downloader
 from tatau_core.utils.logging import configure_logging
+from tatau_core.utils.misc import get_dir_size
 
 configure_logging(__name__)
 
@@ -39,33 +34,26 @@ class TrainSpeedBenchmarkResult:
         )
 
 
-def train(x_train_path, y_train_path, x_test_path, y_test_path, model_path, batch_size, epochs):
+def train(train_dir, test_dir, model_path, batch_size, epochs):
     model = Model.load_model(path=model_path)
-
-    x_train = np.load(x_train_path)
-    y_train = np.load(y_train_path)
-    x_test = np.load(x_test_path)
-    y_test = np.load(y_test_path)
 
     class LocalProgress(TrainProgress):
         def progress_callback(self, progress):
             logger.info("Progress: {:.2f}".format(progress))
 
     model.train(
-        x=x_train, y=y_train,
-        batch_size=batch_size, nb_epochs=epochs, current_iteration=1,
+        chunk_dirs=[x[0] for x in os.walk(train_dir)][1:],
+        batch_size=batch_size,
+        nb_epochs=epochs,
+        current_iteration=1,
         train_progress=LocalProgress()
     )
 
-    loss, acc = model.eval(x=x_test, y=y_test)
+    loss, acc = model.eval(chunk_dirs=[x[0] for x in os.walk(test_dir)][1:])
     logger.info('loss({}):{}, acc({}):{}'.format(loss.__class__.__name__, loss, acc.__class__.__name__, acc))
 
 
-def benchmark_train(working_dir, model_file_path, batch_size, epochs, cost_tflops):
-    x_train_path = os.path.join(working_dir, 'x_train.npy')
-    y_train_path = os.path.join(working_dir, 'y_train.npy')
-    x_test_path = os.path.join(working_dir, 'x_test.npy')
-    y_test_path = os.path.join(working_dir, 'y_test.npy')
+def benchmark_train(train_dir, test_dir, model_path, batch_size, epochs, cost_tflops):
 
     metrics = MetricsCollector(collect_load=True, use_thread=True)
     metrics.start_and_wait_signal()
@@ -73,11 +61,9 @@ def benchmark_train(working_dir, model_file_path, batch_size, epochs, cost_tflop
 
     with metrics:
         train(
-            x_train_path=x_train_path,
-            y_train_path=y_train_path,
-            x_test_path=x_test_path,
-            y_test_path=y_test_path,
-            model_path=model_file_path,
+            train_dir=train_dir,
+            test_dir=test_dir,
+            model_path=model_path,
             batch_size=batch_size,
             epochs=epochs
         )
@@ -120,48 +106,82 @@ class Timer:
         return self._time_end - self._time_start
 
 
+def get_benchmark_config(benchmark_info_ipfs):
+    # return {
+    #     'train_ipfs': 'QmP9KUr8Y6HxNoBNM8zakxC65diYWHG2VBRhPHYnT5uWZT',
+    #     'test_ipfs': 'QmRL93gvYRypqWs1wpzR8S6kvoGPxeP12v8RbTAJWDsQaK',
+    #     'model_ipfs': 'QmdJXSpeqF4RFW3oe3JmhffTSHhu6bPxcxXtGoUXzfnyC4',
+    #     'batch_size': 32,
+    #     'epochs': 3,
+    #     'cost_tflops': 100
+    # }
+
+    # TODO: upload config to ipfs
+    return {
+        'train_ipfs': 'QmUd8UQ2pYyyWJvsFghqmrt43uB8aTsf47sYN15YfXEPGF',
+        'test_ipfs': 'QmYcFFcFT6b1djLP66HAZ4pffKFudHZmRGoKTnHhfhR2WW',
+        'model_ipfs': 'QmNqpfNqQxMSGhf1D7Hnygx6HRT5rsisfL3gbz8sRwVtxB',
+        'batch_size': 32,
+        'epochs': 3,
+        'cost_tflops': 100
+    }
+
+
+def download_data(train_dir_ipfs, test_dir_ipfs, model_ipfs):
+    downloader = Downloader('benchmark')
+
+    train_dir_name = 'train_dir'
+    test_dir_name = 'test_dir'
+    model_file_name = 'model.py'
+
+    downloader.add_to_download_list(train_dir_ipfs, train_dir_name)
+    downloader.add_to_download_list(test_dir_ipfs, test_dir_name)
+    downloader.add_to_download_list(model_ipfs, model_file_name)
+    downloader.download_all()
+
+    train_dir_path = downloader.resolve_path(train_dir_name)
+    test_dir_path = downloader.resolve_path(test_dir_name)
+    model_file_path = downloader.resolve_path(model_file_name)
+
+    return train_dir_path, test_dir_path, model_file_path
+
+
+def get_data_size(train_dir_path, test_dir_path, model_file_path):
+    return get_dir_size(train_dir_path) + get_dir_size(test_dir_path) + os.path.getsize(model_file_path)
+
+
 def run():
     ipfs = IPFS()
     # read this from IPFS
     ipfs.api.repo_gc()
 
-    benchmark_info_ipfs = 'QmPCGNbGF3jdVXghXDj2jR6jgAAtiwjjy6ZAmE1zTPLCMG'
-    benchmark_config = json.loads(ipfs.read(benchmark_info_ipfs))
-    target_dir = tempfile.mkdtemp()
-    try:
-        timer_model = Timer()
-        with timer_model:
-            model_code = ipfs.read(benchmark_config['model'])
+    benchmark_info_ipfs = ''
+    benchmark_config = get_benchmark_config(benchmark_info_ipfs)
 
-        model_file_path = os.path.join(target_dir, 'model.py')
-        with open(model_file_path, 'wb') as model_file:
-            model_file.write(model_code)
-
-        timer_dataset = Timer()
-        with timer_dataset:
-            dataset_zip_file_path = ipfs.download(benchmark_config['dataset'], target_dir)
-
-        total_size = os.path.getsize(dataset_zip_file_path) + os.path.getsize(model_file_path)
-        zip_ref = zipfile.ZipFile(dataset_zip_file_path, 'r')
-        with zip_ref:
-            zip_ref.extractall(target_dir)
-
-        train_benchmark_result = benchmark_train(
-            working_dir=target_dir,
-            model_file_path=model_file_path,
-            batch_size=benchmark_config['batch_size'],
-            epochs=benchmark_config['epochs'],
-            cost_tflops=benchmark_config['cost_tflops']
+    timer_download = Timer()
+    with timer_download:
+        train_dir_path, test_dir_path, model_file_path = download_data(
+            train_dir_ipfs=benchmark_config['train_ipfs'],
+            test_dir_ipfs=benchmark_config['test_ipfs'],
+            model_ipfs=benchmark_config['model_ipfs']
         )
 
-        train_benchmark_result.info_ipfs = benchmark_info_ipfs
+    total_size = get_data_size(train_dir_path, test_dir_path, model_file_path)
 
-        download_benchmark_result = DownloadSpeedBenchmarkResult(
-            downloaded_size=total_size,
-            download_time=timer_dataset.total_seconds + timer_model.total_seconds
-        )
+    download_benchmark_result = DownloadSpeedBenchmarkResult(
+        downloaded_size=total_size,
+        download_time=timer_download.total_seconds
+    )
 
-        return download_benchmark_result, train_benchmark_result
-    finally:
-        shutil.rmtree(target_dir)
+    train_benchmark_result = benchmark_train(
+        train_dir=train_dir_path,
+        test_dir=test_dir_path,
+        model_path=model_file_path,
+        batch_size=benchmark_config['batch_size'],
+        epochs=benchmark_config['epochs'],
+        cost_tflops=benchmark_config['cost_tflops']
+    )
+
+    train_benchmark_result.info_ipfs = benchmark_info_ipfs
+    return download_benchmark_result, train_benchmark_result
 

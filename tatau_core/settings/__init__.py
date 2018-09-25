@@ -78,3 +78,5 @@ WAIT_VERIFY_TIMEOUT = int(os.getenv('WAIT_VERIFY_TIMEOUT', 1800))
 
 
 TATAU_STORAGE_BASE_DIR = os.path.join(tempfile.gettempdir(), 'tatau')
+
+PERFORM_BENCHMARK = False

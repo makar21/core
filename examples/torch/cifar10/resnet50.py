@@ -1,28 +1,28 @@
-import numpy as np
-import torchvision.models as models
 import torch.optim as optim
 from torch import nn
 from torchvision import transforms
+
 from tatau_core.nn.torch import model
+from tatau_core.nn.torch.models.resnet import ResNet50
 
 
 class Model(model.Model):
-    transforms_train = transforms.Compose([
-        transforms.Lambda(lambda x: np.transpose(x)),
+    transform_train = transforms.Compose([
         transforms.ToPILImage(),
-        transforms.RandomCrop(224),
+        transforms.RandomCrop(32, padding=4),
         transforms.RandomHorizontalFlip(),
         transforms.ToTensor(),
-        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])])
+        transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
+    ])
 
-    transforms_eval = transforms.Compose([
-        transforms.Lambda(lambda x: np.transpose(x)),
+    transform_eval = transforms.Compose([
         transforms.ToTensor(),
-        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])])
+        transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
+    ])
 
     @classmethod
     def native_model_factory(cls) -> nn.Module:
-        return models.resnet18()
+        return ResNet50(num_classes=10)
 
     def __init__(self):
         super(Model, self).__init__(

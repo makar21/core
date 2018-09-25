@@ -1,4 +1,10 @@
+from collections import Iterable
+
+from torchvision import transforms
+
 from tatau_core.nn.torch import model
+from tatau_core.nn.tatau.dataset import NumpyChunkedDataset
+from torch.utils.data import DataLoader
 from torch.nn.modules import Module, Conv2d, Linear, Dropout2d, CrossEntropyLoss
 # noinspection PyPep8Naming
 import torch.nn.functional as F
@@ -25,6 +31,7 @@ class Net(Module):
 
 
 class Model(model.Model):
+
     def adjust_learning_rate(self, epoch: int):
         pass
 
@@ -39,3 +46,7 @@ class Model(model.Model):
             criterion=CrossEntropyLoss()
         )
 
+    def data_preprocessing(self, chunk_dirs: Iterable, batch_size, transform: callable) -> DataLoader:
+        return DataLoader(
+            dataset=NumpyChunkedDataset(chunk_dirs=chunk_dirs, transform=transform, mmap_mode=None),
+            batch_size=batch_size, shuffle=True, pin_memory=True)
