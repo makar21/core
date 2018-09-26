@@ -91,8 +91,8 @@ class Model(model.Model, metaclass=ABCMeta):
             self.adjust_learning_rate(nb_epoch)
             epoch_loss = 0.0
             correct = 0
+            batch_started_at = time.time()
             for batch_idx, (input_, target) in enumerate(loader, 0):
-                batch_started_at = time.time()
                 if self._gpu_count:
                     input_, target = input_.to(self.device), target.to(self.device)
                 self.optimizer.zero_grad()
@@ -105,7 +105,9 @@ class Model(model.Model, metaclass=ABCMeta):
                 correct += predicted.eq(target).sum().item()
                 loss.backward()
                 self.optimizer.step()
-                batch_time = time.time() - batch_started_at
+                batch_finished_at = time.time()
+                batch_time = batch_finished_at - batch_started_at
+                batch_started_at = batch_finished_at
                 logger.info(
                     'Train Epoch: {epoch} [{it}/{total_it} ({progress:.0f}%)]\tLoss: {loss:.4f}\tTime: {time:.2f} secs'.format(
                         epoch=epoch,
