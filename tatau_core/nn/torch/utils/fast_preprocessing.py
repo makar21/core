@@ -21,42 +21,42 @@ def fast_collate(batch):
 
 class DataPrefetcher:
     def __init__(self, loader, normalize_mean=None, normalize_std=None):
-        self.loader = loader
-        self.loader_iter = iter(loader)
+        self._loader = loader
+        self._loader_iter = iter(loader)
         self.dataset = loader.dataset
-        self.stream = torch.cuda.Stream()
-        self.mean = None
-        self.std = None
-        self.next_target = None
-        self.next_input = None
+        self._stream = torch.cuda.Stream()
+        self._mean = None
+        self._std = None
+        self._next_target = None
+        self._next_input = None
         if normalize_mean is not None:
-            self.mean = torch.tensor(normalize_mean).cuda().view(1, 3, 1, 1)
+            self._mean = torch.tensor(normalize_mean).cuda().view(1, 3, 1, 1)
         if normalize_std is not None:
-            self.std = torch.tensor(normalize_std).cuda().view(1, 3, 1, 1)
+            self._std = torch.tensor(normalize_std).cuda().view(1, 3, 1, 1)
         self._preload()
 
     def _preload(self):
         try:
-            self.next_input, self.next_target = next(self.loader_iter)
+            self._next_input, self._next_target = next(self._loader_iter)
         except StopIteration:
-            self.next_input = None
-            self.next_target = None
+            self._next_input = None
+            self._next_target = None
             return
-        with torch.cuda.stream(self.stream):
-            self.next_input = self.next_input.cuda(async=True)
-            self.next_target = self.next_target.cuda(async=True)
-            self.next_input = self.next_input.float()
-            if self.mean is not None:
-                self.next_input = self.next_input.sub_(self.mean)
-            if self.std is not None:
-                self.next_input = self.next_input.div_(self.std)
+        with torch.cuda.stream(self._stream):
+            self._next_input = self._next_input.cuda(async=True)
+            self._next_target = self._next_target.cuda(async=True)
+            self._next_input = self._next_input.float()
+            if self._mean is not None:
+                self._next_input = self._next_input.sub_(self._mean)
+            if self._std is not None:
+                self._next_input = self._next_input.div_(self._std)
 
     def __next__(self):
-        torch.cuda.current_stream().wait_stream(self.stream)
-        input_ = self.next_input
-        target = self.next_target
+        torch.cuda.current_stream().wait_stream(self._stream)
+        input_ = self._next_input
+        target = self._next_target
         if input_ is None:
-            self.loader_iter = iter(self.loader)
+            self._loader_iter = iter(self._loader)
             self._preload()
             raise StopIteration
         self._preload()
@@ -66,4 +66,4 @@ class DataPrefetcher:
         return self
 
     def __len__(self):
-        return len(self.loader)
+        return len(self._loader)
