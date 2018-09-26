@@ -441,17 +441,16 @@ class Producer(Node):
                 va.state = VerificationAssignment.State.REJECTED
                 va.save()
 
+        # save if were changes
+        if save:
+            task_declaration.save()
+
         ready_to_start = task_declaration.workers_needed == 0 and task_declaration.verifiers_needed == 0
         logger.info('{} ready: {} workers_needed: {} verifiers_needed: {}'.format(
             task_declaration, ready_to_start, task_declaration.workers_needed, task_declaration.verifiers_needed))
 
         if ready_to_start:
             self._assign_initial_train_data(task_declaration)
-            return
-
-        # save if were changes
-        if save:
-            task_declaration.save()
 
     def _process_deployment_train(self, task_declaration: TaskDeclaration):
         assert task_declaration.state == TaskDeclaration.State.DEPLOYMENT_TRAIN
