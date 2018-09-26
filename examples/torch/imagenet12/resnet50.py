@@ -29,7 +29,7 @@ logger = getLogger(__name__)
 
 class Model(model.Model):
     transform_train = transforms.Compose([
-        transforms.Resize(256),
+        # transforms.Resize(256),
         transforms.RandomResizedCrop(224),
         transforms.RandomHorizontalFlip(),
         transforms.ToTensor(),
@@ -44,16 +44,15 @@ class Model(model.Model):
     @classmethod
     def native_model_factory(cls) -> Module:
         model_ = resnet50()
-        # https://arxiv.org/pdf/1706.02677.pdf
-        # https://github.com/pytorch/examples/pull/262
-        for m in model_.modules():
-            if isinstance(m, BasicBlock): m.bn2.weight = Parameter(torch.zeros_like(m.bn2.weight))
-            if isinstance(m, Bottleneck): m.bn3.weight = Parameter(torch.zeros_like(m.bn3.weight))
-            if isinstance(m, Linear): m.weight.data.normal_(0, 0.01)
+        # # https://arxiv.org/pdf/1706.02677.pdf
+        # # https://github.com/pytorch/examples/pull/262
+        # for m in model_.modules():
+        #     if isinstance(m, BasicBlock): m.bn2.weight = Parameter(torch.zeros_like(m.bn2.weight))
+        #     if isinstance(m, Bottleneck): m.bn3.weight = Parameter(torch.zeros_like(m.bn3.weight))
+        #     if isinstance(m, Linear): m.weight.data.normal_(0, 0.01)
         return model_
 
     def __init__(self):
-
         super(Model, self).__init__(
             optimizer_class=optim.SGD,
             optimizer_kwargs=dict(lr=0.1, momentum=0.9, weight_decay=1e-4),
@@ -61,32 +60,24 @@ class Model(model.Model):
         )
 
     def adjust_learning_rate(self, epoch: int):
-        pass
-    #     lr = 0.1  #
-    #     lr_scheduler = {
-    #         1: 0.235 * 8,
-    #         2: 0.1,
-    #         # 3: lr * 1 / 6 * 4,
-    #         # 4: lr * 1 / 6 * 3,
-    #         # 5: lr * 1 / 6 * 2,
-    #         # 6: lr * 1 / 6 * 1,
-    #         # 7: lr / 2,
-    #         17: lr,
-    #         20: 2 * lr / (10 / 1.5),
-    #         32: 2 * lr / (100 / 1.5),
-    #         38: 2 * lr / 100,
-    #         39: 2 * lr / 1000
-    #
-    #     }
-    #     # epoch starts from 1, so we could simply check for remainder of the division
-    #     # if epoch % 30 == 0:
-    #     if epoch in lr_scheduler:
-    #         lr = lr_scheduler[epoch]
-    #         logger.info("Set lr: {:.6f} epoch: {}".format(lr, epoch))
-    #         for param_group in self.optimizer.param_groups:
-    #             if 'lr' in param_group:
-    #                 # lr = param_group['lr'] * 0.1
-    #                 param_group['lr'] = lr
+        epoch = epoch - 1
+        """LR schedule that should yield 76% converged accuracy with batch size 256"""
+        factor = epoch // 30
+
+        if epoch >= 80:
+            factor = factor + 1
+
+        lr = 0.1 * (0.1 ** factor)
+
+        """Warmup"""
+        # if epoch < 5:
+        #     lr = lr * float(1 + step + epoch * len_epoch) / (5. * len_epoch)
+
+        # if(args.local_rank == 0):
+        #     print("epoch = {}, step = {}, lr = {}".format(epoch, step, lr))
+
+        for param_group in self.optimizer.param_groups:
+            param_group['lr'] = lr
 
     def data_preprocessing(self, chunk_dirs: Iterable, batch_size, transform: callable) -> Iterable:
         return DataLoader(
