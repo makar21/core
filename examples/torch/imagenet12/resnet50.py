@@ -29,6 +29,7 @@ logger = getLogger(__name__)
 
 class Model(model.Model):
     transform_train = transforms.Compose([
+        transforms.Resize(256),
         transforms.RandomResizedCrop(224),
         transforms.RandomHorizontalFlip(),
         transforms.ToTensor(),
