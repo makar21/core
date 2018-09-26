@@ -18,7 +18,7 @@ logger = getLogger(__name__)
 class Model(model.Model):
     transform_train = transforms.Compose([
         transforms.RandomResizedCrop(224),
-        transforms.RandomHorizontalFlip(),
+        transforms.RandomHorizontalFlip()
         ])
 
     transform_eval = transforms.Compose([
@@ -48,7 +48,7 @@ class Model(model.Model):
     def adjust_learning_rate(self, epoch: int):
         pass
 
-    def data_preprocessing(self, chunk_dirs: Iterable, batch_size, transform: callable) -> DataLoader:
+    def data_preprocessing(self, chunk_dirs: Iterable, batch_size, transform: callable) -> Iterable:
         data_loader = DataLoader(
             dataset=ConcatDataset([ImageFolder(root=chunk_dir, transform=transform) for chunk_dir in chunk_dirs]),
             batch_size=batch_size,

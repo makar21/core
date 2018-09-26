@@ -21,7 +21,8 @@ def fast_collate(batch):
 
 class DataPrefetcher():
     def __init__(self, loader, normalize_mean=None, normalize_std=None):
-        self.loader = iter(loader)
+        self.loader = loader
+        self.loader_iter = iter(loader)
         self.stream = torch.cuda.Stream()
         self.mean = None
         self.std = None
@@ -33,7 +34,7 @@ class DataPrefetcher():
 
     def preload(self):
         try:
-            self.next_input, self.next_target = next(self.loader)
+            self.next_input, self.next_target = next(self.loader_iter)
         except StopIteration:
             self.next_input = None
             self.next_target = None
@@ -55,7 +56,7 @@ class DataPrefetcher():
         return input, target
 
     def __iter__(self):
-        return self.loader
+        return self.loader_iter
 
     def __len__(self):
         return len(self.loader)

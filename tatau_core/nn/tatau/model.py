@@ -77,7 +77,7 @@ class Model(ABC):
         """
         pass
 
-    def data_preprocessing(self, chunk_dirs: Iterable, batch_size, transform: callable) -> DataLoader:
+    def data_preprocessing(self, chunk_dirs: Iterable, batch_size, transform: callable) -> Iterable:
         return DataLoader(
             dataset=NumpyChunkedDataset(chunk_dirs=chunk_dirs, transform=transform),
             batch_size=batch_size, shuffle=True, pin_memory=False)

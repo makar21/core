@@ -1,8 +1,10 @@
+from collections import Iterable
 import torch.optim as optim
 from torch import nn
 from torchvision import transforms
-from torch.utils.data import DataLoader, ConcatDataset
+from torch.utils.data import DataLoader
 
+from tatau_core.nn.tatau.dataset import NumpyChunkedDataset
 from tatau_core.nn.torch import model
 from tatau_core.nn.torch.models.resnet import ResNet50
 from tatau_core.nn.torch.utils.fast_preprocessing import fast_collate, DataPrefetcher
@@ -33,7 +35,7 @@ class Model(model.Model):
                 if 'lr' in param_group:
                     param_group['lr'] = param_group['lr'] * 0.1
 
-    def data_preprocessing(self, chunk_dirs: Iterable, batch_size, transform: callable) -> DataLoader:
+    def data_preprocessing(self, chunk_dirs: Iterable, batch_size, transform: callable) -> Iterable:
         data_loader = DataLoader(
                     dataset=NumpyChunkedDataset(chunk_dirs=chunk_dirs, transform=transform),
                     batch_size=batch_size,

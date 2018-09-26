@@ -87,7 +87,7 @@ class Model(model.Model):
     #                 # lr = param_group['lr'] * 0.1
     #                 param_group['lr'] = lr
 
-    def data_preprocessing(self, chunk_dirs: Iterable, batch_size, transform: callable) -> DataLoader:
+    def data_preprocessing(self, chunk_dirs: Iterable, batch_size, transform: callable) -> Iterable:
         return DataLoader(
             dataset=ConcatDataset([ImageFolder(root=chunk_dir, transform=transform) for chunk_dir in chunk_dirs]),
             batch_size=batch_size, shuffle=False, pin_memory=False, num_workers=0)
