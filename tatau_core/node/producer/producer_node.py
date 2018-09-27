@@ -776,15 +776,17 @@ class Producer(Node):
             task_declaration.tflops += va.verification_result.tflops
 
             # what to do if many verifiers ?
-            task_declaration.weights_ipfs = va.verification_result.weights
-            if task_declaration.last_iteration:
-                task_declaration.loss = va.verification_result.loss
-                task_declaration.accuracy = va.verification_result.accuracy
+            if va.verification_result.weights:
+                # if weights is None than fake workers are present
+                task_declaration.weights_ipfs = va.verification_result.weights
+                if task_declaration.last_iteration:
+                    task_declaration.loss = va.verification_result.loss
+                    task_declaration.accuracy = va.verification_result.accuracy
 
-                logger.info('Copy summarization for {}, loss: {}, accuracy: {}'.format(
-                    task_declaration, task_declaration.loss, task_declaration.accuracy))
-            else:
-                logger.info('Copy summarization for {}'.format(task_declaration))
+                    logger.info('Copy summarization for {}, loss: {}, accuracy: {}'.format(
+                        task_declaration, task_declaration.loss, task_declaration.accuracy))
+                else:
+                    logger.info('Copy summarization for {}'.format(task_declaration))
 
         return fake_workers
 
