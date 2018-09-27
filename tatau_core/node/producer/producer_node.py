@@ -3,7 +3,7 @@ import time
 from logging import getLogger
 
 from tatau_core import settings
-from tatau_core.db.db import TxManager
+from tatau_core.db.db import async_commit
 from tatau_core.models import ProducerNode, TaskDeclaration, TaskAssignment, VerificationAssignment, \
     EstimationAssignment, TrainData, VerificationData
 from tatau_core.models.estimation import EstimationData, EstimationResult
@@ -61,7 +61,7 @@ class Producer(Node):
 
             assert False and 'Check query!'
 
-        with TxManager():
+        with async_commit():
             if len(timeout_estimation_assignments):
                 # its reassign
                 assert len(timeout_estimation_assignments) == len(accepted_estimation_assignments)
@@ -111,7 +111,7 @@ class Producer(Node):
     def _process_estimate_is_required(self, task_declaration: TaskDeclaration):
         assert task_declaration.state == TaskDeclaration.State.ESTIMATE_IS_REQUIRED
 
-        with TxManager():
+        with async_commit():
 
             save = False
 
@@ -136,7 +136,7 @@ class Producer(Node):
     def _republish_for_estimation(self, task_declaration: TaskDeclaration):
         assert task_declaration.estimators_needed > 0
 
-        with TxManager():
+        with async_commit():
             task_declaration.state = TaskDeclaration.State.ESTIMATE_IS_REQUIRED
             task_declaration.save()
 
@@ -157,7 +157,7 @@ class Producer(Node):
 
         finished_assignments = []
         count_timeout = 0
-        with TxManager():
+        with async_commit():
             for ea in estimation_assignments:
                 if ea.state == EstimationAssignment.State.ESTIMATING:
                     if ea.estimation_result.state == EstimationResult.State.FINISHED:
@@ -324,7 +324,7 @@ class Producer(Node):
 
         assert len(all_test_chunks_ipfs) == task_declaration.workers_requested
 
-        with TxManager():
+        with async_commit():
             for index, ta in enumerate(accepted_task_assignment):
                 self._assign_train_data_to_worker(
                     task_assignment=ta,
@@ -349,7 +349,7 @@ class Producer(Node):
                 task_declaration.current_iteration * task_declaration.epochs_in_iteration * 100
                 / task_declaration.epochs)
 
-        with TxManager():
+        with async_commit():
             count_ta = 0
             for ta in task_declaration.get_task_assignments(states=(TaskAssignment.State.FINISHED,)):
                 train_data = ta.train_data
@@ -400,7 +400,7 @@ class Producer(Node):
         assert len(failed_task_assignments) == len(accepted_task_assignment)
         # assign data to new accepted task_assignments
 
-        with TxManager():
+        with async_commit():
             for index, ta in enumerate(accepted_task_assignment):
                 failed_ta = failed_task_assignments[index]
                 # reassign train data
@@ -428,7 +428,7 @@ class Producer(Node):
     def _process_deployment(self, task_declaration: TaskDeclaration):
         assert task_declaration.state == TaskDeclaration.State.DEPLOYMENT
 
-        with TxManager():
+        with async_commit():
             save = False
             for ta in task_declaration.get_task_assignments(states=(TaskAssignment.State.READY,)):
                 if self._is_task_assignment_allowed(task_declaration, ta):
@@ -466,7 +466,7 @@ class Producer(Node):
     def _process_deployment_train(self, task_declaration: TaskDeclaration):
         assert task_declaration.state == TaskDeclaration.State.DEPLOYMENT_TRAIN
 
-        with TxManager():
+        with async_commit():
             save = False
             for ta in task_declaration.get_task_assignments(states=(TaskAssignment.State.READY,)):
                 if self._is_task_assignment_allowed(task_declaration, ta):
@@ -493,7 +493,7 @@ class Producer(Node):
     def _process_deployment_verification(self, task_declaration: TaskDeclaration):
         assert task_declaration.state == TaskDeclaration.State.DEPLOYMENT_VERIFICATION
 
-        with TxManager():
+        with async_commit():
             save = False
             for va in task_declaration.get_verification_assignments(states=(VerificationAssignment.State.READY,)):
                 if self._is_verification_assignment_allowed(task_declaration, va):
@@ -526,7 +526,7 @@ class Producer(Node):
             })
             task_declaration.tflops += ta.train_result.tflops
 
-        with TxManager():
+        with async_commit():
             for verification_assignment in task_declaration.get_verification_assignments(
                     states=(VerificationAssignment.State.ACCEPTED, VerificationAssignment.State.FINISHED)):
 
@@ -591,7 +591,7 @@ class Producer(Node):
             for ta in task_declaration.get_task_assignments(states=(TaskAssignment.State.FINISHED,))
         ]
 
-        with TxManager():
+        with async_commit():
             for index, va in enumerate(accepted_verification_assignments):
                 assert va.verification_data_id is None
                 verification_data = VerificationData.create(
@@ -619,7 +619,7 @@ class Producer(Node):
     def _republish_for_train(self, task_declaration: TaskDeclaration):
         assert task_declaration.workers_needed > 0
 
-        with TxManager():
+        with async_commit():
             task_declaration.state = TaskDeclaration.State.DEPLOYMENT_TRAIN
             task_declaration.current_iteration_retry += 1
             task_declaration.save()
@@ -634,7 +634,7 @@ class Producer(Node):
                 ta.save(recipients=ta.worker.address)
 
     def _reject_fake_workers(self, task_declaration: TaskDeclaration, fake_worker_ids):
-        with TxManager():
+        with async_commit():
             for worker_id in fake_worker_ids:
                 task_assignments = TaskAssignment.list(
                     additional_match={
@@ -683,7 +683,7 @@ class Producer(Node):
         failed = False
         finished_task_assignments = []
         count_timeout = 0
-        with TxManager():
+        with async_commit():
             for ta in task_assignments:
                 if ta.state == TaskAssignment.State.TRAINING:
                     if ta.iteration_is_finished:
@@ -736,7 +736,7 @@ class Producer(Node):
         verification_assignment = task_declaration.get_verification_assignments(
             states=(VerificationAssignment.State.REJECTED,)
         )
-        with TxManager():
+        with async_commit():
             for va in verification_assignment:
                 va.state = VerificationAssignment.State.REASSIGN
                 # return back ownership
@@ -781,7 +781,7 @@ class Producer(Node):
         failed = False
         finished_verification_assignments = []
         count_timeout = 0
-        with TxManager():
+        with async_commit():
             for va in verification_assignments:
                 if va.state == VerificationAssignment.State.VERIFYING:
                     if va.iteration_is_finished:

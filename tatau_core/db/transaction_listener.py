@@ -9,6 +9,7 @@ from .exceptions import StopWSClient
 logger = getLogger()
 
 
+# noinspection PyMethodMayBeStatic
 class TransactionListener:
     def _on_message(self, ws, message):
         data = json.loads(message)

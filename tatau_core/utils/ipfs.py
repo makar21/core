@@ -9,6 +9,7 @@ import ipfsapi
 
 from tatau_core import settings
 from tatau_core.settings import IPFS_GATEWAY_HOST
+from tatau_core.utils.signleton import singleton
 from tatau_core.utils.misc import get_dir_size
 
 logger = getLogger()
@@ -67,14 +68,8 @@ class Directory(File):
         return dirs, files
 
 
+@singleton
 class IPFS:
-    _instance = None
-
-    def __new__(cls, *args, **kwargs):
-        if not isinstance(cls._instance, cls):
-            cls._instance = object.__new__(cls, *args, **kwargs)
-        return cls._instance
-
     def __init__(self, host=settings.IPFS_HOST, port=settings.IPFS_PORT):
         self.api = ipfsapi.connect(host, port, chunk_size=1024*1024)
 

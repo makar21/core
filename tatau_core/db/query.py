@@ -45,5 +45,3 @@ def get_txids_filtered(db, asset_id, operation=None):
     ]
     cursor = db.transactions.aggregate(pipeline)
     return (elem['id'] for elem in cursor)
-
-

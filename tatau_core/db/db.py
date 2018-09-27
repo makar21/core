@@ -3,7 +3,6 @@ import time
 from collections import deque
 from logging import getLogger
 
-import bigchaindb_driver.exceptions
 import nacl.signing
 from bigchaindb_driver import BigchainDB
 from bigchaindb_driver.crypto import CryptoKeypair, generate_keypair
@@ -11,35 +10,31 @@ from cryptoconditions.crypto import Base58Encoder
 from pymongo import MongoClient
 
 from tatau_core import settings
-from tatau_core.db import query, exceptions
+from tatau_core.db import query
 from tatau_core.utils.signleton import singleton
 
 logger = getLogger()
 
 
-class Asset:
-    def __init__(self, asset_id, first_tx, last_tx):
-        self.asset_id = asset_id
-        self.last_tx = last_tx
-        self.data = first_tx['asset']['data']
-        self.metadata = last_tx['metadata']
-        self.created_at = first_tx['generation_time']
-        self.modified_at = last_tx['generation_time']
-
-
 @singleton
-class TxManager:
+class async_commit:
     def __init__(self):
         self.async = False
         self.transaction_ids = deque()
+        self._counter = 0
 
     def add_tx_id(self, tx_id):
         self.transaction_ids.append(tx_id)
 
     def __enter__(self):
+        self._counter += 1
         self.async = True
 
     def __exit__(self, exc_type, exc_val, exc_tb):
+        self._counter -= 1
+        if self._counter != 0:
+            return
+
         self.async = False
         while len(self.transaction_ids):
             tx = self.transaction_ids[0]
@@ -50,9 +45,16 @@ class TxManager:
                 continue
 
             logger.info('Tx {} is committed'.format(tx))
-            self.transaction_ids.pop(0)
+            self.transaction_ids.popleft()
 
         self.transaction_ids.clear()
+
+
+def all_commits_async(func):
+    def wrapper(*args):
+        with async_commit():
+            return func(*args)
+    return wrapper
 
 
 class DB:
@@ -91,110 +93,6 @@ class DB:
         d = json.loads(key)
         self.kp = CryptoKeypair(d['private_key'], d['public_key'])
 
-    def create_asset(self, data, metadata=None, recipients=None):
-        """
-        Makes a CREATE transaction in BigchainDB.
-
-        The owner(s) of the asset can be changed
-        using the recipients argument.
-
-        Returns a tuple containing 2 elements:
-
-        1. txid: the transaction ID
-        2. created: was the asset created
-        """
-        asset = {
-            'data': data,
-        }
-
-        prepared_create_tx = self.bdb.transactions.prepare(
-            operation='CREATE',
-            signers=self.kp.public_key,
-            asset=asset,
-            recipients=recipients,
-            metadata=metadata
-        )
-
-        fulfilled_create_tx = self.bdb.transactions.fulfill(
-            prepared_create_tx, private_keys=self.kp.private_key
-        )
-
-        created = True
-        try:
-            txm = TxManager()
-            if txm.async:
-                self.bdb.transactions.send_async(fulfilled_create_tx)
-                txm.add_tx_id(fulfilled_create_tx['id'])
-            else:
-                self.bdb.transactions.send_commit(fulfilled_create_tx)
-        except bigchaindb_driver.exceptions.BadRequest as e:
-            if isinstance(e, bigchaindb_driver.exceptions.BadRequest):
-                if 'already exists' not in e.info['message']:
-                    raise
-                created = False
-        except bigchaindb_driver.exceptions.TransportError as e:
-            self.bdb.transactions.send_sync(fulfilled_create_tx)
-
-        txid = fulfilled_create_tx['id']
-        return txid, created
-
-    def update_asset(self, asset_id, metadata, recipients=None):
-        """
-        Retrieves the list of transaction_ids for the asset and makes
-        a TRANSFER transaction in BigchainDB using the output
-        of the previous transaction.
-
-        The owner(s) of the asset can be changed
-        using the recipients argument.
-
-        Returns txid.
-        """
-        transactions = self.bdb.transactions.get(asset_id=asset_id)
-
-        previous_tx = transactions[-1]
-
-        transfer_asset = {
-            'id': asset_id,
-        }
-
-        output_index = 0
-
-        output = previous_tx['outputs'][output_index]
-
-        transfer_input = {
-            'fulfillment': output['condition']['details'],
-            'fulfills': {
-                'output_index': output_index,
-                'transaction_id': previous_tx['id'],
-            },
-            'owners_before': output['public_keys'],
-        }
-
-        prepared_transfer_tx = self.bdb.transactions.prepare(
-            operation='TRANSFER',
-            asset=transfer_asset,
-            inputs=transfer_input,
-            recipients=(
-                recipients or self.kp.public_key
-            ),
-            metadata=metadata,
-        )
-
-        fulfilled_transfer_tx = self.bdb.transactions.fulfill(
-            prepared_transfer_tx,
-            private_keys=self.kp.private_key,
-        )
-
-        txm = TxManager()
-        if txm.async:
-            self.bdb.transactions.send_async(fulfilled_transfer_tx)
-            txm.add_tx_id(fulfilled_transfer_tx['id'])
-        else:
-            self.bdb.transactions.send_commit(fulfilled_transfer_tx)
-
-        txid = fulfilled_transfer_tx['id']
-        return txid
-
     def _get_transaction(self, transaction_id):
         transaction = query.get_transaction(self.mongo_db, transaction_id)
 
@@ -214,50 +112,16 @@ class DB:
 
         return transaction
 
-    def _get_transactions(self, asset_id):
+    def get_transactions(self, asset_id):
         self.connect_to_mongodb()
         transactions = []
         for transaction_id in query.get_txids_filtered(self.mongo_db, asset_id=asset_id):
             transactions.append(self._get_transaction(transaction_id))
         return transactions
 
-    def retrieve_asset(self, asset_id):
-        transactions = self._get_transactions(asset_id)
-        if len(transactions) == 0:
-            raise exceptions.Asset.NotFound()
-        latest_tx = transactions[-1]
-        return Asset(asset_id=asset_id, first_tx=transactions[0], last_tx=latest_tx)
-
-    def retrieve_asset_transactions(self, asset_id):
-        """
-        Retrieves transaction_ids for an asset.
-        """
-        return self._get_transactions(asset_id=asset_id)
-
-    def retrieve_asset_create_tx(self, asset_id):
-        """
-        Retrieves the CREATE transaction for an asset.
-
-        Returns tx.
-        """
-        create_tx = self.bdb.transactions.get(
-            asset_id=asset_id,
-            operation='CREATE'
-        )[0]
-        return create_tx
-
-    def retrieve_asset_in_initial_state(self, asset_id):
-        """
-        Retrieves the asset in initial state (with initial data)
-
-        Returns tx.
-        """
-        create_tx = self._get_transaction(asset_id)
-        return Asset(asset_id=asset_id, first_tx=create_tx, last_tx=create_tx)
-
     def retrieve_asset_ids(self, match, created_by_user=True, skip=None, limit=None):
         """
-        Retreives assets that match to a $match provided as match argument.
+        Retrieves assets that match to a $match provided as match argument.
 
         If created_by_user is True, only retrieves
         the assets created by the user.
@@ -293,7 +157,7 @@ class DB:
 
     def retrieve_asset_count(self, match, created_by_user=True):
         """
-        Retreives count of assets that match to a $match provided as match argument.
+        Retrieves count of assets that match to a $match provided as match argument.
 
         If created_by_user is True, only retrieves
         the assets created by the user.
@@ -320,4 +184,5 @@ class DB:
 
         for cursor in self.mongo_db.transactions.aggregate(pipeline):
             return cursor['count']
+
         return 0

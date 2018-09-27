@@ -8,7 +8,7 @@ logger = getLogger()
 
 class TrainModel(models.Model):
     name = fields.CharField(immutable=True)
-    code_ipfs = fields.EncryptedCharField(immutable=False)
+    code_ipfs = fields.EncryptedCharField(immutable=True)
 
     @classmethod
     def upload_and_create(cls, code_path, **kwargs):
