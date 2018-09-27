@@ -34,8 +34,7 @@ class Model(model.Model, metaclass=ABCMeta):
 
         logger.info("GPU count: {}".format(self._gpu_count))
 
-        if self._gpu_count > 1:
-            self._model = DataParallel(self._model)
+        self._model = DataParallel(self._model)
 
         self._model = self._model.to(self.device)
 
@@ -88,11 +87,12 @@ class Model(model.Model, metaclass=ABCMeta):
         train_history = {'loss': [], 'acc': []}
         for epoch in range(1, nb_epochs + 1):
             epoch_started_at = time.time()
-            self.adjust_learning_rate((current_iteration - 1) * nb_epochs + epoch)
+            nb_epoch = (current_iteration - 1) * nb_epochs + epoch
+            self.adjust_learning_rate(nb_epoch)
             epoch_loss = 0.0
             correct = 0
+            batch_started_at = time.time()
             for batch_idx, (input_, target) in enumerate(loader, 0):
-                batch_started_at = time.time()
                 if self._gpu_count:
                     input_, target = input_.to(self.device), target.to(self.device)
                 self.optimizer.zero_grad()
@@ -105,7 +105,9 @@ class Model(model.Model, metaclass=ABCMeta):
                 correct += predicted.eq(target).sum().item()
                 loss.backward()
                 self.optimizer.step()
-                batch_time = time.time() - batch_started_at
+                batch_finished_at = time.time()
+                batch_time = batch_finished_at - batch_started_at
+                batch_started_at = batch_finished_at
                 logger.info(
                     'Train Epoch: {epoch} [{it}/{total_it} ({progress:.0f}%)]\tLoss: {loss:.4f}\tTime: {time:.2f} secs'.format(
                         epoch=epoch,
@@ -119,7 +121,7 @@ class Model(model.Model, metaclass=ABCMeta):
             epoch_loss = epoch_loss / len(loader)
             epoch_acc = correct / len(loader.dataset)
             logger.info("Epoch #{}: Loss: {:.4f} Acc: {:.2f} Time: {:.2f} secs".format(
-                epoch, epoch_loss, 100 * epoch_acc, epoch_time))
+                nb_epoch, epoch_loss, 100 * epoch_acc, epoch_time))
             train_history['loss'].append(epoch_loss)
             train_history['acc'].append(epoch_acc)
         return train_history

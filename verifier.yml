@@ -19,6 +19,7 @@ services:
       - mongodb
       - tendermint
       - parity
+    shm_size: '4gb'
     environment:
       RING: $RING
       TATAU_DEBUG: $TATAU_DEBUG

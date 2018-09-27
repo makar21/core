@@ -182,8 +182,8 @@ class Downloader:
         logger.info('Start download {}'.format(multihash))
         target_path = os.path.join(self.storage_dir_path, multihash)
 
-        if os.path.isfile(target_path):
-            logger.info('File already exist: {}'.format(target_path))
+        if os.path.exists(target_path):
+            logger.info('Already exist: {}'.format(target_path))
         else:
             self._ipfs.download(multihash, self.storage_dir_path)
 

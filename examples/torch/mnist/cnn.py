@@ -46,7 +46,7 @@ class Model(model.Model):
             criterion=CrossEntropyLoss()
         )
 
-    def data_preprocessing(self, chunk_dirs: Iterable, batch_size, transform: callable) -> DataLoader:
+    def data_preprocessing(self, chunk_dirs: Iterable, batch_size, transform: callable) -> Iterable:
         return DataLoader(
             dataset=NumpyChunkedDataset(chunk_dirs=chunk_dirs, transform=transform, mmap_mode=None),
             batch_size=batch_size, shuffle=True, pin_memory=True)

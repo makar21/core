@@ -2,7 +2,7 @@ version: '2.3'
 
 services:
   parity:
-    image: parity/parity:v1.11.8
+    image: parity/parity:v1.10.6
     ports:
       - "127.0.0.1:$PARITY_JSONRPC_PORT:8545/tcp" # JSONRPC
       - "127.0.0.1:$PARITY_WEBSOCKET_PORT:8546/tcp" # websocket
