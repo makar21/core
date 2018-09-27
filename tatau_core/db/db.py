@@ -1,4 +1,7 @@
 import json
+import time
+from collections import deque
+from logging import getLogger
 
 import bigchaindb_driver.exceptions
 import nacl.signing
@@ -9,6 +12,9 @@ from pymongo import MongoClient
 
 from tatau_core import settings
 from tatau_core.db import query, exceptions
+from tatau_core.utils.signleton import singleton
+
+logger = getLogger()
 
 
 class Asset:
@@ -19,6 +25,34 @@ class Asset:
         self.metadata = last_tx['metadata']
         self.created_at = first_tx['generation_time']
         self.modified_at = last_tx['generation_time']
+
+
+@singleton
+class TxManager:
+    def __init__(self):
+        self.async = False
+        self.transaction_ids = deque()
+
+    def add_tx_id(self, tx_id):
+        self.transaction_ids.append(tx_id)
+
+    def __enter__(self):
+        self.async = True
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.async = False
+        while len(self.transaction_ids):
+            tx = self.transaction_ids[0]
+
+            if not DB.bdb.blocks.get(txid=tx):
+                logger.info('Tx {} is not committed'.format(tx))
+                time.sleep(1)
+                continue
+
+            logger.info('Tx {} is committed'.format(tx))
+            self.transaction_ids.pop(0)
+
+        self.transaction_ids.clear()
 
 
 class DB:
@@ -85,25 +119,28 @@ class DB:
             prepared_create_tx, private_keys=self.kp.private_key
         )
 
-        # TODO: use send_commit and send_sync if commit is timeout
-        # (while node is not synced, commit will be with timeout)
         created = True
         try:
-            self.bdb.transactions.send_commit(fulfilled_create_tx)
+            txm = TxManager()
+            if txm.async:
+                self.bdb.transactions.send_async(fulfilled_create_tx)
+                txm.add_tx_id(fulfilled_create_tx['id'])
+            else:
+                self.bdb.transactions.send_commit(fulfilled_create_tx)
         except bigchaindb_driver.exceptions.BadRequest as e:
             if isinstance(e, bigchaindb_driver.exceptions.BadRequest):
-                if not 'already exists' in e.info['message']:
+                if 'already exists' not in e.info['message']:
                     raise
                 created = False
         except bigchaindb_driver.exceptions.TransportError as e:
             self.bdb.transactions.send_sync(fulfilled_create_tx)
 
         txid = fulfilled_create_tx['id']
-        return (txid, created)
+        return txid, created
 
     def update_asset(self, asset_id, metadata, recipients=None):
         """
-        Retrieves the list of transactions for the asset and makes
+        Retrieves the list of transaction_ids for the asset and makes
         a TRANSFER transaction in BigchainDB using the output
         of the previous transaction.
 
@@ -148,10 +185,14 @@ class DB:
             private_keys=self.kp.private_key,
         )
 
-        self.bdb.transactions.send_commit(fulfilled_transfer_tx)
+        txm = TxManager()
+        if txm.async:
+            self.bdb.transactions.send_async(fulfilled_transfer_tx)
+            txm.add_tx_id(fulfilled_transfer_tx['id'])
+        else:
+            self.bdb.transactions.send_commit(fulfilled_transfer_tx)
 
         txid = fulfilled_transfer_tx['id']
-
         return txid
 
     def _get_transaction(self, transaction_id):
@@ -189,7 +230,7 @@ class DB:
 
     def retrieve_asset_transactions(self, asset_id):
         """
-        Retrieves transactions for an asset.
+        Retrieves transaction_ids for an asset.
         """
         return self._get_transactions(asset_id=asset_id)
 
