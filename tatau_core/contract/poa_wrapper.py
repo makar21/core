@@ -162,3 +162,4 @@ def distribute(task_declaration, verification_assignment):
                 task_declaration, task_declaration.balance, distribute_total_amount))
         NodeContractInfo.get_contract().wait_for_transaction_mined(tx_hash)
 
+    logger.info('Job {} distributed async'.format(task_declaration))

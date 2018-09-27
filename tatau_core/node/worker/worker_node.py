@@ -5,7 +5,7 @@ from logging import getLogger
 import requests
 
 from tatau_core import settings
-from tatau_core.db.db import all_commits_async
+from tatau_core.db.db import use_async_commits
 from tatau_core.models import WorkerNode, TaskDeclaration, TaskAssignment, BenchmarkInfo
 from tatau_core.models.train import TrainResult
 from tatau_core.nn import benchmark
@@ -21,7 +21,7 @@ class Worker(Node):
 
     asset_class = WorkerNode
 
-    @all_commits_async
+    @use_async_commits
     def _process_task_declaration(self, task_declaration):
         if task_declaration.in_finished_state:
             Downloader(task_declaration.asset_id).remove_storage()
@@ -64,7 +64,7 @@ class Worker(Node):
 
             logger.info('Added {}'.format(task_assignment))
 
-    @all_commits_async
+    @use_async_commits
     def _process_task_assignment(self, task_assignment):
         if task_assignment.task_declaration.in_finished_state:
             return
@@ -81,14 +81,14 @@ class Worker(Node):
             if not task_assignment.iteration_is_finished:
                 self._train(task_assignment)
 
-    @all_commits_async
+    @use_async_commits
     def _dump_error(self, assignment, ex: Exception):
         assignment.train_result.error = json.dumps(self._parse_exception(ex))
         assignment.train_result.state = TrainResult.State.FINISHED
         assignment.train_result.save()
         logger.exception(ex)
 
-    @all_commits_async
+    @use_async_commits
     def _run_eval_session(self, task_assignment: TaskAssignment):
         # do not do eval on first iteration
         if task_assignment.train_data.current_iteration <= 1:
@@ -96,7 +96,7 @@ class Worker(Node):
 
         return self._run_session(task_assignment, TrainEvalSession())
 
-    @all_commits_async
+    @use_async_commits
     def _train(self, task_assignment: TaskAssignment):
         task_declaration = task_assignment.task_declaration
         if task_declaration.balance_in_wei < task_declaration.iteration_cost_in_wei:
@@ -121,7 +121,7 @@ class Worker(Node):
         task_assignment.train_result.state = TrainResult.State.FINISHED
         task_assignment.train_result.save()
 
-    @all_commits_async
+    @use_async_commits
     def _process_task_declarations(self):
         task_declarations = TaskDeclaration.enumerate(created_by_user=False, db=self.db, encryption=self.encryption)
         for task_declaration in task_declarations:
@@ -130,7 +130,7 @@ class Worker(Node):
             except Exception as ex:
                 logger.exception(ex)
 
-    @all_commits_async
+    @use_async_commits
     def _process_task_assignments(self):
         for task_assignment in TaskAssignment.enumerate(db=self.db, encryption=self.encryption):
             try:
@@ -154,7 +154,7 @@ class Worker(Node):
             except Exception as ex:
                 logger.exception(ex)
 
-    @all_commits_async
+    @use_async_commits
     def perform_benchmark(self):
         if not self.asset.benchmark_info:
             download_benchmark_info, train_benchmark_info = benchmark.run()

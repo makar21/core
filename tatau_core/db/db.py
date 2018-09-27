@@ -50,7 +50,7 @@ class async_commit:
         self.transaction_ids.clear()
 
 
-def all_commits_async(func):
+def use_async_commits(func):
     def wrapper(*args):
         with async_commit():
             return func(*args)

@@ -61,6 +61,8 @@ class Asset:
             private_keys=db.kp.private_key
         )
 
+        logger.info('Fulfill CREATE tx {} for asset {}'.format(fulfilled_create_tx['id'], data['asset_name']))
+
         asset_id = fulfilled_create_tx['id']
 
         # check is asset already created
@@ -87,18 +89,16 @@ class Asset:
         return len(shared_items) == len(x)
 
     def _update_if_were_changes(self, metadata, recipients):
-        no_changes = True
+        were_changes = True
         if recipients is not None and sorted(self.last_tx['outputs'][0]['public_keys']) != sorted(recipients):
             # owners was changed
-            no_changes = False
+            were_changes = False
 
         if self._dicts_are_equal(self.metadata, metadata):
-            no_changes = False
+            were_changes = False
 
-        if no_changes:
-            return
-
-        self.save(metadata, recipients)
+        if were_changes:
+            self.save(metadata, recipients)
 
     def save(self, metadata, recipients):
         previous_tx = self.last_tx
@@ -133,6 +133,7 @@ class Asset:
             private_keys=self.db.kp.private_key,
         )
 
+        logger.info('Fulfill TRANSFER tx {} for asset {}'.format(fulfilled_transfer_tx['id'], self.data['asset_name']))
         from tatau_core.db.db import async_commit
         ac = async_commit()
         if ac.async:
