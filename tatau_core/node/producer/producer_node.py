@@ -299,9 +299,6 @@ class Producer(Node):
                     train_chunks_ipfs=train_chunks_ipfs,
                     test_chunks_ipfs=test_chunks_ipfs,
                     data_index=index,
-                    batch_size=task_declaration.batch_size,
-                    initial_weights_ipfs=task_declaration.weights_ipfs,
-                    epochs=task_declaration.epochs_in_current_iteration,
                     db=self.db,
                     encryption=self.encryption
                 )
@@ -316,7 +313,7 @@ class Producer(Node):
         with async_commit():
             # share to worker
             for train_data, task_assignment in list_td_ta:
-                train_data.task_assignment_id = task_declaration.asset_id
+                train_data.task_assignment_id = task_assignment.asset_id
                 train_data.set_encryption_key(task_assignment.worker.enc_key)
                 train_data.save()
 
@@ -341,9 +338,6 @@ class Producer(Node):
         count_ta = 0
         for ta in task_declaration.get_task_assignments(states=(TaskAssignment.State.FINISHED,)):
             train_data = ta.train_data
-            train_data.current_iteration = task_declaration.current_iteration
-            train_data.epochs = task_declaration.epochs_in_current_iteration
-            train_data.initial_weights_ipfs = task_declaration.weights_ipfs
             # share data to worker
             train_data.set_encryption_key(ta.worker.enc_key)
             train_data.save()
@@ -450,6 +444,22 @@ class Producer(Node):
 
         if ready_to_start:
             self._assign_initial_train_data(task_declaration)
+            return
+
+        if not save:
+            # recheck how many workers and verifiers really accepted
+            accepted_workers_count = len(task_declaration.get_task_assignments(
+                states=(TaskAssignment.State.ACCEPTED,)))
+
+            accepted_verifiers_count = len(task_declaration.get_verification_assignments(
+                states=(VerificationAssignment.State.ACCEPTED,)))
+
+            if accepted_workers_count == task_declaration.workers_requested \
+                    and accepted_verifiers_count == task_declaration.verifiers_requested:
+                logger.info('All performers are accepted, start train')
+                task_declaration.workers_needed = 0
+                task_declaration.verifiers_needed = 0
+                self._assign_initial_train_data(task_declaration)
 
     def _process_deployment_train(self, task_declaration: TaskDeclaration):
         assert task_declaration.state == TaskDeclaration.State.DEPLOYMENT_TRAIN
@@ -477,6 +487,17 @@ class Producer(Node):
 
         if ready_to_start:
             self._reassign_train_data(task_declaration)
+            return
+
+        if not save:
+            # recheck how many workers really accepted
+            accepted_workers_count = len(task_declaration.get_task_assignments(
+                states=(TaskAssignment.State.ACCEPTED, TaskAssignment.State.FINISHED)))
+
+            if accepted_workers_count == task_declaration.workers_requested:
+                logger.info('All performers are accepted, start train')
+                task_declaration.workers_needed = 0
+                self._reassign_train_data(task_declaration)
 
     def _process_deployment_verification(self, task_declaration: TaskDeclaration):
         assert task_declaration.state == TaskDeclaration.State.DEPLOYMENT_VERIFICATION
@@ -504,6 +525,17 @@ class Producer(Node):
 
         if ready_to_verify:
             self._reassign_verification_data(task_declaration)
+            return
+
+        if not save:
+            # recheck how many verifiers really accepted
+            accepted_verifiers_count = len(task_declaration.get_verification_assignments(
+                states=(VerificationAssignment.State.ACCEPTED, VerificationAssignment.State.FINISHED)))
+
+            if accepted_verifiers_count == task_declaration.verifiers_requested:
+                logger.info('All performers are accepted, start train')
+                task_declaration.verifiers_needed = 0
+                self._reassign_verification_data(task_declaration)
 
     @use_async_commits
     def _assign_verification_data(self, task_declaration: TaskDeclaration, task_assignments: ListTaskAssignments):
@@ -539,8 +571,6 @@ class Producer(Node):
             if verification_assignment.state == VerificationAssignment.State.FINISHED:
                 verification_data = verification_assignment.verification_data
                 verification_data.train_results = train_results
-                verification_data.current_iteration = task_declaration.current_iteration
-                verification_data.current_iteration_retry = task_declaration.current_iteration_retry
                 verification_data.save()
 
                 verification_assignment.state = VerificationAssignment.State.VERIFYING

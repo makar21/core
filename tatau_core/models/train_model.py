@@ -7,7 +7,7 @@ logger = getLogger()
 
 
 class TrainModel(models.Model):
-    name = fields.CharField(immutable=True)
+    name = fields.EncryptedCharField(immutable=True)
     code_ipfs = fields.EncryptedCharField(immutable=True)
 
     @classmethod

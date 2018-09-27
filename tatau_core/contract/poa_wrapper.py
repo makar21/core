@@ -154,6 +154,7 @@ def distribute(task_declaration, verification_assignment):
     distribute_history.save()
 
     for worker_payment in worker_payments:
+        logger.info('Save payments for worker: {}, tokens: {}'.format(worker_payment.worker_id, worker_payment.tokens))
         worker_payment.save()
 
     if task_declaration.last_iteration:

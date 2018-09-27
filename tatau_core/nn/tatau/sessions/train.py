@@ -33,7 +33,7 @@ class TrainSession(Session):
         downloader.add_to_download_list(assignment.train_data.model_code_ipfs, 'model.py')
 
         initial_weight_file_name = 'initial_weight_{}'.format(assignment.train_data.current_iteration)
-        downloader.add_to_download_list(assignment.train_data.initial_weights_ipfs, initial_weight_file_name)
+        downloader.add_to_download_list(assignment.train_data.weights_ipfs, initial_weight_file_name)
 
         batch_size = assignment.train_data.batch_size
         epochs = assignment.train_data.epochs

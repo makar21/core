@@ -15,7 +15,7 @@ logger = getLogger()
 
 
 class Dataset(models.Model):
-    name = fields.CharField(immutable=True)
+    name = fields.EncryptedCharField(immutable=True)
     train_dir_ipfs = fields.EncryptedCharField(immutable=True)
     test_dir_ipfs = fields.EncryptedCharField(immutable=True)
 

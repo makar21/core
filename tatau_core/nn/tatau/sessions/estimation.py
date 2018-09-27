@@ -24,7 +24,7 @@ class EstimationSession(Session):
         downloader = Downloader(assignment.task_declaration_id)
         downloader.add_to_download_list(assignment.estimation_data.model_code_ipfs, 'model.py')
         downloader.add_to_download_list(assignment.estimation_data.chunk_ipfs, 'estimate_train')
-        downloader.add_to_download_list(assignment.estimation_data.initial_weights_ipfs, 'estimate_initial_weights')
+        downloader.add_to_download_list(assignment.estimation_data.weights_ipfs, 'estimate_initial_weights')
 
         downloader.download_all()
 
