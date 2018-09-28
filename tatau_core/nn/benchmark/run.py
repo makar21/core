@@ -10,7 +10,7 @@ from tatau_core.utils.misc import get_dir_size
 
 configure_logging(__name__)
 
-logger = getLogger(__name__)
+logger = getLogger('tatau_core')
 
 
 class DownloadSpeedBenchmarkResult:

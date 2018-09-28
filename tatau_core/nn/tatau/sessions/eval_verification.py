@@ -5,7 +5,7 @@ from tatau_core.nn.tatau.model import Model
 from tatau_core.nn.tatau.sessions.eval_train import TrainEvalSession
 from tatau_core.utils.ipfs import Directory
 
-logger = getLogger(__name__)
+logger = getLogger('tatau_core')
 
 
 class VerificationEvalSession(TrainEvalSession):

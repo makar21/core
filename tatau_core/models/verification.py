@@ -4,7 +4,7 @@ from tatau_core.db import models, fields
 from tatau_core.models.nodes import ProducerNode, VerifierNode
 from tatau_core.utils import cached_property
 
-logger = getLogger()
+logger = getLogger('tatau_core')
 
 
 class VerificationData(models.Model):

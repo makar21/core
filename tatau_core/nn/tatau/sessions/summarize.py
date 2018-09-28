@@ -7,7 +7,7 @@ from tatau_core.nn.tatau.model import Model
 from tatau_core.utils.ipfs import IPFS, Downloader
 from .session import Session, SessionValue
 
-logger = getLogger(__name__)
+logger = getLogger('tatau_core')
 
 
 class SummarizeSession(Session):

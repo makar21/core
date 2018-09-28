@@ -14,7 +14,7 @@ from tatau_core.nn.tatau.sessions.train import TrainSession
 from tatau_core.node import Node
 from tatau_core.utils.ipfs import Downloader
 
-logger = getLogger()
+logger = getLogger('tatau_core')
 
 
 class Worker(Node):

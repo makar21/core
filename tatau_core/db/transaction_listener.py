@@ -6,7 +6,7 @@ import websocket
 from tatau_core import settings
 from .exceptions import StopWSClient
 
-logger = getLogger()
+logger = getLogger('tatau_core')
 
 
 # noinspection PyMethodMayBeStatic

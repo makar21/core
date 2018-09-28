@@ -10,7 +10,7 @@ from torch.nn import DataParallel
 
 from tatau_core.nn.tatau import model, TrainProgress
 
-logger = getLogger(__name__)
+logger = getLogger('tatau_core')
 
 
 class Model(model.Model, metaclass=ABCMeta):

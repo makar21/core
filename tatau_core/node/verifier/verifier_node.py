@@ -14,7 +14,7 @@ from tatau_core.nn.tatau.sessions.summarize import SummarizeSession
 from tatau_core.node.node import Node
 from tatau_core.utils.ipfs import Downloader
 
-logger = getLogger()
+logger = getLogger('tatau_core')
 
 
 # noinspection PyMethodMayBeStatic

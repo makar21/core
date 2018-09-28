@@ -3,7 +3,7 @@ from logging import getLogger
 from tatau_core.db import models, fields
 from tatau_core.utils.ipfs import IPFS
 
-logger = getLogger()
+logger = getLogger('tatau_core')
 
 
 class TrainModel(models.Model):

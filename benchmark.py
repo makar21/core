@@ -5,7 +5,7 @@ from tatau_core.utils.logging import configure_logging
 
 configure_logging(__name__)
 
-logger = getLogger(__name__)
+logger = getLogger('tatau_core')
 
 
 if __name__ == '__main__':

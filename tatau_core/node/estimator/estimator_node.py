@@ -9,7 +9,7 @@ from tatau_core.models.estimation import EstimationResult
 from tatau_core.nn.tatau.sessions.estimation import EstimationSession
 from tatau_core.node import Node
 
-logger = getLogger()
+logger = getLogger('tatau_core')
 
 
 # noinspection PyMethodMayBeStatic

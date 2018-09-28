@@ -13,7 +13,7 @@ from tatau_core import settings
 from tatau_core.db import query
 from tatau_core.utils.signleton import singleton
 
-logger = getLogger()
+logger = getLogger('tatau_core')
 
 
 @singleton
@@ -40,11 +40,11 @@ class async_commit:
             tx = self.transaction_ids[0]
 
             if not DB.bdb.blocks.get(txid=tx):
-                logger.info('Tx {} is not committed'.format(tx))
+                logger.debug('Tx {} is not committed'.format(tx))
                 time.sleep(1)
                 continue
 
-            logger.info('Tx {} is committed'.format(tx))
+            logger.debug('Tx {} is committed'.format(tx))
             self.transaction_ids.popleft()
 
         self.transaction_ids.clear()

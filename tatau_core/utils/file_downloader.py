@@ -5,7 +5,7 @@ from multiprocessing.pool import ThreadPool
 
 from tatau_core import settings
 
-logger = getLogger()
+logger = getLogger('tatau_core')
 
 
 class FileDownloader:

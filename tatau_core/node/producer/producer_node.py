@@ -13,7 +13,7 @@ from tatau_core.node.producer.estimator import Estimator
 from tatau_core.node.producer.whitelist import WhiteList
 from tatau_core.utils.ipfs import Directory
 
-logger = getLogger()
+logger = getLogger('tatau_core')
 
 
 # noinspection PyMethodMayBeStatic
@@ -304,7 +304,7 @@ class Producer(Node):
                 )
 
                 list_td_ta.append((train_data, task_assignment))
-                logger.info('Created {}, train chunks: {}, count:{}, test chunks: {}, count:{}'.format(
+                logger.debug('Created {}, train chunks: {}, count:{}, test chunks: {}, count:{}'.format(
                     train_data, train_chunks_ipfs, len(train_chunks_ipfs), test_chunks_ipfs, len(test_chunks_ipfs)))
                 count_ta += 1
 

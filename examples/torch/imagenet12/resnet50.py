@@ -12,7 +12,7 @@ from torchvision.models.resnet import resnet50, BasicBlock, Bottleneck
 from tatau_core.nn.torch import model
 import time
 
-logger = getLogger(__name__)
+logger = getLogger('tatau_core')
 
 
 # class TransformProfiler:

@@ -13,7 +13,7 @@ from tatau_core.models.train_model import TrainModel
 from tatau_core.models.verification import VerificationAssignment, VerificationResult
 from tatau_core.utils import cached_property
 
-logger = getLogger()
+logger = getLogger('tatau_core')
 
 ListEstimationAssignments = List[EstimationAssignment]
 ListTaskAssignments = List[TaskAssignment]

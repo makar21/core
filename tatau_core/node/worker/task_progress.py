@@ -3,7 +3,7 @@ from logging import getLogger
 from tatau_core.nn.tatau.model import TrainProgress
 from tatau_core.models import TrainResult
 
-logger = getLogger()
+logger = getLogger('tatau_core')
 
 
 class TaskProgress(TrainProgress):

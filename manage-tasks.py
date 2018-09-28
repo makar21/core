@@ -18,7 +18,7 @@ from glob import glob
 
 configure_logging(__name__)
 
-logger = getLogger(__name__)
+logger = getLogger('tatau_core')
 
 
 def train_local(train_dir, test_dir, model_path, batch_size, epochs):

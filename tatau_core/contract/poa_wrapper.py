@@ -5,7 +5,7 @@ from hexbytes import HexBytes
 from tatau_core import web3
 from tatau_core.contract import NodeContractInfo
 
-logger = getLogger()
+logger = getLogger('tatau_core')
 
 
 def issue_job(task_declaration, job_cost):

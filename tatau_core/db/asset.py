@@ -3,7 +3,7 @@ from logging import getLogger
 
 from tatau_core.db import exceptions
 
-logger = getLogger()
+logger = getLogger('tatau_core')
 
 
 class Asset:
@@ -61,7 +61,7 @@ class Asset:
             private_keys=db.kp.private_key
         )
 
-        logger.info('Fulfill CREATE tx {} for asset {}'.format(fulfilled_create_tx['id'], data['asset_name']))
+        logger.debug('Fulfill CREATE tx {} for asset {}'.format(fulfilled_create_tx['id'], data['asset_name']))
 
         asset_id = fulfilled_create_tx['id']
 
@@ -105,7 +105,7 @@ class Asset:
 
         # we cant create tx if previous tx was not committed
         while not self.db.bdb.blocks.get(txid=previous_tx['id']):
-            logger.info('Previous tx is not committed, waiting...')
+            logger.debug('Previous tx is not committed, waiting...')
             time.sleep(1)
 
         output_index = 0
@@ -133,7 +133,7 @@ class Asset:
             private_keys=self.db.kp.private_key,
         )
 
-        logger.info('Fulfill TRANSFER tx {} for asset {}'.format(fulfilled_transfer_tx['id'], self.data['asset_name']))
+        logger.debug('Fulfill TRANSFER tx {} for asset {}'.format(fulfilled_transfer_tx['id'], self.data['asset_name']))
         from tatau_core.db.db import async_commit
         ac = async_commit()
         if ac.async:

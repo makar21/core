@@ -3,7 +3,7 @@ from logging import getLogger
 
 from tatau_core import settings
 
-logger = getLogger(__name__)
+logger = getLogger('tatau_core')
 
 
 class WhiteList:

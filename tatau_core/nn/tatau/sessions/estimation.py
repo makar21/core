@@ -7,7 +7,7 @@ from tatau_core.nn.tatau.progress import TrainProgress
 from tatau_core.utils.ipfs import Downloader
 from .session import Session, SessionValue
 
-logger = getLogger(__name__)
+logger = getLogger('tatau_core')
 
 
 class EstimationSession(Session):
