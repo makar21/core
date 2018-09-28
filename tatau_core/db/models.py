@@ -1,8 +1,7 @@
-import json
-
 from tatau_core import settings
 from tatau_core.db import exceptions
-from tatau_core.db.fields import Field, JsonField, EncryptedJsonField
+from tatau_core.db.asset import Asset
+from tatau_core.db.fields import Field
 
 
 class ModelBase(type):
@@ -24,15 +23,14 @@ class ModelBase(type):
 
 
 class Model(metaclass=ModelBase):
-    def __init__(self, db, encryption, asset_id=None, _address=None, _decrypt_values=False,
+    def __init__(self, db, encryption, asset=None, _decrypt_values=False,
                  created_at=None, modified_at=None, public_key=None, **kwargs):
         # param "_decrypt_values" was added for using in methods get, history, because when data loads from db,
         # then data should be decrypted, but when new instance is creating, then data which passed to constructor
         # is not encrypted
         self.db = db
         self.encryption = encryption
-        self.asset_id = asset_id
-        self._address = _address
+        self.asset = asset
         self._public_key = public_key
         self._created_at = created_at
         self._modified_at = modified_at
@@ -44,6 +42,12 @@ class Model(metaclass=ModelBase):
 
     def __str__(self):
         return '<{}: {}>'.format(self.get_asset_name(), self.asset_id)
+
+    @property
+    def asset_id(self):
+        if self.asset:
+            return self.asset.asset_id
+        return None
 
     @classmethod
     def get_fields(cls):
@@ -66,7 +70,7 @@ class Model(metaclass=ModelBase):
 
     @property
     def address(self):
-        return self._address
+        return self.asset.address
 
     def get_encryption_key(self):
         return self._public_key
@@ -98,19 +102,17 @@ class Model(metaclass=ModelBase):
 
     @classmethod
     def get(cls, asset_id, db, encryption):
-        asset = db.retrieve_asset(asset_id)
-        address = asset.last_tx['outputs'][0]['public_keys'][0]
-
+        asset = Asset.get(asset_id, db)
         if asset.data['asset_name'] != cls.get_asset_name():
             raise exceptions.Asset.WrongType()
 
-        kwars = dict(asset_id=asset_id)
-        kwars.update(asset.data)
+        kwargs = dict(asset=asset)
+        kwargs.update(asset.data)
         if asset.metadata is not None:
-            kwars.update(asset.metadata)
-        kwars['created_at'] = asset.created_at
-        kwars['modified_at'] = asset.modified_at
-        return cls(db=db, encryption=encryption, _decrypt_values=True, _address=address, **kwars)
+            kwargs.update(asset.metadata)
+        kwargs['created_at'] = asset.created_at
+        kwargs['modified_at'] = asset.modified_at
+        return cls(db=db, encryption=encryption, _decrypt_values=True, **kwargs)
 
     @classmethod
     def create(cls, **kwargs):
@@ -119,17 +121,17 @@ class Model(metaclass=ModelBase):
         return obj
 
     def save(self, recipients=None):
-        if self.asset_id is not None:
-            self.db.update_asset(
-                asset_id=self.asset_id,
+        if self.asset is not None:
+            self.asset.save(
                 metadata=self.get_metadata(),
                 recipients=recipients,
             )
         else:
-            self.asset_id, created = self.db.create_asset(
+            self.asset, created = Asset.create(
                 data=self.get_data(),
                 metadata=self.get_metadata(),
-                recipients=recipients
+                recipients=recipients,
+                db=self.db
             )
 
     @classmethod
@@ -170,7 +172,7 @@ class Model(metaclass=ModelBase):
     def get_history(cls, asset_id, db, encryption):
         data = None
         created_at = None
-        for transaction in db.retrieve_asset_transactions(asset_id):
+        for transaction in db.get_transactions(asset_id=asset_id):
             if transaction['operation'] == 'CREATE':
                 data = transaction['asset']['data']
                 created_at = transaction['generation_time']
@@ -178,26 +180,24 @@ class Model(metaclass=ModelBase):
                     raise exceptions.Asset.WrongType()
 
             metadata = transaction['metadata']
-            address = transaction['outputs'][0]['public_keys'][0]
-
-            kwars = data
-            kwars.update(metadata)
-            kwars['created_at'] = created_at
-            kwars['modified_at'] = transaction['generation_time']
-            yield cls(db=db, encryption=encryption, asset_id=asset_id, _decrypt_values=True, _address=address, **kwars)
+            kwargs = data
+            kwargs.update(metadata)
+            kwargs['created_at'] = created_at
+            kwargs['modified_at'] = transaction['generation_time']
+            # db = None to be sure save() for returned object will be failed
+            yield cls(db=None, encryption=encryption, _decrypt_values=True, **kwargs)
 
     @classmethod
     def get_with_initial_data(cls, asset_id, db, encryption):
-        asset = db.retrieve_asset_in_initial_state(asset_id)
-        address = asset.last_tx['outputs'][0]['public_keys'][0]
-
+        asset = Asset.get(asset_id=asset_id, db=db)
         if asset.data['asset_name'] != cls.get_asset_name():
             raise exceptions.Asset.WrongType()
 
-        kwars = dict(asset_id=asset_id)
-        kwars.update(asset.data)
-        if asset.metadata is not None:
-            kwars.update(asset.metadata)
-        kwars['created_at'] = asset.created_at
-        kwars['modified_at'] = asset.modified_at
-        return cls(db=db, encryption=encryption, _decrypt_values=True, _address=address, **kwars)
+        kwargs = dict(asset=asset)
+        kwargs.update(asset.data)
+        if asset.initial_metadata is not None:
+            kwargs.update(asset.initial_metadata)
+
+        kwargs['created_at'] = asset.created_at
+        kwargs['modified_at'] = asset.modified_at
+        return cls(db=db, encryption=encryption, _decrypt_values=True, **kwargs)

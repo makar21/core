@@ -10,7 +10,7 @@ from tatau_core.utils.misc import get_dir_size
 
 configure_logging(__name__)
 
-logger = getLogger(__name__)
+logger = getLogger('tatau_core')
 
 
 class DownloadSpeedBenchmarkResult:
@@ -49,8 +49,8 @@ def train(train_dir, test_dir, model_path, batch_size, epochs):
         train_progress=LocalProgress()
     )
 
-    loss, acc = model.eval(chunk_dirs=[x[0] for x in os.walk(test_dir)][1:])
-    logger.info('loss({}):{}, acc({}):{}'.format(loss.__class__.__name__, loss, acc.__class__.__name__, acc))
+    # loss, acc = model.eval(chunk_dirs=[x[0] for x in os.walk(test_dir)][1:])
+    # logger.info('loss({}):{}, acc({}):{}'.format(loss.__class__.__name__, loss, acc.__class__.__name__, acc))
 
 
 def benchmark_train(train_dir, test_dir, model_path, batch_size, epochs, cost_tflops):
@@ -74,7 +74,7 @@ def benchmark_train(train_dir, test_dir, model_path, batch_size, epochs, cost_tf
     logger.info('Spent time: {} s'.format(metrics.total_seconds))
 
     logger.info('Av CPU Load: {} %'.format(metrics.average_cpu_load))
-    logger.info('Spent hardcoded CPU TFLOPs {}'.format(metrics.get_cpu_tflops))
+    logger.info('Spent hardcoded CPU TFLOPs {}'.format(metrics.get_cpu_tflops()))
 
     logger.info('Av GPU Load: {} %'.format(metrics.average_gpu_load))
     logger.info('Spent hardcoded GPU TFLOPs: {}'.format(metrics.get_gpu_tflops()))

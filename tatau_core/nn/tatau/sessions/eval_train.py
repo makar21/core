@@ -6,7 +6,7 @@ from tatau_core.nn.tatau.model import Model
 from tatau_core.utils.ipfs import Downloader
 from .session import Session, SessionValue
 
-logger = getLogger(__name__)
+logger = getLogger('tatau_core')
 
 
 class TrainEvalSession(Session):
@@ -55,7 +55,7 @@ class TrainEvalSession(Session):
             task_declaration_id=assignment.task_declaration_id,
             model_ipfs=assignment.train_data.model_code_ipfs,
             current_iteration=iteration,
-            weights_ipfs=assignment.train_data.initial_weights_ipfs,
+            weights_ipfs=assignment.train_data.weights_ipfs,
             test_chunks_ipfs=assignment.train_data.test_chunks_ipfs
         )
 

@@ -2,7 +2,7 @@ from logging import getLogger
 
 from tatau_core.db import models, fields
 
-logger = getLogger()
+logger = getLogger('tatau_core')
 
 
 class BenchmarkInfo(models.Model):

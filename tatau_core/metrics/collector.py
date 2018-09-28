@@ -7,7 +7,7 @@ from psutil import NoSuchProcess
 
 from tatau_core.metrics import ProcessSnapshot
 
-logger = getLogger()
+logger = getLogger('tatau_core')
 
 
 class MetricsCollector:

@@ -12,7 +12,7 @@ from torchvision.models.resnet import resnet50, BasicBlock, Bottleneck
 from tatau_core.nn.torch import model
 from tatau_core.nn.torch.utils.fast_preprocessing import fast_collate, DataPrefetcher
 
-logger = getLogger(__name__)
+logger = getLogger('tatau_core')
 
 
 class Model(model.Model):

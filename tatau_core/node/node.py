@@ -11,7 +11,7 @@ from tatau_core.settings import ROOT_DIR
 from tatau_core.utils.encryption import Encryption
 from tatau_core.utils.ipfs import IPFS
 
-logger = getLogger()
+logger = getLogger('tatau_core')
 
 
 # noinspection PyMethodMayBeStatic

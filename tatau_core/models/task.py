@@ -13,7 +13,7 @@ from tatau_core.models.train_model import TrainModel
 from tatau_core.models.verification import VerificationAssignment, VerificationResult
 from tatau_core.utils import cached_property
 
-logger = getLogger()
+logger = getLogger('tatau_core')
 
 ListEstimationAssignments = List[EstimationAssignment]
 ListTaskAssignments = List[TaskAssignment]
@@ -38,7 +38,7 @@ class TaskDeclaration(models.Model):
     dataset_id = fields.CharField(immutable=True)
     train_model_id = fields.CharField(immutable=True)
 
-    weights_ipfs = fields.EncryptedCharField(required=False)
+    weights_ipfs = fields.CharField(required=True)
     loss = fields.FloatField(required=False)
     accuracy = fields.FloatField(required=False)
 

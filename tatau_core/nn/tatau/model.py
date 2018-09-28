@@ -6,7 +6,7 @@ from .progress import TrainProgress
 from tatau_core.utils.class_loader import load_class
 from torch.utils.data import DataLoader
 
-logger = getLogger(__name__)
+logger = getLogger('tatau_core')
 
 
 class Model(ABC):

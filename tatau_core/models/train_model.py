@@ -3,12 +3,12 @@ from logging import getLogger
 from tatau_core.db import models, fields
 from tatau_core.utils.ipfs import IPFS
 
-logger = getLogger()
+logger = getLogger('tatau_core')
 
 
 class TrainModel(models.Model):
-    name = fields.CharField(immutable=True)
-    code_ipfs = fields.EncryptedCharField(immutable=False)
+    name = fields.EncryptedCharField(immutable=True)
+    code_ipfs = fields.EncryptedCharField(immutable=True)
 
     @classmethod
     def upload_and_create(cls, code_path, **kwargs):

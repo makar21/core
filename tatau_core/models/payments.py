@@ -5,7 +5,7 @@ from tatau_core.models.task import TaskDeclaration
 from tatau_core.models.nodes import ProducerNode, WorkerNode, VerifierNode
 from tatau_core.utils import cached_property
 
-logger = getLogger()
+logger = getLogger('tatau_core')
 
 
 class WorkerPayment(models.Model):

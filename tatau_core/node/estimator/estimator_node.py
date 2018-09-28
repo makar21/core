@@ -3,12 +3,13 @@ import time
 from logging import getLogger
 
 from tatau_core import settings
+from tatau_core.db.db import use_async_commits
 from tatau_core.models import TaskDeclaration, EstimationAssignment
 from tatau_core.models.estimation import EstimationResult
 from tatau_core.nn.tatau.sessions.estimation import EstimationSession
 from tatau_core.node import Node
 
-logger = getLogger()
+logger = getLogger('tatau_core')
 
 
 # noinspection PyMethodMayBeStatic
@@ -16,6 +17,7 @@ class Estimator(Node):
     # estimator is not stand alone role
     asset_class = Node
 
+    @use_async_commits
     def _process_task_declaration(self, task_declaration: TaskDeclaration):
         if task_declaration.state == TaskDeclaration.State.ESTIMATE_IS_REQUIRED \
                 and task_declaration.estimators_needed > 0:
@@ -57,6 +59,7 @@ class Estimator(Node):
 
             logger.info('Added {}'.format(estimation_assignment))
 
+    @use_async_commits
     def _process_estimation_assignment(self, estimation_assignment: EstimationAssignment):
         if estimation_assignment.task_declaration.in_finished_state:
             return
@@ -73,6 +76,7 @@ class Estimator(Node):
             estimation_assignment.save(recipients=estimation_assignment.task_declaration.producer.address)
             return
 
+    @use_async_commits
     def _estimate(self, estimation_assignment: EstimationAssignment):
         logger.info('Start of estimation for {}'.format(estimation_assignment.task_declaration))
 
