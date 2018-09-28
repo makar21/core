@@ -186,7 +186,7 @@ def print_task_declaration(task_declaration):
 
     logger.info('-------------------------------------------------------------------------------------------')
     if task_declaration.state == TaskDeclaration.State.COMPLETED:
-        logger.info('Result: {}'.format(yellow(task_declaration.weights)))
+        logger.info('Result: {}'.format(yellow(task_declaration.weights_ipfs)))
 
 
 def monitor_task(asset_id, producer):

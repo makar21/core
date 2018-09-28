@@ -4,13 +4,13 @@ from collections import deque
 from logging import getLogger
 
 import nacl.signing
-from bigchaindb_driver import BigchainDB
 from bigchaindb_driver.crypto import CryptoKeypair, generate_keypair
 from cryptoconditions.crypto import Base58Encoder
 from pymongo import MongoClient
 
 from tatau_core import settings
 from tatau_core.db import query
+from tatau_core.db.bigchaindb import TatauBigchainDB
 from tatau_core.utils.signleton import singleton
 
 logger = getLogger('tatau_core')
@@ -58,7 +58,7 @@ def use_async_commits(func):
 
 
 class DB:
-    bdb = BigchainDB(settings.BDB_ROOT_URL)
+    bdb = TatauBigchainDB(settings.BDB_ROOT_URL)
 
     def __init__(self):
         self.mongo_client = None
