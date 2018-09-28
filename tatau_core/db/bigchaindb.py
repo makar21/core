@@ -26,7 +26,7 @@ def handle_bdb_exceptions(func):
                 logger.debug(ex)
 
                 if isinstance(ex, bigchaindb_driver.exceptions.BadRequest):
-                    if 'already exists' in ex.info['message'] or 'DoubleSpend' in ex.info['message']:
+                    if 'DuplicateTransaction' in ex.info['message'] or 'DoubleSpend' in ex.info['message']:
                         return
 
                 retry_count -= 1
