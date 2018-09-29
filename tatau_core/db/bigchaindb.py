@@ -16,14 +16,14 @@ def handle_bdb_exceptions(func):
             try:
                 func(*args)
             except urllib3.exceptions.ProtocolError as ex:
-                logger.exception(ex)
+                logger.warning("TX {} error: {}".format(args[1]['id'], ex))
 
                 retry_count -= 1
                 if retry_count == 0:
                     raise
                 time.sleep(10)
             except bigchaindb_driver.exceptions.TransportError as ex:
-                logger.exception(ex)
+                logger.warning("TX {} error: {}".format(args[1]['id'], ex))
 
                 if isinstance(ex, bigchaindb_driver.exceptions.BadRequest):
                     if 'DuplicateTransaction' in ex.info['message'] or 'DoubleSpend' in ex.info['message']:
@@ -34,7 +34,7 @@ def handle_bdb_exceptions(func):
                     raise
                 time.sleep(3)
             except Exception as ex:
-                logger.debug(ex)
+                logger.warning("TX {} error: {}".format(args[1]['id'], ex))
 
                 retry_count -= 1
                 if retry_count == 0:
