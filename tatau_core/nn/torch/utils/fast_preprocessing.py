@@ -3,17 +3,20 @@ import numpy as np
 
 
 def fast_collate(batch):
-    imgs = [img[0] for img in batch]
+    images = [img[0] for img in batch]
+    # noinspection PyCallingNonCallable,PyUnresolvedReferences
     targets = torch.tensor([target[1] for target in batch], dtype=torch.int64)
-    w = imgs[0].size[0]
-    h = imgs[0].size[1]
-    tensor = torch.zeros((len(imgs), 3, h, w), dtype=torch.uint8)
-    for i, img in enumerate(imgs):
+    w = images[0].size[0]
+    h = images[0].size[1]
+    # noinspection PyUnresolvedReferences
+    tensor = torch.zeros((len(images), 3, h, w), dtype=torch.uint8)
+    for i, img in enumerate(images):
         nump_array = np.asarray(img, dtype=np.uint8)
         if nump_array.ndim < 3:
             nump_array = np.expand_dims(nump_array, axis=-1)
         nump_array = np.rollaxis(nump_array, 2)
 
+        # noinspection PyUnresolvedReferences
         tensor[i] += torch.from_numpy(nump_array)
 
     return tensor, targets
@@ -30,8 +33,10 @@ class DataPrefetcher:
         self._next_target = None
         self._next_input = None
         if normalize_mean is not None:
+            # noinspection PyCallingNonCallable
             self._mean = torch.tensor(normalize_mean).cuda().view(1, 3, 1, 1)
         if normalize_std is not None:
+            # noinspection PyCallingNonCallable
             self._std = torch.tensor(normalize_std).cuda().view(1, 3, 1, 1)
         self._preload()
 
