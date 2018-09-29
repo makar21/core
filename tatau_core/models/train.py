@@ -4,13 +4,12 @@ from tatau_core.db import models, fields
 from tatau_core.models.nodes import ProducerNode, WorkerNode
 from tatau_core.utils import cached_property
 
-logger = getLogger()
+logger = getLogger('tatau_core')
 
 
 class TrainData(models.Model):
     # owner only producer, share data with workers
     data_index = fields.IntegerField(immutable=True)
-    batch_size = fields.IntegerField(immutable=True)
 
     # this data may be encrypted for different workers
     model_code_ipfs = fields.EncryptedCharField()
@@ -20,10 +19,26 @@ class TrainData(models.Model):
     test_chunks_ipfs = fields.EncryptedJsonField()
 
     task_assignment_id = fields.CharField(null=True, initial=None)
-    initial_weights_ipfs = fields.EncryptedCharField()
-    epochs = fields.IntegerField()
-    # train data will be always created for 1st iteration
-    current_iteration = fields.IntegerField(initial=1)
+
+    @cached_property
+    def task_assignment(self):
+        return TaskAssignment.get(asset_id=self.task_assignment_id, db=self.db, encryption=self.encryption)
+
+    @cached_property
+    def current_iteration(self):
+        return self.task_assignment.task_declaration.current_iteration
+
+    @cached_property
+    def weights_ipfs(self):
+        return self.task_assignment.task_declaration.weights_ipfs
+
+    @cached_property
+    def epochs(self):
+        return self.task_assignment.task_declaration.epochs_in_current_iteration
+
+    @cached_property
+    def batch_size(self):
+        return self.task_assignment.task_declaration.batch_size
 
 
 class TrainResult(models.Model):
@@ -40,7 +55,7 @@ class TrainResult(models.Model):
     tflops = fields.FloatField(initial=0.0)
     current_iteration = fields.IntegerField(initial=0)
 
-    weights_ipfs = fields.EncryptedCharField(required=False)
+    weights_ipfs = fields.CharField(required=False)
     error = fields.EncryptedCharField(required=False)
 
     loss = fields.FloatField(required=False)

@@ -4,7 +4,7 @@ from tatau_core.db import models, fields
 from tatau_core.models.nodes import ProducerNode, VerifierNode
 from tatau_core.utils import cached_property
 
-logger = getLogger()
+logger = getLogger('tatau_core')
 
 
 class VerificationData(models.Model):
@@ -14,9 +14,19 @@ class VerificationData(models.Model):
 
     verification_assignment_id = fields.CharField()
     train_results = fields.EncryptedJsonField()
-    # verification data will be always created for 1st iteration
-    current_iteration = fields.IntegerField(initial=1)
-    current_iteration_retry = fields.IntegerField(initial=0)
+
+    @cached_property
+    def verification_assignment(self):
+        return VerificationAssignment.get(
+            asset_id=self.verification_assignment_id, db=self.db, encryption=self.encryption)
+
+    @cached_property
+    def current_iteration(self):
+        return self.verification_assignment.task_declaration.current_iteration
+
+    @cached_property
+    def current_iteration_retry(self):
+        return self.verification_assignment.task_declaration.current_iteration_retry
 
 
 class VerificationResult(models.Model):

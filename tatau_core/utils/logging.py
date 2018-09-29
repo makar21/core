@@ -19,5 +19,4 @@ def configure_logging(name):
             SentryHandler(client, level=logging.ERROR)
         ],
     )
-    logging.getLogger(name).setLevel('DEBUG')
-    logging.getLogger('tatau_core').setLevel('DEBUG')
+    logging.getLogger('tatau_core').setLevel(settings.TATAU_CORE_LOG_LVL)

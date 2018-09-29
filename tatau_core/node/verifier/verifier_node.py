@@ -6,6 +6,7 @@ import requests
 
 from tatau_core import settings
 from tatau_core.contract import poa_wrapper
+from tatau_core.db.db import use_async_commits
 from tatau_core.models import VerifierNode, TaskDeclaration, VerificationAssignment
 from tatau_core.models.verification import VerificationResult, DistributeHistory
 from tatau_core.nn.tatau.sessions.eval_verification import VerificationEvalSession
@@ -13,7 +14,7 @@ from tatau_core.nn.tatau.sessions.summarize import SummarizeSession
 from tatau_core.node.node import Node
 from tatau_core.utils.ipfs import Downloader
 
-logger = getLogger()
+logger = getLogger('tatau_core')
 
 
 # noinspection PyMethodMayBeStatic
@@ -21,6 +22,7 @@ class Verifier(Node):
 
     asset_class = VerifierNode
 
+    @use_async_commits
     def _process_task_declaration(self, task_declaration):
         if task_declaration.in_finished_state:
             self._finish_job(task_declaration)
@@ -72,6 +74,7 @@ class Verifier(Node):
 
             logger.info('Added {}'.format(verification_assignment))
 
+    @use_async_commits
     def _process_verification_assignment(self, verification_assignment):
         if verification_assignment.task_declaration.in_finished_state:
             return
@@ -91,6 +94,7 @@ class Verifier(Node):
                 self._verify(verification_assignment)
                 return
 
+    @use_async_commits
     def _distribute(self, verification_assignment):
         task_declaration = verification_assignment.task_declaration
         poa_wrapper.distribute(task_declaration, verification_assignment)
@@ -100,6 +104,7 @@ class Verifier(Node):
         verification_assignment.verification_result.state = VerificationResult.State.FINISHED
         verification_assignment.verification_result.save()
 
+    @use_async_commits
     def _finish_job(self, task_declaration):
         if not poa_wrapper.does_job_exist(task_declaration):
             return
@@ -129,23 +134,27 @@ class Verifier(Node):
         poa_wrapper.distribute(task_declaration, verification_assignment)
         poa_wrapper.finish_job(task_declaration)
 
+    @use_async_commits
     def _dump_error(self, assignment, ex: Exception):
         assignment.verification_result.error = json.dumps(self._parse_exception(ex))
         assignment.verification_result.state = VerificationResult.State.FINISHED
         assignment.verification_result.save()
         logger.exception(ex)
 
+    @use_async_commits
     def _run_verification_session(self, verification_assignment: VerificationAssignment):
         # verifier repository can be absent
         from verifier.session import VerifySession
         return self._run_session(verification_assignment, session=VerifySession())
 
+    @use_async_commits
     def _is_fake_worker_present(self, verification_assignment):
         for result in verification_assignment.verification_result.result:
             if result['is_fake']:
                 return True
         return False
 
+    @use_async_commits
     def _verify(self, verification_assignment: VerificationAssignment):
         verification_assignment.verification_result.clean()
         verification_assignment.verification_result.current_iteration = \
@@ -189,6 +198,7 @@ class Verifier(Node):
 
         self._distribute(verification_assignment)
 
+    @use_async_commits
     def _process_task_declarations(self):
         task_declarations = TaskDeclaration.enumerate(created_by_user=False, db=self.db, encryption=self.encryption)
         for task_declaration in task_declarations:
@@ -204,6 +214,7 @@ class Verifier(Node):
             except Exception as ex:
                 logger.exception(ex)
 
+    @use_async_commits
     def _process_verification_assignments(self):
         for verification_assignment in VerificationAssignment.enumerate(db=self.db, encryption=self.encryption):
             try:

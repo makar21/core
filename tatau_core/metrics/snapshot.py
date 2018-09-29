@@ -7,7 +7,7 @@ import psutil
 
 from tatau_core import settings
 
-logger = getLogger()
+logger = getLogger('tatau_core')
 
 
 class GpuMetric(object):

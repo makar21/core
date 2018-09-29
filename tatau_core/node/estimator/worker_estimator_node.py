@@ -6,7 +6,7 @@ from tatau_core.models import WorkerNode, TaskDeclaration
 from tatau_core.node.estimator.estimator_node import Estimator
 from tatau_core.node.worker.worker_node import Worker
 
-logger = getLogger()
+logger = getLogger('tatau_core')
 
 
 class WorkerEstimator(Worker, Estimator):

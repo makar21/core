@@ -9,9 +9,10 @@ import ipfsapi
 
 from tatau_core import settings
 from tatau_core.settings import IPFS_GATEWAY_HOST
+from tatau_core.utils.signleton import singleton
 from tatau_core.utils.misc import get_dir_size
 
-logger = getLogger()
+logger = getLogger('tatau_core')
 
 
 class File:
@@ -67,14 +68,8 @@ class Directory(File):
         return dirs, files
 
 
+@singleton
 class IPFS:
-    _instance = None
-
-    def __new__(cls, *args, **kwargs):
-        if not isinstance(cls._instance, cls):
-            cls._instance = object.__new__(cls, *args, **kwargs)
-        return cls._instance
-
     def __init__(self, host=settings.IPFS_HOST, port=settings.IPFS_PORT):
         self.api = ipfsapi.connect(host, port, chunk_size=1024*1024)
 
@@ -87,20 +82,20 @@ class IPFS:
         return self.api.id()['PublicKey']
 
     def download(self, multihash, target_dir):
-        logger.info('Downloading {} to {}'.format(multihash, target_dir))
+        logger.debug('Downloading {} to {}'.format(multihash, target_dir))
         self.api.get(multihash, filepath=target_dir, compress=False)
         target_path = os.path.join(target_dir, multihash)
         if not os.path.exists(target_path):
             logger.warning('IPFS download failed, try using gateway')
             result = urllib.request.urlretrieve(
                 url='http://{}/ipfs/{}'.format(IPFS_GATEWAY_HOST, multihash), filename=target_path)
-            logger.info('URL Retrieve: {}'.format(result))
+            logger.debug('URL Retrieve: {}'.format(result))
 
         if os.path.isfile(target_path):
-            logger.info(
+            logger.debug(
                 'Downloaded file {} size: {}Mb'.format(target_path, os.path.getsize(target_path) / 1024. / 1024.))
         else:
-            logger.info(
+            logger.debug(
                 'Downloaded dir {} size: {}Mb'.format(target_path, get_dir_size(target_path) / 1024. / 1024.))
         return target_path
 
@@ -121,7 +116,7 @@ class IPFS:
 
         data = self.api.add(file_path)
         result = File(ipfs_data=data)
-        logger.info("Upload complete: {}".format(file_path))
+        logger.info('Upload complete: {}'.format(file_path))
         return result
 
     def add_dir(self, dir_path, recursive=False):
@@ -179,11 +174,11 @@ class Downloader:
         return self._ipfs_instance
 
     def _download(self, multihash: str, file_names: list):
-        logger.info('Start download {}'.format(multihash))
+        logger.debug('Start download {}'.format(multihash))
         target_path = os.path.join(self.storage_dir_path, multihash)
 
         if os.path.exists(target_path):
-            logger.info('Already exist: {}'.format(target_path))
+            logger.debug('Already exist: {}'.format(target_path))
         else:
             self._ipfs.download(multihash, self.storage_dir_path)
 

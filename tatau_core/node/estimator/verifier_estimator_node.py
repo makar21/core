@@ -8,7 +8,7 @@ from tatau_core.models import TaskDeclaration, VerifierNode
 from tatau_core.node.estimator.estimator_node import Estimator
 from tatau_core.node.verifier import Verifier
 
-logger = getLogger()
+logger = getLogger('tatau_core')
 
 
 class VerifierEstimator(Verifier, Estimator):

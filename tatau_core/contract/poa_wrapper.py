@@ -5,7 +5,7 @@ from hexbytes import HexBytes
 from tatau_core import web3
 from tatau_core.contract import NodeContractInfo
 
-logger = getLogger()
+logger = getLogger('tatau_core')
 
 
 def issue_job(task_declaration, job_cost):
@@ -154,6 +154,7 @@ def distribute(task_declaration, verification_assignment):
     distribute_history.save()
 
     for worker_payment in worker_payments:
+        logger.info('Save payments for worker: {}, tokens: {}'.format(worker_payment.worker_id, worker_payment.tokens))
         worker_payment.save()
 
     if task_declaration.last_iteration:
@@ -162,3 +163,4 @@ def distribute(task_declaration, verification_assignment):
                 task_declaration, task_declaration.balance, distribute_total_amount))
         NodeContractInfo.get_contract().wait_for_transaction_mined(tx_hash)
 
+    logger.info('Job {} distributed async'.format(task_declaration))

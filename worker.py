@@ -8,7 +8,7 @@ from tatau_core.utils.logging import configure_logging
 
 configure_logging('worker')
 
-logger = getLogger()
+logger = getLogger('tatau_core')
 
 
 def load_credentials(account_address_var_name):

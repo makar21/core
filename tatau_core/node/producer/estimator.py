@@ -12,8 +12,6 @@ class Estimator:
         return {
             'chunk_ipfs': dirs[0].multihash,
             'model_code_ipfs': task_declaration.train_model.code_ipfs,
-            'batch_size': task_declaration.batch_size,
-            'initial_weights_ipfs': task_declaration.weights_ipfs
         }
 
     @staticmethod

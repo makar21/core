@@ -11,11 +11,11 @@ from tatau_core.db import models, fields
 from tatau_core.utils.file_downloader import FileDownloader
 from tatau_core.utils.ipfs import IPFS
 
-logger = getLogger()
+logger = getLogger('tatau_core')
 
 
 class Dataset(models.Model):
-    name = fields.CharField(immutable=True)
+    name = fields.EncryptedCharField(immutable=True)
     train_dir_ipfs = fields.EncryptedCharField(immutable=True)
     test_dir_ipfs = fields.EncryptedCharField(immutable=True)
 

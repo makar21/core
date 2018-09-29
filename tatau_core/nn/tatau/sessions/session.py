@@ -11,7 +11,7 @@ from uuid import uuid4
 
 from tatau_core.metrics import MetricsCollector
 
-logger = getLogger(__name__)
+logger = getLogger('tatau_core')
 
 
 class SessionValue:
