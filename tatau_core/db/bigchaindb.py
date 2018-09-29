@@ -14,32 +14,32 @@ def handle_bdb_exceptions(func):
         retry_count = 10
         while retry_count > 0:
             try:
-                func(*args)
+                return func(*args)
             except urllib3.exceptions.ProtocolError as ex:
                 logger.warning("TX {} error: {}".format(args[1]['id'], ex))
 
                 retry_count -= 1
                 if retry_count == 0:
                     raise
-                time.sleep(10)
+                time.sleep(1)
             except bigchaindb_driver.exceptions.TransportError as ex:
                 logger.warning("TX {} error: {}".format(args[1]['id'], ex))
 
                 if isinstance(ex, bigchaindb_driver.exceptions.BadRequest):
                     if 'DuplicateTransaction' in ex.info['message'] or 'DoubleSpend' in ex.info['message']:
-                        return
+                        return args[1]
 
                 retry_count -= 1
                 if retry_count == 0:
                     raise
-                time.sleep(3)
+                time.sleep(1)
             except Exception as ex:
                 logger.warning("TX {} error: {}".format(args[1]['id'], ex))
 
                 retry_count -= 1
                 if retry_count == 0:
                     raise
-                time.sleep(3)
+                time.sleep(1)
 
     return wrapper
 
@@ -47,12 +47,12 @@ def handle_bdb_exceptions(func):
 class TatauTransactionsEndpoint(TransactionsEndpoint):
     @handle_bdb_exceptions
     def send_commit(self, transaction, headers=None):
-        logger.debug("Send commit tx: {}".format(transaction['id']))
+        logger.debug("Send commit TX: {}".format(transaction['id']))
         return super(TatauTransactionsEndpoint, self).send_commit(transaction, headers)
 
     @handle_bdb_exceptions
     def send_async(self, transaction, headers=None):
-        logger.debug("Send async tx: {}".format(transaction['id']))
+        logger.debug("Send async TX: {}".format(transaction['id']))
         return super(TatauTransactionsEndpoint, self).send_async(transaction, headers)
 
 
