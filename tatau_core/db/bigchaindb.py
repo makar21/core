@@ -16,14 +16,14 @@ def handle_bdb_exceptions(func):
             try:
                 func(*args)
             except urllib3.exceptions.ProtocolError as ex:
-                logger.debug(ex)
+                logger.exception(ex)
 
                 retry_count -= 1
                 if retry_count == 0:
                     raise
                 time.sleep(10)
             except bigchaindb_driver.exceptions.TransportError as ex:
-                logger.debug(ex)
+                logger.exception(ex)
 
                 if isinstance(ex, bigchaindb_driver.exceptions.BadRequest):
                     if 'DuplicateTransaction' in ex.info['message'] or 'DoubleSpend' in ex.info['message']:
@@ -47,10 +47,12 @@ def handle_bdb_exceptions(func):
 class TatauTransactionsEndpoint(TransactionsEndpoint):
     @handle_bdb_exceptions
     def send_commit(self, transaction, headers=None):
+        logger.debug("Send commit tx: {}".format(transaction['id']))
         return super(TatauTransactionsEndpoint, self).send_commit(transaction, headers)
 
     @handle_bdb_exceptions
     def send_async(self, transaction, headers=None):
+        logger.debug("Send async tx: {}".format(transaction['id']))
         return super(TatauTransactionsEndpoint, self).send_async(transaction, headers)
 
 
