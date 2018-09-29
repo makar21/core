@@ -66,14 +66,14 @@ class Asset:
         asset_id = fulfilled_create_tx['id']
 
         # check is asset already created
+        logger.debug("Check is asset already created: {}".format(asset_id))
         txs = db.bdb.transactions.get(asset_id=asset_id)
         if len(txs):
-            created = False
+            logger.debug("Asset already exists: {}".format(asset_id))
             asset = cls(asset_id=asset_id, transactions=txs, db=db)
             asset._update_if_were_changes(metadata, recipients)
-            return asset, created
+            return asset, False
 
-        created = True
         from tatau_core.db.db import async_commit
         ac = async_commit()
         if ac.async:
@@ -81,7 +81,7 @@ class Asset:
             ac.add_tx_id(fulfilled_create_tx['id'])
         else:
             db.bdb.transactions.send_commit(fulfilled_create_tx)
-        return cls(asset_id=fulfilled_create_tx['id'], transactions=[fulfilled_create_tx], db=db), created
+        return cls(asset_id=fulfilled_create_tx['id'], transactions=[fulfilled_create_tx], db=db), True
 
     # noinspection PyMethodMayBeStatic
     def _dicts_are_equal(self, x, y):
