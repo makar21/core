@@ -4,7 +4,7 @@ import pickle
 from logging import getLogger
 
 import numpy as np
-from torch.utils.data import Dataset as TorchDataset, ConcatDataset
+from torch.utils.data import Dataset as TorchDataset, ConcatDataset, DataLoader
 from torchvision.datasets.folder import default_loader, find_classes, make_dataset, IMG_EXTENSIONS
 
 logger = getLogger(__name__)
@@ -177,3 +177,13 @@ class CachedImageFolder(CachedFolderDataset):
                                                 transform=transform,
                                                 target_transform=target_transform)
         self.imgs = self.samples
+
+
+class AutoDataLoader(DataLoader):
+    """
+    Basic data loader with automatic tune num_workers
+    """
+    def __init__(self, *args, **kwargs):
+        kwargs['num_workers'] = os.cpu_count()
+        logger.info("Data Loader use {} workers".format(kwargs['num_workers']))
+        super(AutoDataLoader, self).__init__(*args, **kwargs)
