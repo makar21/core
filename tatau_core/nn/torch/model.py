@@ -15,7 +15,7 @@ logger = getLogger('tatau_core')
 
 class Model(model.Model, metaclass=ABCMeta):
     weights_serializer_class = 'tatau_core.nn.torch.serializer.WeightsSerializer'
-    weights_summarizer_class = 'tatau_core.nn.torch.summarizer.Median'
+    weights_summarizer_class = 'tatau_core.nn.torch.summarizer.Mean'
 
     transform_train = None
     transform_eval = None
