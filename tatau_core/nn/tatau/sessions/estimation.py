@@ -24,13 +24,20 @@ class EstimationSession(Session):
         downloader = Downloader(assignment.task_declaration_id)
         downloader.add_to_download_list(assignment.estimation_data.model_code_ipfs, 'model.py')
         downloader.add_to_download_list(assignment.estimation_data.chunk_ipfs, 'estimate_train')
-        downloader.add_to_download_list(assignment.estimation_data.weights_ipfs, 'estimate_initial_weights')
+
+        initial_weight_file_name = None
+        if assignment.estimation_data.weights_ipfs is not None:
+            initial_weight_file_name = 'estimate_initial_weights'
+            downloader.add_to_download_list(assignment.estimation_data.weights_ipfs, initial_weight_file_name)
+        else:
+            logger.info('Initial weights are not set')
 
         downloader.download_all()
 
         self.model_path = downloader.resolve_path('model.py')
         self.train_chunk_dir = downloader.resolve_path('estimate_train')
-        self.init_weights_path = downloader.resolve_path('estimate_initial_weights')
+        self.init_weights_path = None if initial_weight_file_name is None \
+            else downloader.resolve_path('estimate_initial_weights')
 
         assignment.estimation_result.progress = 20.0
         assignment.estimation_result.save()
@@ -44,7 +51,11 @@ class EstimationSession(Session):
         current_iteration = int(sys.argv[4])
 
         model = Model.load_model(path=self.model_path)
-        model.load_weights(self.init_weights_path)
+        init_weights_path = self.init_weights_path
+        if init_weights_path is not None:
+            model.load_weights(init_weights_path)
+        else:
+            logger.info('Initial weights are not set')
 
         progress = TrainProgress()
 

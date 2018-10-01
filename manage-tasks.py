@@ -148,6 +148,7 @@ def print_task_declaration(task_declaration):
 
     logger.info('Dataset: {}'.format(data['dataset']))
     logger.info('Model: {}'.format(data['train_model']))
+    logger.info('Weights: {}'.format(yellow(data['weights_ipfs'])))
     logger.info('Estimators:{} Workers: {}, Verifiers: {}'.format(
         yellow((data['accepted_estimators'])), yellow(data['accepted_workers']), yellow(data['accepted_verifiers'])))
 
@@ -156,8 +157,9 @@ def print_task_declaration(task_declaration):
     logger.info('Current iteration: {}'.format(yellow(data['current_iteration'])))
 
     for iteration, value in data['history'].items():
-        logger.info('Iteration #{}\tloss: {}\taccuracy: {}\tduration: {}'.format(
-            iteration, green(value['loss']), green(value['accuracy']), green(value['duration'])))
+        logger.info('Iteration #{}\tloss: {}\taccuracy: {}\tduration: {}\tweights: {}'.format(
+            iteration, green(value['loss']), green(value['accuracy']), green(value['duration']),
+            yellow(value['weights_ipfs'])))
 
     logger.info('-------------------------------------------------------------------------------------------')
 
@@ -171,6 +173,8 @@ def print_task_declaration(task_declaration):
             if worker_info['loss'] and worker_info['accuracy']:
                 logger.info('\t\t\tloss: {}\taccuracy: {}'.format(
                     green(worker_info['loss']), green(worker_info['accuracy'])))
+            if worker_info['weights_ipfs']:
+                logger.info('\t\t\tweights: {}'.format(green(worker_info['weights_ipfs'])))
             logger.info('\n')
     logger.info('-------------------------------------------------------------------------------------------')
 
@@ -186,6 +190,10 @@ def print_task_declaration(task_declaration):
                     result_text += '\n\t\t\t\tworker: {} - {}'.format(
                         result['worker_id'], green('FAKE' if result['is_fake'] else 'OK'))
                 logger.info('\t\t\tResult: {}'.format(result_text))
+
+            if verifier_info['weights_ipfs']:
+                logger.info('\t\t\tweights: {}'.format(green(verifier_info['weights_ipfs'])))
+
             iteration += 1
 
     logger.info('-------------------------------------------------------------------------------------------')
