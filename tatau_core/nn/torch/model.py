@@ -20,7 +20,7 @@ class Model(model.Model, metaclass=ABCMeta):
     transform_train = None
     transform_eval = None
 
-    def __init__(self, optimizer_class, optimizer_kwargs, criterion):
+    def __init__(self, optimizer_class, optimizer_kwargs, criterion, is_fp16=False):
         super(Model, self).__init__()
 
         self._optimizer_kwargs = optimizer_kwargs
@@ -30,6 +30,14 @@ class Model(model.Model, metaclass=ABCMeta):
         logger.info("Model device: {}".format(self.device))
 
         self._model = self.native_model_factory()
+
+        self._is_fp16 = is_fp16
+        if self._is_fp16:
+            # Lazy load apex framework
+            # noinspection PyUnresolvedReferences
+            from apex.fp16_utils import network_to_half, FP16_Optimizer
+            self._model = network_to_half(self._model)
+
         self._gpu_count = torch.cuda.device_count() if torch.cuda.is_available() else 0
 
         logger.info("GPU count: {}".format(self._gpu_count))
@@ -41,6 +49,10 @@ class Model(model.Model, metaclass=ABCMeta):
         self._criterion = criterion.to(self.device)
 
         self._optimizer = optimizer_class(self._model.parameters(), **optimizer_kwargs)
+
+        if self._is_fp16:
+            self._optimizer = FP16_Optimizer(self._optimizer)
+
 
     @property
     def device(self):
@@ -71,6 +83,14 @@ class Model(model.Model, metaclass=ABCMeta):
         self.optimizer.load_state_dict(weights['optimizer'])
         # self._criterion.load_state_dict(weights['criterion'])
 
+    def optimizer_step(self, loss):
+        self.optimizer.zero_grad()
+        if self._is_fp16:
+            self.optimizer.backward(loss)
+        else:
+            loss.backward()
+        self.optimizer.step()
+
     def train(self, chunk_dirs: Iterable, batch_size: int, current_iteration: int,
               nb_epochs: int, train_progress: TrainProgress):
 
@@ -93,9 +113,10 @@ class Model(model.Model, metaclass=ABCMeta):
             correct = 0
             batch_started_at = time.time()
             for batch_idx, (input_, target) in enumerate(loader, 0):
+                if self._is_fp16 and not isinstance(input_, torch.HalfTensor):
+                    input_ = input_.half()
                 if self._gpu_count:
                     input_, target = input_.to(self.device), target.to(self.device)
-                self.optimizer.zero_grad()
                 output = self.native_model(input_)
                 loss = self._criterion(output, target)
                 loss_item = loss.item()
@@ -103,8 +124,7 @@ class Model(model.Model, metaclass=ABCMeta):
                 # noinspection PyUnresolvedReferences
                 _, predicted = torch.max(output.data, 1)
                 correct += predicted.eq(target).sum().item()
-                loss.backward()
-                self.optimizer.step()
+                self.optimizer_step(loss)
                 batch_finished_at = time.time()
                 batch_time = batch_finished_at - batch_started_at
                 batch_started_at = batch_finished_at
