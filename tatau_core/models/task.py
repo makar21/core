@@ -251,7 +251,8 @@ class TaskDeclaration(models.Model):
                     'cost': 0.0,
                     'start_time': None,
                     'end_time': None,
-                    'duration': None
+                    'duration': None,
+                    'weights_ipfs': td.weights_ipfs
                 }
 
     def _add_estimation_info(self, data):
@@ -311,7 +312,9 @@ class TaskDeclaration(models.Model):
                 'assignment_id': task_assignment.asset_id,
                 'start_time': None,
                 'end_time': None,
-                'duration': None
+                'duration': None,
+                'weights_ipfs': None,
+                'error': None
             }
 
             for tr in history:
@@ -337,6 +340,8 @@ class TaskDeclaration(models.Model):
 
                 if tr.state == TrainResult.State.FINISHED:
                     train_data['end_time'] = tr.modified_at
+                    train_data['weights_ipfs'] = tr.weights_ipfs
+                    train_data['error'] = tr.error
 
                     # update tflops
                     if data['history'].get(tr.current_iteration):
@@ -360,7 +365,9 @@ class TaskDeclaration(models.Model):
                         'assignment_id': task_assignment.asset_id,
                         'start_time': None,
                         'end_time': None,
-                        'duration': None
+                        'duration': None,
+                        'weights_ipfs': None,
+                        'error': None
                     }
 
             if train_data.get('state') and train_data['state'] != TrainResult.State.FINISHED:
@@ -390,7 +397,9 @@ class TaskDeclaration(models.Model):
                 'start_time': None,
                 'end_time': None,
                 'duration': None,
-                'results': []
+                'results': [],
+                'weights_ipfs': None,
+                'error': None
             }
 
             for vr in history:
@@ -422,6 +431,7 @@ class TaskDeclaration(models.Model):
                             results.append(prev_result)
 
                     verification_data['results'] = results
+                    verification_data['weights_ipfs'] = vr.weights
 
                 if vr.state == VerificationResult.State.FINISHED:
                     verification_data['end_time'] = vr.modified_at
@@ -452,7 +462,9 @@ class TaskDeclaration(models.Model):
                         'start_time': None,
                         'end_time': None,
                         'duration': None,
-                        'results': []
+                        'results': [],
+                        'weights_ipfs': vr.weights,
+                        'error': vr.error
                     }
 
             if verification_data.get('state') and verification_data['state'] != VerificationResult.State.FINISHED:
@@ -491,11 +503,9 @@ class TaskDeclaration(models.Model):
             'start_time': self.created_at,
             'end_time': None,
             'duration': None,
-            'balance': self.balance_info
+            'balance': self.balance_info,
+            'weights_ipfs': self.weights_ipfs
         }
-
-        if self.state == TaskDeclaration.State.COMPLETED:
-            data['train_result'] = self.weights_ipfs
 
         self._add_history_info(data)
         self._add_estimation_info(data)
@@ -510,4 +520,11 @@ class TaskDeclaration(models.Model):
 
                 iteration_data['duration'] = (end_time - iteration_data['start_time']).total_seconds()
 
+        end_time = datetime.datetime.utcnow().replace(tzinfo=data['start_time'].tzinfo)
+        if self.state == TaskDeclaration.State.COMPLETED:
+            data['train_result'] = self.weights_ipfs
+            data['end_time'] = data['history'][self.current_iteration]['end_time']
+            end_time = data['end_time']
+
+        data['duration'] = (end_time - data['start_time']).total_seconds()
         return data
