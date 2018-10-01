@@ -28,8 +28,12 @@ def train_local(train_dir, test_dir, model_path, batch_size, epochs):
         def progress_callback(self, progress):
             logger.info("Progress: {:.2f}".format(progress))
 
-    train_chunks = [os.path.join(train_dir, chunk_dir) for chunk_dir in os.listdir(train_dir)]
-    test_chunks = [os.path.join(test_dir, chunk_dir) for chunk_dir in os.listdir(test_dir)]
+    train_chunks = [
+        os.path.join(train_dir, chunk_dir) for chunk_dir in os.listdir(train_dir) if os.path.isdir(os.path.join(train_dir, chunk_dir))
+    ]
+    test_chunks = [
+        os.path.join(test_dir, chunk_dir) for chunk_dir in os.listdir(test_dir) if os.path.isdir(os.path.join(test_dir, chunk_dir))
+    ]
 
     model.train(
         chunk_dirs=train_chunks,
