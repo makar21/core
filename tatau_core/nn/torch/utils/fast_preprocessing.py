@@ -57,7 +57,7 @@ class DataPrefetcher:
             self._next_input = self._next_input.cuda(async=True)
             self._next_target = self._next_target.cuda(async=True)
 
-            if self._fp16:
+            if self._is_fp16:
                 self._next_target = self._next_target.half()
             else:
                 self._next_input = self._next_input.float()
