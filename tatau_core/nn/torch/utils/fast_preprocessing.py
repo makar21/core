@@ -23,7 +23,7 @@ def fast_collate(batch):
 
 
 class DataPrefetcher:
-    def __init__(self, loader, normalize_mean=None, normalize_std=None):
+    def __init__(self, loader, normalize_mean=None, normalize_std=None, is_fp16=False):
         self._loader = loader
         self._loader_iter = iter(loader)
         self.dataset = loader.dataset
@@ -32,12 +32,18 @@ class DataPrefetcher:
         self._std = None
         self._next_target = None
         self._next_input = None
+        self._is_fp16 = is_fp16
         if normalize_mean is not None:
             # noinspection PyCallingNonCallable
             self._mean = torch.tensor(normalize_mean).cuda().view(1, 3, 1, 1)
+            if self._is_fp16:
+                self._mean = self._mean.half()
         if normalize_std is not None:
             # noinspection PyCallingNonCallable
             self._std = torch.tensor(normalize_std).cuda().view(1, 3, 1, 1)
+            if self._is_fp16:
+                self._std = self._std.half()
+
         self._preload()
 
     def _preload(self):
@@ -50,7 +56,12 @@ class DataPrefetcher:
         with torch.cuda.stream(self._stream):
             self._next_input = self._next_input.cuda(async=True)
             self._next_target = self._next_target.cuda(async=True)
-            self._next_input = self._next_input.float()
+
+            if self._is_fp16:
+                self._next_target = self._next_target.half()
+            else:
+                self._next_input = self._next_input.float()
+
             if self._mean is not None:
                 self._next_input = self._next_input.sub_(self._mean)
             if self._std is not None:

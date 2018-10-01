@@ -83,6 +83,15 @@ class Model(ABC):
             batch_size=batch_size, shuffle=True, pin_memory=False)
 
     @abstractmethod
+    def optimizer_step(self, loss):
+        """
+        Calculate gradient and make optimizer step which depends from current loss
+        :param loss: step loss
+        :return:
+        """
+        pass
+
+    @abstractmethod
     def train(self, chunk_dirs: Iterable, batch_size: int, current_iteration: int,
               nb_epochs: int, train_progress: TrainProgress)-> list:
         """
