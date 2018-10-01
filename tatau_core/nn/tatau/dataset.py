@@ -20,6 +20,7 @@ class ChunkedDataset(TorchDataset):
         pass
 
 
+# TODO: replace with CachedFolderDataset
 class NumpyDataset(ChunkedDataset):
     def __init__(self, chunk_dir, mmap_mode='r', transform=None):
         self._mmap_mode = mmap_mode
@@ -39,7 +40,7 @@ class NumpyDataset(ChunkedDataset):
 
 
 class NumpyChunkedDataset(ConcatDataset):
-    def __init__(self, chunk_dirs, mmap_mode=None, transform=None):
+    def __init__(self, chunk_dirs, mmap_mode='r', transform=None):
         super(NumpyChunkedDataset, self).__init__(
             datasets=[
                 NumpyDataset(chunk_dir=chunk_dir, mmap_mode=mmap_mode, transform=transform)
