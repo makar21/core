@@ -38,7 +38,7 @@ class TaskDeclaration(models.Model):
     dataset_id = fields.CharField(immutable=True)
     train_model_id = fields.CharField(immutable=True)
 
-    weights_ipfs = fields.CharField(required=True)
+    weights_ipfs = fields.CharField(required=False)
     loss = fields.FloatField(required=False)
     accuracy = fields.FloatField(required=False)
 
