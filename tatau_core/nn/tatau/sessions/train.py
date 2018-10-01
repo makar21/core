@@ -32,8 +32,12 @@ class TrainSession(Session):
         downloader = Downloader(assignment.task_declaration_id)
         downloader.add_to_download_list(assignment.train_data.model_code_ipfs, 'model.py')
 
-        initial_weight_file_name = 'initial_weight_{}'.format(assignment.train_data.current_iteration)
-        downloader.add_to_download_list(assignment.train_data.weights_ipfs, initial_weight_file_name)
+        initial_weight_file_name = None
+        if assignment.train_data.weights_ipfs is not None:
+            initial_weight_file_name = 'initial_weight_{}'.format(assignment.train_data.current_iteration)
+            downloader.add_to_download_list(assignment.train_data.weights_ipfs, initial_weight_file_name)
+        else:
+            logger.info('Initial weights are not set')
 
         batch_size = assignment.train_data.batch_size
         epochs = assignment.train_data.epochs
@@ -48,7 +52,9 @@ class TrainSession(Session):
         logger.info('Dataset downloaded')
 
         self.model_path = downloader.resolve_path('model.py')
-        self.init_weights_path = downloader.resolve_path(initial_weight_file_name)
+        self.init_weights_path = None if initial_weight_file_name is None \
+            else downloader.resolve_path(initial_weight_file_name)
+
         self.chunk_dirs = chunk_dirs
 
         logger.info('Start training')
@@ -72,7 +78,11 @@ class TrainSession(Session):
         current_iteration = int(sys.argv[4])
 
         model = Model.load_model(path=self.model_path)
-        model.load_weights(self.init_weights_path)
+        init_weights_path = self.init_weights_path
+        if init_weights_path is not None:
+            model.load_weights(init_weights_path)
+        else:
+            logger.info('Initial weights are not set')
 
         progress = TrainProgress()
         train_history = model.train(
