@@ -152,8 +152,7 @@ def get_data_size(train_dir_path, test_dir_path, model_file_path):
 
 def run():
     ipfs = IPFS()
-    # read this from IPFS
-    ipfs.api.repo_gc()
+    ipfs.clean_repo()
 
     benchmark_info_ipfs = ''
     benchmark_config = get_benchmark_config(benchmark_info_ipfs)

@@ -776,9 +776,9 @@ class Producer(Node):
             task_declaration.tflops += va.verification_result.tflops
 
             # what to do if many verifiers ?
-            if va.verification_result.weights:
-                # if weights is None than fake workers are present
-                task_declaration.weights_ipfs = va.verification_result.weights
+            if va.verification_result.weights_ipfs:
+                # if weights_ipfs is None than fake workers are present
+                task_declaration.weights_ipfs = va.verification_result.weights_ipfs
                 if task_declaration.last_iteration:
                     task_declaration.loss = va.verification_result.loss
                     task_declaration.accuracy = va.verification_result.accuracy
