@@ -25,12 +25,16 @@ class SummarizeSession(Session):
         downloader.add_to_download_list(assignment.verification_data.model_code_ipfs, 'model.py')
 
         downloaded_results = deque()
+        ipfs_weights = deque()
+
         for worker_result in assignment.verification_data.train_results:
             file_name = 'tr_{}_{}_{}'.format(worker_result['worker_id'], assignment.verification_data.current_iteration,
                                              assignment.verification_data.current_iteration_retry)
 
             downloader.add_to_download_list(worker_result['result'], file_name)
             downloaded_results.append(downloader.resolve_path(file_name))
+
+            ipfs_weights.append(worker_result['result'])
 
         if not len(downloaded_results):
             logger.error('list of weights_ipfs is empty')
@@ -44,7 +48,10 @@ class SummarizeSession(Session):
         self._run()
 
         ipfs = IPFS()
-        verification_result.weights = ipfs.add_file(self.summarized_weights_path).multihash
+        verification_result.weights_ipfs = ipfs.add_file(self.summarized_weights_path).multihash
+
+        for multihash in ipfs_weights:
+            downloader.remove_from_storage(multihash)
 
     def main(self):
         logger.info('Run Summarizer')

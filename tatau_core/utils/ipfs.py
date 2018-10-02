@@ -146,6 +146,23 @@ class IPFS:
         """Returns a list of objects linked to by the given hash."""
         return self.api.ls(multihash=multihash, **kwargs)
 
+    def clean_repo(self):
+        # remove all pined files
+        for m, v in self.api.pin_ls('recursive')['Keys'].items():
+            self.api.pin_rm(m)
+
+        # clean repo
+        self.api.repo_gc()
+
+    def remove_from_storage(self, multihash):
+        try:
+            logger.debug('Removing from IPFS storage {}'.format(multihash))
+            self.api.pin_rm(multihash)
+
+            # blocks_rm ???
+        except ipfsapi.exceptions.ErrorResponse as ex:
+            logger.debug(ex)
+
 
 class Downloader:
 
@@ -181,6 +198,7 @@ class Downloader:
             logger.debug('Already exist: {}'.format(target_path))
         else:
             self._ipfs.download(multihash, self.storage_dir_path)
+            self._ipfs.remove_from_storage(multihash)
 
         for file_name in file_names:
             link_path = self.resolve_path(file_name)
@@ -219,3 +237,14 @@ class Downloader:
 
     def resolve_path(self, file_name):
         return os.path.join(self.storage_dir_path, file_name)
+
+    def remove_from_storage(self, multihash):
+        path_in_storage = self.resolve_path(multihash)
+        logger.debug('Removing {}'.format(path_in_storage))
+
+        try:
+            shutil.rmtree(path_in_storage)
+        except NotADirectoryError:
+            os.remove(path_in_storage)
+        except FileNotFoundError:
+            pass

@@ -3,6 +3,7 @@ from logging import getLogger
 from tatau_core.db import models, fields
 from tatau_core.models.nodes import ProducerNode, WorkerNode
 from tatau_core.utils import cached_property
+from tatau_core.utils.ipfs import IPFS
 
 logger = getLogger('tatau_core')
 
@@ -70,6 +71,10 @@ class TrainResult(models.Model):
     def clean(self):
         self.progress = 0.0
         self.tflops = 0.0
+        # remove from ipfs storage weights_ipfs from prev iteration
+        if self.weights_ipfs is not None:
+            IPFS().remove_from_storage(self.weights_ipfs)
+
         self.weights_ipfs = None
         self.error = None
         self.loss = 0.0

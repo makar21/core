@@ -3,6 +3,7 @@ from logging import getLogger
 from tatau_core.db import models, fields
 from tatau_core.models.nodes import ProducerNode, VerifierNode
 from tatau_core.utils import cached_property
+from tatau_core.utils.ipfs import IPFS
 
 logger = getLogger('tatau_core')
 
@@ -48,7 +49,7 @@ class VerificationResult(models.Model):
     # results should be public
     result = fields.JsonField(required=False)
 
-    weights = fields.EncryptedCharField(required=False)
+    weights_ipfs = fields.CharField(required=False)
     loss = fields.FloatField(required=False)
     accuracy = fields.FloatField(required=False)
 
@@ -58,7 +59,12 @@ class VerificationResult(models.Model):
         self.progress = 0.0
         self.tflops = 0.0
         self.result = None
-        self.weights = None
+
+        # remove from ipfs storage summarized weights_ipfs from prev iteration
+        if self.weights_ipfs is not None:
+            IPFS().remove_from_storage(self.weights_ipfs)
+
+        self.weights_ipfs = None
         self.loss = 0.0
         self.accuracy = 0.0
 

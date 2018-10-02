@@ -431,7 +431,7 @@ class TaskDeclaration(models.Model):
                             results.append(prev_result)
 
                     verification_data['results'] = results
-                    verification_data['weights_ipfs'] = vr.weights
+                    verification_data['weights_ipfs'] = vr.weights_ipfs
 
                 if vr.state == VerificationResult.State.FINISHED:
                     verification_data['end_time'] = vr.modified_at
@@ -463,7 +463,7 @@ class TaskDeclaration(models.Model):
                         'end_time': None,
                         'duration': None,
                         'results': [],
-                        'weights_ipfs': vr.weights,
+                        'weights_ipfs': vr.weights_ipfs,
                         'error': vr.error
                     }
 
