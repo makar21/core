@@ -113,6 +113,7 @@ class Model(model.Model, metaclass=ABCMeta):
             correct = 0
             batch_started_at = time.time()
             for batch_idx, (input_, target) in enumerate(loader, 0):
+                # noinspection PyUnresolvedReferences
                 if self._is_fp16 and not isinstance(input_, torch.HalfTensor):
                     input_ = input_.half()
                 if self._gpu_count:

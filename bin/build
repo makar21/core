@@ -3,5 +3,10 @@ docker-compose -f common.yml -f parity.yml -f worker.cpu.yml build --no-cache --
 docker-compose -f common.yml -f parity.yml -f worker.gpu.yml build --no-cache --force-rm
 docker-compose -f common.yml -f parity.yml -f verifier.yml build --no-cache --force-rm
 
-sudo chmod -R 777 ./docker/volumes/sandbox/tendermint
-sudo chmod -R 777 ./docker/volumes/production/tendermint
+#if [ -d "./docker/volumes/sandbox/tendermint" ]; then
+#    sudo chmod -R 777 ./docker/volumes/sandbox/tendermint
+#fi
+#
+#if [ -d "./docker/volumes/production/tendermint" ]; then
+#    sudo chmod -R 777 ./docker/volumes/production/tendermint
+#fi
