@@ -11,7 +11,7 @@ from uuid import uuid4
 
 from tatau_core.metrics import MetricsCollector
 
-logger = getLogger('tatau_core')
+logger = getLogger(__name__)
 
 
 class SessionValue:
@@ -113,6 +113,8 @@ class Session(metaclass=SessionBase):
 
     @classmethod
     def run(cls):
+        logger.debug("Args: {}".format(sys.argv[1:]))
+        # noinspection PyArgumentList
         session = cls(uuid=sys.argv[1])
         try:
             session.main()
