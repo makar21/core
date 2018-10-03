@@ -6,10 +6,12 @@ from logging import getLogger
 from tatau_core.models import TaskAssignment
 from tatau_core.nn.tatau.model import Model
 from tatau_core.nn.tatau.progress import TrainProgress
+from tatau_core.utils import configure_logging
 from tatau_core.utils.ipfs import IPFS, Downloader
 from .session import Session, SessionValue
 
-logger = getLogger('tatau_core')
+configure_logging()
+logger = getLogger('tatau_core.trainer')
 
 
 class TrainSession(Session):
@@ -98,4 +100,5 @@ class TrainSession(Session):
 
 
 if __name__ == '__main__':
+    logger.info("Start trainer")
     TrainSession.run()
