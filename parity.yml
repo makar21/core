@@ -7,6 +7,7 @@ services:
       - "127.0.0.1:$PARITY_JSONRPC_PORT:8545/tcp" # JSONRPC
       - "127.0.0.1:$PARITY_WEBSOCKET_PORT:8546/tcp" # websocket
       - "127.0.0.1:$PARITY_WEBSERVER_PORT:8180/tcp" # webserver
+      - "30310:30310/tcp"
       # - "127.0.0.1:8181:8080/tcp" # ?
     command: ["--base-path=/parity/data", "--logging=info", "--config=/parity/config/config.toml"]
     restart: always
